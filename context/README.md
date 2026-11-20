@@ -11,6 +11,9 @@ Its goals live in the coordinator's roadmap (`standards-lab/context/roadmap.toml
 It is built from experiment.hosting's spikes, and its design note settles which parts come from
 which spike.
 
+- [`design.md`](design.md): the design note: the layout, the `hosting` suite, the cleanup
+  inventory, and the settled findings.
+
 ## Capability map
 
 - **The `hosting` suite**: one command, `hosting <group> <verb>`, symlinked into `~/.local/bin`;
