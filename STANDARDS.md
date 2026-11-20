@@ -7,10 +7,9 @@ Markdown; ai-hosting holds no Go, so Go Elemental's pages don't apply.
 
 - `architecture/principles/comments.md`: every comment is one of the five kinds; a script, profile,
   Dockerfile, or compose file points at the document or principle that governs it with a one-line
-  reference instead of restating its reasoning, which lives in ai-hosting's documents (G13).
-- `architecture/principles/rolling-currency.md`: every pin is explicit and the latest release:
-  the mise tools, the vLLM image, each `compose/*/Dockerfile`'s `FROM`, and the audio image's
-  Python pins; a held pin carries its reason beside it.
+  reference instead of restating its reasoning, which lives in ai-hosting's documents.
+- `architecture/principles/rolling-currency.md`: every pin is explicit and one that `mise run
+  currency` reads, and a pin held behind the latest release carries its reason beside it.
 - `architecture/principles/minimal-footprint.md`: no Go toolchain and no module; a need is met by
   shell, Docker Compose, and a mise-pinned standard tool before anything heavier, and a host holds
   only what its rows serve.
