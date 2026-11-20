@@ -23,7 +23,7 @@ comments are cut to the five kinds, and the measurements behind them stay in
 `standards-lab/context/ai-hosting.md`. The rows' four standing entries are the only rows that
 carry; the profile is their one home, and `vllm-rows` is not carried beside it.
 
-The engines group `vllm` carries, renamed `engine`. These drop:
+The spike's `vllm` group carries over, renamed `engine`. These drop:
 
 - the group `vllm-native`: `host/vllm-native.sh`, its three commands, `host/vllm-server.service`,
   `host/vllm-server.sudoers`, and the `VLLM_NATIVE_PYTHON` pin;

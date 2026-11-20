@@ -32,7 +32,7 @@ plan of the task that builds it; the goal record holds the tasks and their order
   ([secrets.md](secrets.md)).
 - **Runbooks** (planned): one per host class.
 - **Upgrade evaluation** (planned): the convention and its `hosting-upgrades` skill.
-- **Admin tooling** (planned): after experiment.admin's intake, experiment.admin's Go CLI,
-  implementing the profile schema ([host-classes.md](host-classes.md)).
+- **Admin tooling** (planned): experiment.admin's Go CLI, which implements the profile schema
+  ([host-classes.md](host-classes.md)), built after experiment.admin's intake.
 - **One hosting repository per workstation** (planned): the `cleanup` task removes what the
   spikes left on each host ([cleanup.md](cleanup.md)).

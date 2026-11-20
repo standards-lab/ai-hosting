@@ -2,8 +2,8 @@
 
 What the `cleanup` task removes, so ai-hosting is the one hosting repository on each workstation
 and a host holds only what its rows serve. Each item is unconfirmed until `cleanup` checks it on
-the host, and the architect runs the steps that need root. What leaves the repository's own
-carried files is in [engines](engines.md), [host-class profiles](host-classes.md), and
+the host, and the architect runs the steps that need root. What ai-hosting drops from the spike
+files it carries is in [engines](engines.md), [host-class profiles](host-classes.md), and
 [the gateway](gateway.md).
 
 **Every workstation**
