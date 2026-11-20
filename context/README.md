@@ -11,7 +11,8 @@ Its goals live in the coordinator's roadmap (`standards-lab/context/roadmap.toml
 It is built from experiment.hosting's spikes, and its design note settles which parts come from
 which spike.
 
-- [`design.md`](design.md): the design note: the layout, the `hosting` suite, the cleanup
+- [`design.md`](design.md): the design note: the layout, the `hosting` suite, the gateway's
+  secrets, its open points, the Foundry scope for embedding overflow, the cleanup
   inventory, and the settled findings.
 
 ## Capability map
