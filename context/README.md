@@ -16,8 +16,7 @@ plan of the task that builds it; the goal record holds the tasks and their order
 
 - **The `hosting` suite** (planned): one command, `hosting <group> <verb>`, linked into
   `~/.local/bin` by `mise run install`, with the groups `engine`, `model`, `profile`, `gateway`,
-  and `key`. A command that differs by host class detects the class once and calls its private
-  per-class function ([hosting-suite.md](hosting-suite.md)).
+  and `key` ([hosting-suite.md](hosting-suite.md)).
 - **Host-class profiles** (planned): one TOML profile per class, the one home of each row, with
   the `profile` group's validator, renderer, and `set` ([host-classes.md](host-classes.md)).
 - **vLLM rows** (planned): the `engine` group installs, updates, and uninstalls each class's rows,

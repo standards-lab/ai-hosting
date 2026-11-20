@@ -10,9 +10,8 @@ convention; the [gateway](gateway.md) task builds the `key` group on it.
   global one.
 - The store holds the Foundry key and account, and the live spike gateway's `go-ai` key until the
   gateway task replaces it with issued keys.
-- Secrets reach the containers only as Compose secrets fed by fnox. The rendered config holds no
-  secret, so the spike's 0600/0700 rule drops. What agentgateway v1.7.0 can't read from a file or
-  the environment is open at the gateway plan.
+- Secrets reach the containers only as Compose secrets fed by fnox, and the rendered config holds
+  no secret ([gateway](gateway.md)).
 - A consumer's machine is an age recipient and reads its key, which `key issue` stored, after
   pulling the store.
 - The `key` group's verbs are the only ones that call fnox; the suite has no `secrets` group.
