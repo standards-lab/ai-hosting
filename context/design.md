@@ -3,7 +3,8 @@
 What ai-hosting takes from experiment.hosting's spikes, the `hosting` suite it builds from them,
 and what leaves each workstation once it stands. Spike files are cited as `path` at the spike's
 commit; spike-model-engines is read at `6ce3210`, spike-model-gateway at `2f2e8c1`,
-personal-agents' `outpost` at `d3e0755`, and go-web-service's compose files at `2e31ca4`.
+spike-model-hosting's profile package at `aac0764`, personal-agents' `outpost` at `d3e0755`, and
+go-web-service's compose files at `2e31ca4`.
 
 ## Layout
 
@@ -93,6 +94,55 @@ These drop:
 - `postgres.env`, the rendered config's secrets, and the 0600/0700 rule (see Secrets in the
   gateway).
 
+### From spike-model-hosting's profile package at `aac0764`
+
+The package carries as a documented TOML schema and a shell validator and renderer, the `hosting
+profile` group; no Go carries. The schema document is the contract experiment.admin's Go CLI
+implements.
+
+| Part in ai-hosting | Source | Task |
+| --- | --- | --- |
+| The validation discipline: closed keys, every error at once by key path, every command that reads a profile validates it first, a value placed on a command line refused if it holds whitespace or shell syntax | `hosting/profile/profile.go:420-450`, `:495-511`; `hosting/profile/presets.go:37-39`; `hosting/profile/unit.go:38-43` | hosts |
+| Provenance: publisher, origin, licence, card URL, and `origin_reason`; origin a closed list of country names, a restricted origin without `origin_reason` refused, a fine-tune's base origin recorded | `hosting/profile/profile.go:274-292`, `:574-582`; `docs/pool.md:55-58` | hosts; its first use, embedding |
+| The provenance entries of gpt-oss-120b, Gemma 4 26B-A4B, and Gemma 4 E4B | `devices/strix-halo/profile.toml:69-79`, `:118-128`, `:181-194` | hosts |
+| Required reasons, beside a row's cap, context, fraction, and free flags | `hosting/profile/profile.go:588-590`, `:629-631` | hosts |
+| `dims`, for an embedding row | `hosting/profile/profile.go:326-329`, `:609-614` | embedding |
+| Where the model store is mounted, a per-class value | `hosting/profile/profile.go:413-419` | hosts |
+| One directory per host class, holding its profile beside its runbook | `hosting/profile/locate.go:12-17` | hosts |
+| The check validates every committed profile, and fixture profiles: one valid, one per refusal, each with the error it must produce | `hosting/profile/profile_test.go`, `hosting/profile/testdata/README.md` | hosts |
+
+These drop:
+
+- all the Go code: `go.mod`, `go.sum`, and `github.com/BurntSushi/toml`; `hosting/profile/*.go`
+  and `hosting/cmd/profile/main.go`, the dispatcher, with its `engines`, `set`, and `render`
+  subcommands;
+- `hosting/profile/edit.go`'s evaluation overrides, `Override`, and `PresetSection`
+  (`hosting/profile/presets.go:73-131`); a narrow `profile set` is written fresh;
+- `hosting/profile/locate.go`, since the suite resolves the clone from the command's real path
+  and the class from detection;
+- llama.cpp's fields and templates: `engine`, `kv`, `defaults`, `mtmd_batch_max_tokens`, the
+  router-tag rule, `hosting/profile/presets.ini.tmpl`, `hosting/profile/unit.service.tmpl`,
+  `RenderPresets`, and `RenderUnit`;
+- `sets`, `startup`, `MaxSetModels`, `SetRoles`, and a model's `roles`;
+- `memory_budget` and the decode-ceiling fields `memory_bandwidth_gb_s`, `active_params_b`, and
+  `bits_per_weight`; the decode-ceiling method goes to the architecture task's "sizing a vLLM
+  row" page;
+- `engine.min_build` (`hosting/profile/profile.go:158-167`) and the `engines` subcommand
+  (`hosting/cmd/profile/main.go:110-148`); the `hosting engine` group is unaffected;
+- `sampling.reasoning` and `consumers`;
+- `prompts` and the ASR rule (`hosting/profile/profile.go:340-343`, `:733-735`); the e5 prefix
+  goes to the embedding row's runbook (embedding);
+- the unit, the `bind` field, and `Host`'s service user;
+- the golden files: `skeleton.ini`, `strix-halo.ini`, `strix-halo.service`, and
+  `unified-96gb.ini` in `hosting/profile/testdata/`;
+- the Strix Halo instance's values, `devices/strix-halo/profile.toml`, apart from the three
+  provenance entries;
+- `docs/pool.md`; its fine-tune origin rule is the provenance's base origin.
+
+`docs/model-cards.md`'s first two sections, "What each value means" and "Why a model runs at its
+card's values", go to the architecture task's "reading a model card" page, rewritten for a served
+checkpoint in place of a GGUF.
+
 ### Elsewhere from the spikes
 
 - **The pin's release.** `hosts` pins the vLLM release current when it builds, with the rows'
@@ -148,10 +198,6 @@ hf's token stays in the host's `~/.cache/huggingface`.
 Every row is an alias, checked against the class profile before Docker is touched. Each
 container carries a label with its row's id, and every listing reads the label.
 
-**Replacing a model.** `profile set` → `model pull` → `engine update` → commit. Evaluating the
-candidate before `profile set` is an upgrade kind, under `upgrades`' convention and its
-`hosting-upgrades` skill; the embedding task's replacement is the first and sets the pattern.
-
 ### Operator commands from `outpost`
 
 | Command | Source at `d3e0755` | Task |
@@ -186,6 +232,57 @@ The dispatch form of key issue and key revoke is settled at the hosts plan.
 **Handover.** gb10-2's old `gateway` project comes down before the new stack binds the same
 ports, and the new stack starts on a fresh Postgres volume; the old one held only the spike's
 benchmark traffic. `cleanup` removes what the old project leaves (Cleanup inventory, gb10-2).
+
+## The host-class profile
+
+Each host class in the closed list, `gb10` and `strix-halo`, has one profile, which lists every
+row the class can serve. The profile is the one home of every row; the spike's `vllm-rows` is not
+carried, and the row-to-host map derives from the profiles. The schema is TOML, and `mise.toml`
+gains a pinned TOML reader for the hosts, which currency reads.
+
+**A row** is one alias, `agent`, `vision`, `audio`, or `embedding`; the spike's role `chat` is
+`agent`. Its typed fields:
+
+- alias, model repository, context (at most the card's context), cap, GPU memory fraction, queue
+  limit, container, port, and an optional image;
+- provenance;
+- the reasons for its cap, context, and fraction, each stating the measurement behind the present
+  value and naming a document in ai-hosting, never a goal record or a value the row doesn't run
+  at;
+- the vLLM release its measurement ran on;
+- its load target, with the source of its measurement;
+- sampling, only where the checkpoint isn't its card publisher's, with the card's values and
+  their source, passed as a generation-config override; whether the vision row needs it is
+  hosts' to check;
+- `dims`, on an embedding row.
+
+The port is typed here; whether its home is the profile or the gateway is the gateway's plan.
+
+**Invariants.** Aliases, ports, and containers are unique in the profile; a queue limit, where
+set, is twice the cap; the fractions of the rows that stand together on a host sum to at most 1.
+
+**Free flags** pass through with one stated reason. The validator refuses the flags the typed
+fields and the suite own: `--host`, `--port`, `--served-model-name`, `--max-num-seqs`,
+`--max-model-len`, `--gpu-memory-utilization`, and `--max-num-queued-reqs`.
+
+**No host identity.** A profile names no host; the validator refuses an address or a MagicDNS
+name anywhere in it.
+
+**Which rows a host stands on** is the aliases given to `hosting engine install`, recorded on the
+host outside git; `engine update` and `engine uninstall` with no alias read that record.
+
+**The vLLM release** is the image pin currency reads; a profile holds no engine version. A
+read-only listing of the rows whose measurement ran on a release older than the pin, the rows an
+upgrade re-measures, is `upgrades`'.
+
+**Replacing a model.** `profile set` → `model pull` → `engine update` → commit. Replacing a model
+is an upgrade kind: `upgrades`' convention and its `hosting-upgrades` skill cover evaluating the
+candidate (its card, its provenance, a probe against the row's floors) before `profile set`. The
+embedding task's replacement is the first and sets the pattern.
+
+**go-ai profiles.** ai-hosting publishes each alias's go-ai profile as a JSON file in go-ai's own
+field names, declaring the reasoning efforts the row refuses (gateway). Acceptance runs go-ai's
+integration tier with them through `AI_<ROLE>_PROFILE`. go-ai's docs take an edit for it, pending.
 
 ## Secrets in the gateway
 
@@ -367,3 +464,33 @@ From the evaluation of spike-model-gateway at `2f2e8c1`.
 | G21 · `docs/gateway.md` lives in an archived spike | Accepted → gateway: ai-hosting's own gateway document; findings and comparison linked at `2f2e8c1` |
 | G22 · tailnet-bound containers | Accepted → gateway, on hosts: `gateway status` calls the stranded-container check |
 | G23 · every request traced | Accepted → gateway: 100% carried; the ratio settled with open point 6 |
+
+### spike-model-hosting's profile package
+
+From the evaluation of spike-model-hosting's profile package at `aac0764`.
+
+| Finding | Settlement |
+| --- | --- |
+| P1 · Go for about four rows | Accepted → hosts: no Go; a documented TOML schema, the validator and renderer as `hosting` commands, a pinned TOML reader |
+| P2 · every engine field and both renderers are llama.cpp's | Accepted → hosts: the fields, templates, and renderers drop |
+| P3 · sets contradict the layout | Accepted → hosts: sets, startup, `SetRoles`, `roles` drop; a row is one alias, `chat` is `agent` |
+| P4 · a class profile can't say which rows a host stands on | Accepted → hosts: one profile per class; aliases at install, recorded on the host; the class list closed and shared; the GB10 class named `gb10` |
+| P5 · the renderer shrinks to one command line | Accepted → hosts: the profile is every row's one home; `profile render` prints a row's `vllm serve` command, and install and update call it |
+| P6 · the validation discipline | Accepted → hosts: carried whole |
+| P7 · a vLLM row's fields and invariants | Accepted → hosts: typed fields and checked invariants; the port's home → gateway |
+| P8 · the free-flag deny-list | Accepted → hosts: free flags with a reason; only suite-owned and typed flags refused |
+| P9 · provenance and the origin check | Accepted → hosts: closed origin list, `origin_reason` required, base origin; first use → embedding |
+| P10 · reasons as required data | Accepted → hosts: reasons state the present measurement and cite ai-hosting's documents |
+| P11 · the memory budget measures the wrong constraint | Accepted → hosts: budget and decode-ceiling fields drop, load target with its source; the method → architecture |
+| P12 · a minimum build is not a pin | Accepted → hosts: `min_build` and the `profile engines` subcommand drop, the release is the image pin, each row records its measured-on release; the stale-row listing → upgrades |
+| P13 · required sampling has no vLLM target | Accepted → hosts: sampling optional, only for another publisher's checkpoint; the rule's text → architecture |
+| P14 · reasoning overlaps go-ai's profiles | Accepted → gateway: `sampling.reasoning` and `consumers` drop, each alias's go-ai profile published as JSON; acceptance runs it |
+| P15 · prompts are client configuration, `dims` a contract | Accepted → embedding: `prompts` and the ASR rule drop, `dims` carries, the e5 prefix in the runbook |
+| P16 · no host identity | Accepted → hosts: the validator refuses addresses and MagicDNS names; the unit, `bind`, and service user drop; the model store's mount stays |
+| P17 · the editing and sweep helpers | Accepted → hosts: `edit.go`'s overrides, `Override`, `PresetSection` drop; a narrow `profile set` is kept |
+| P18 · locating a profile | Accepted → hosts: `locate.go` drops; one directory per class |
+| P19 · the command misses the CLI standard | Accepted → hosts: `cmd/profile` drops; the `profile` group's `validate`, `render`, `set` |
+| P20 · the check must validate the profiles | Accepted → hosts: committed and fixture profiles in the check; golden files drop |
+| P21 · the Strix Halo instance | Accepted → hosts: its values drop; three models' provenance entries reused |
+| P22 · the two docs | Accepted → architecture: `docs/model-cards.md`'s first two sections to the model-card page; `docs/pool.md` drops |
+| P23 · the render's install paths | Accepted → cleanup: `/opt/llama.cpp/current`, `/etc/llama-router`, the router's unit, to confirm on the Framework |
