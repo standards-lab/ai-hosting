@@ -23,7 +23,8 @@ go-web-service's compose files at `2e31ca4`. The goal record holds the tasks and
 
 The audio image's `MIOPEN_FIND_MODE=FAST` skips MIOpen's live solver timing, which fails on the
 Framework's gfx1151: the base image turns off the direct and GEMM convolutions and ships no
-readable gfx1151 find database, so Gemma 4's audio encoder failed on audio of 10 s or more.
+readable gfx1151 find database, so without it Gemma 4's audio encoder fails on audio of 10 s or
+more.
 
 Each carried file gets a provenance line naming spike-model-engines at `6ce3210`. The rows' four
 standing entries are the only rows that carry; the profile is their one home, and `vllm-rows` is
@@ -92,8 +93,7 @@ These drop:
   `gateway:*` and `agentgateway-deploy` mise tasks, replaced by the `hosting gateway` group;
 - `deploy.env`'s image pin, which moves to the Dockerfile, and the deploy's removal of the
   pre-compose container;
-- `postgres.env`, the rendered config's secrets, and the 0600/0700 rule (see Secrets in the
-  gateway).
+- `postgres.env`, the rendered config's secrets, and the 0600/0700 rule (see Secrets).
 
 ### From spike-model-hosting's profile package at `aac0764`
 
@@ -108,7 +108,7 @@ implements.
 | The provenance entries of gpt-oss-120b, Gemma 4 26B-A4B, and Gemma 4 E4B | `devices/strix-halo/profile.toml:69-79`, `:118-128`, `:181-194` | hosts |
 | Required reasons, beside a row's cap, context, fraction, and free flags | `hosting/profile/profile.go:588-590`, `:629-631` | hosts |
 | `dims`, for an embedding row | `hosting/profile/profile.go:326-329`, `:609-614` | embedding |
-| Where the model store is mounted, a per-class value | `hosting/profile/profile.go:413-419` | hosts |
+| Where the model store is mounted: the spike held it per machine, in its `Host` struct; the class profile holds it (P16) | `hosting/profile/profile.go:413-419` | hosts |
 | One directory per host class, holding its profile beside its runbook | `hosting/profile/locate.go:12-17` | hosts |
 | The check validates every committed profile, and fixture profiles: one valid, one per refusal, each with the error it must produce | `hosting/profile/profile_test.go`, `hosting/profile/testdata/README.md` | hosts |
 
@@ -149,7 +149,7 @@ evaluation.
 card's values", go to the architecture task's "reading a model card" page, rewritten for a served
 checkpoint in place of a GGUF.
 
-### Elsewhere from the spikes
+### The vLLM release and off-pin rehearsal
 
 - **The pin's release.** `hosts` pins the vLLM release current when it builds, with the rows'
   flags unchanged; `acceptance` reruns the layout's floors on it and reads the Framework's start
@@ -240,7 +240,7 @@ benchmark traffic. `cleanup` removes what the old project leaves (Cleanup invent
 
 ### The `key` group
 
-Consumers' keys are their own group, built with the gateway.
+The `key` group manages each consumer's gateway key; the gateway task builds it.
 
 | Command | What it does | Task |
 | --- | --- | --- |
@@ -297,7 +297,7 @@ embedding task's replacement is the first and sets the pattern.
 field names, declaring the reasoning efforts the row refuses (gateway). Acceptance runs go-ai's
 integration tier with them through `AI_<ROLE>_PROFILE`.
 
-## Secrets in the gateway
+## Secrets
 
 - The workspace's development-time secret convention is fnox's age provider, read through mise's
   `[secrets.fnox]`, with a pinned `fnox exec` as the fallback. The values live in a private
@@ -308,9 +308,11 @@ integration tier with them through `AI_<ROLE>_PROFILE`.
   gateway task replaces it with issued keys.
 - Secrets reach the containers only as Compose secrets fed by fnox. The rendered config holds no
   secret, so the 0600/0700 rule drops.
-- A consumer's key is the `key` group's (The `key` group). A consumer's machine is an age
-  recipient and reads its key after pulling the store.
+- A consumer's machine is an age recipient and reads its key, which `key issue` stored, after
+  pulling the store.
 - The `key` group's verbs are the only ones that call fnox; the suite has no `secrets` group.
+- A published development credential is not a secret and stays committed: Azurite's well-known
+  key, MinIO's admin/secret, Postgres's "app", and go-web-service's `secrets.example.json`.
 
 ## Open at the task plans
 
@@ -330,8 +332,8 @@ What this note leaves to a later task's plan, each under the task that settles i
 
 ### gateway
 
-The gateway task's plan comments: open points it settles, not settled here. Sources are
-spike-model-gateway's at `2f2e8c1`.
+Six open points the gateway task's plan settles. Sources are spike-model-gateway's files at
+`2f2e8c1`.
 
 1. **The `/models` root.** Each alias's `/models` is the gateway's own answer, so go-ai v0.3.0's
    `Model.Native` carries no served model; pass the row's `root` through, or keep it hidden.
@@ -378,7 +380,7 @@ The plan also settles:
 
 ## multilingual-e5-large on Foundry managed compute
 
-What overflow for the embedding route would deploy, researched 2026-11-19. Acceptance proves a
+What overflow for the embedding route would deploy. Acceptance proves a
 Foundry managed-compute endpoint through the provider shape before the route gets an Azure group.
 
 **Sourced.**
@@ -421,8 +423,8 @@ flow: `https://learn.microsoft.com/en-us/azure/foundry-classic/how-to/deploy-mod
 
 ## Cleanup inventory
 
-What the `cleanup` task removes. Nothing here was checked on the hosts; each item is to confirm
-on the host. Root steps are the architect's.
+What the `cleanup` task removes. Each item is unconfirmed until `cleanup` checks it on the host,
+and the architect runs the steps that need root.
 
 **Every workstation**
 
@@ -530,7 +532,7 @@ From the evaluation of spike-model-hosting's profile package at `aac0764`.
 | P13 · required sampling has no vLLM target | Accepted → hosts: sampling optional, only for another publisher's checkpoint; the rule's text → architecture |
 | P14 · reasoning overlaps go-ai's profiles | Accepted → gateway: `sampling.reasoning` and `consumers` drop, each alias's go-ai profile published as JSON; acceptance runs it |
 | P15 · prompts are client configuration, `dims` a contract | Accepted → embedding: `prompts` and the ASR rule drop, `dims` carries, the e5 prefix in the runbook |
-| P16 · no host identity | Accepted → hosts: the validator refuses addresses and MagicDNS names; the unit, `bind`, and service user drop; the model store's mount stays |
+| P16 · no host identity | Accepted → hosts: the validator refuses addresses and MagicDNS names; the unit, `bind`, and service user drop; the model store's mount moves from `Host` to the class profile |
 | P17 · the editing and sweep helpers | Accepted → hosts: `edit.go`'s overrides, `Override`, `PresetSection` drop; a narrow `profile set` is kept |
 | P18 · locating a profile | Accepted → hosts: `locate.go` drops; one directory per class |
 | P19 · the command misses the CLI standard | Accepted → hosts: `cmd/profile` drops; the `profile` group's `validate`, `render`, `set` |

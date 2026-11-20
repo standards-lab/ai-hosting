@@ -23,6 +23,9 @@ Markdown; ai-hosting holds no Go, so Go Elemental's pages don't apply.
   thin consumer of the suite's shell library, which holds the logic the commands share.
 - `architecture/principles/repository-topology.md`: ai-hosting stands outside the five tiers,
   beside the harness repositories, and is the one hosting repository on each workstation.
+- `architecture/principles/`'s `resolution.md`, `downward-dependencies.md`, `service-tiers.md`,
+  `independent-releases.md`, `composition-root.md`, and `composition-terms.md` don't apply: they
+  govern Go modules, libraries, and services, and ai-hosting holds none.
 - Development-time secrets reach ai-hosting only through the workspace's fnox store, never a
   committed file; a published development credential is not a secret and stays committed (the
   architecture page arrives with the `secrets` task).
