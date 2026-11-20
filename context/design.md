@@ -4,7 +4,8 @@ What ai-hosting takes from experiment.hosting's spikes, the `hosting` suite it b
 and what leaves each workstation once it stands. Spike files are cited as `path` at the spike's
 commit; spike-model-engines is read at `6ce3210`, spike-model-gateway at `2f2e8c1`,
 spike-model-hosting's profile package at `aac0764`, personal-agents' `outpost` at `d3e0755`, and
-go-web-service's compose files at `2e31ca4`.
+go-web-service's compose files at `2e31ca4`. The goal's tasks, in order, are design, secrets,
+hosts, embedding, gateway, cleanup, upgrades, acceptance, and architecture.
 
 ## Layout
 
@@ -76,8 +77,9 @@ agentgateway's config changes on the way in:
 - tracing stays at 100%.
 
 Each file keeps one header and a provenance line naming spike-model-gateway at `2f2e8c1`; a
-comment that explains points to the document or principle that governs it. The row-to-host map
-derives from the host-class profiles, and one lookup of gb10-2's address serves every use. The
+comment that explains points to the document or principle that governs it. The map from each
+alias to its tailnet host has one home, the gateway's config; each alias's port derives from the
+host-class profiles, which name no host, and one lookup of gb10-2's address serves every use. The
 fixed `container_name` drops unless a `gateway` verb needs it, and the `spike.config-section`
 label is renamed. gb10-2's Compose version is read again, and one form of the attestation
 workaround stays, its reason in the gateway document.
@@ -139,6 +141,11 @@ These drop:
   provenance entries;
 - `docs/pool.md`; its fine-tune origin rule is the provenance's base origin.
 
+The rest of spike-model-hosting is not carried: `hosting/swap`, `hosting/router`,
+`hosting/probe`, and `hosting/cmd/swap` are llama.cpp's, and `evaluation/` and
+`devices/strix-halo/*`, apart from the three provenance entries above, served the spike's
+evaluation.
+
 `docs/model-cards.md`'s first two sections, "What each value means" and "Why a model runs at its
 card's values", go to the architecture task's "reading a model card" page, rewritten for a served
 checkpoint in place of a GGUF.
@@ -156,9 +163,9 @@ One root command, `hosting <group> <verb> [args]`, runs `hosting-<group>-<verb>`
 and lists the commands from their `# hosting:summary=` lines. A usage error goes to stderr and
 exits 2.
 
-**Install.** The install step links one file, `~/.local/bin/hosting`, to the dispatcher; the
-dispatcher resolves its own path, so every command runs from the clone. Uninstall removes that
-link only when it points into this clone.
+**Install.** `mise run install` links one file, `~/.local/bin/hosting`, to the dispatcher; the
+dispatcher resolves its own path, so every command runs from the clone. `mise run uninstall`
+removes that link only when it points into this clone.
 
 ### Host classes
 
@@ -176,6 +183,8 @@ function, and `HOSTING_CLASS`.
 
 ### Groups and verbs
 
+The suite's groups are `engine`, `model`, `profile`, `gateway`, and `key`.
+
 | Command | What it does | Task |
 | --- | --- | --- |
 | `engine install <alias>...` | Starts each named row from the class profile, and records the aliases on the host, outside git; runs `model pull` for the row's model first, and builds the row's image when it names one | hosts |
@@ -191,7 +200,8 @@ function, and `HOSTING_CLASS`.
 | `profile validate` | Validates the host-class profiles; the check runs it over every committed profile | hosts |
 | `profile render <alias>` | Prints the `vllm serve` command and container settings a row runs; install and update call the same function | hosts |
 | `profile set <alias> <field>=<value>` | Edits the committed profile, validating before it writes | hosts |
-| `gateway render`, `validate`, `up`, `down`, `reset`, `status`; key issue and key revoke | The gateway stack (see The `gateway` group) | gateway |
+| `gateway render`, `validate`, `up`, `down`, `reset`, `status` | The gateway stack (see The `gateway` group) | gateway |
+| `key issue <consumer>`, `key revoke <consumer>`, `key list` | A consumer's gateway key (see The `key` group) | gateway |
 
 hf's token stays in the host's `~/.cache/huggingface`.
 
@@ -205,11 +215,11 @@ container carries a label with its row's id, and every listing reads the label.
 | `engine status` | `admin/bin/outpost-service-status` (unit status and `/health`); the stranded-container check is new | hosts |
 | `engine models` | `admin/bin/outpost-server-models`, `list` only; load and unload drop, since model management stays off the serving API | hosts |
 | `engine metrics` | `admin/bin/outpost-server-metrics`, reading vLLM's metric names in place of llama.cpp's | hosts |
-| `engine memory` | `admin/bin/outpost-amd-usage` (`amdgpu_top -p`) for `strix-halo`; the GB10's source is open | hosts |
+| `engine memory` | `admin/bin/outpost-amd-usage` (`amdgpu_top -p`) for `strix-halo`; the GB10's source is open at the hosts plan | hosts |
 
-All four are read-only. The verb names `models`, `metrics`, and `memory` are this note's working
-names; hosts' plan confirms them. `outpost-preset-install` and `outpost-service-restart` drop, and
-`admin/install.sh`'s link-every-command install gives way to the one link above.
+All four are read-only, and their verb names are working names (Open at the task plans, hosts).
+`outpost-preset-install` and `outpost-service-restart` drop, and `admin/install.sh`'s
+link-every-command install gives way to the one link above.
 
 ### The `gateway` group
 
@@ -224,21 +234,27 @@ spike's laptop deploy and `gateway/compose.sh` did.
 | `gateway down` | Stops the stack, keeping its volumes | gateway |
 | `gateway reset` | Stops the stack and drops its volumes | gateway |
 | `gateway status` | The stack's state, and the stranded-container check for agentgateway and the Collector, the two containers bound to gb10-2's tailnet address | gateway, on what hosts builds |
-| key issue `<consumer>` | Generates a consumer's key, stores it encrypted under the consumer's name, and gives the gateway only its hash | gateway |
-| key revoke `<consumer>` | Deletes the stored key and its hash | gateway |
-
-The dispatch form of key issue and key revoke is settled at the hosts plan.
 
 **Handover.** gb10-2's old `gateway` project comes down before the new stack binds the same
 ports, and the new stack starts on a fresh Postgres volume; the old one held only the spike's
 benchmark traffic. `cleanup` removes what the old project leaves (Cleanup inventory, gb10-2).
 
+### The `key` group
+
+Consumers' keys are their own group, built with the gateway.
+
+| Command | What it does | Task |
+| --- | --- | --- |
+| `key issue <consumer>` | Generates a consumer's key, stores it in the `secrets` store under the consumer's name, and gives the gateway only its hash | gateway |
+| `key revoke <consumer>` | Deletes the stored key and its hash | gateway |
+| `key list` | The consumers that hold an issued key | gateway |
+
 ## The host-class profile
 
 Each host class in the closed list, `gb10` and `strix-halo`, has one profile, which lists every
 row the class can serve. The profile is the one home of every row; the spike's `vllm-rows` is not
-carried, and the row-to-host map derives from the profiles. The schema is TOML, and `mise.toml`
-gains a pinned TOML reader for the hosts, which currency reads.
+carried. The schema is TOML, and `mise.toml` gains a pinned TOML reader for the hosts, which
+currency reads.
 
 **A row** is one alias, `agent`, `vision`, `audio`, or `embedding`; the spike's role `chat` is
 `agent`. Its typed fields:
@@ -252,11 +268,11 @@ gains a pinned TOML reader for the hosts, which currency reads.
 - the vLLM release its measurement ran on;
 - its load target, with the source of its measurement;
 - sampling, only where the checkpoint isn't its card publisher's, with the card's values and
-  their source, passed as a generation-config override; whether the vision row needs it is
-  hosts' to check;
+  their source, passed as a generation-config override;
 - `dims`, on an embedding row.
 
-The port is typed here; whether its home is the profile or the gateway is the gateway's plan.
+The port's home is the profile; the gateway derives each alias's port from it, and the map from
+alias to tailnet host lives in the gateway's config.
 
 **Invariants.** Aliases, ports, and containers are unique in the profile; a queue limit, where
 set, is twice the cap; the fractions of the rows that stand together on a host sum to at most 1.
@@ -286,18 +302,38 @@ integration tier with them through `AI_<ROLE>_PROFILE`. go-ai's docs take an edi
 
 ## Secrets in the gateway
 
-- The workspace's dev-time secret store is SOPS with age, read through fnox from mise's
-  `[secrets.fnox]`, with a pinned `fnox exec` as the fallback. The `secrets` task, next after
-  design, sets up the convention before any other ai-hosting task; its exact shape is settled at
-  the secrets and gateway plans.
-- Secrets reach the containers only as Compose secrets fed by fnox: the Foundry key and the
-  Postgres password. The rendered config holds no secret, so the 0600/0700 rule drops.
-- `key issue <consumer>` stores the key encrypted under the consumer's name, and the gateway
-  holds only its hash. A consumer's machine is a recipient and reads its key after a pull.
-  `key revoke` deletes both.
-- The `gateway` key verbs are the only ones that call fnox; the suite has no `secrets` group.
+- The workspace's development-time secret convention is fnox's age provider, read through mise's
+  `[secrets.fnox]`, with a pinned `fnox exec` as the fallback. The values live in a private
+  `secrets` store repository, which each consumer's `fnox.toml` imports from its sibling
+  checkout: a global file and the consumer's own file, the repository's scope overriding the
+  global one. The `secrets` task, next after design, builds the store and the convention before
+  any other ai-hosting task.
+- The store holds the Foundry key and account, and the live spike gateway's `go-ai` key until the
+  gateway task replaces it with issued keys. hf's token stays in each host's cache.
+- Secrets reach the containers only as Compose secrets fed by fnox. The rendered config holds no
+  secret, so the 0600/0700 rule drops.
+- `hosting key issue <consumer>` stores the key in the store under the consumer's name, and the
+  gateway holds only its hash. A consumer's machine is an age recipient and reads its key after
+  pulling the store. `hosting key revoke` deletes both.
+- The `key` group's verbs are the only ones that call fnox; the suite has no `secrets` group.
 
-## Open at the gateway task's plan
+## Open at the task plans
+
+What this note leaves to a later task's plan, each under the task that settles it.
+
+### hosts
+
+- The read-only verb names: `engine status`, `models`, `metrics`, and `memory` are working names.
+- The GB10's source for `engine memory`'s GPU memory.
+- Where the host records its installed aliases.
+- Whether `engine uninstall` also removes the row's images.
+- Which TOML reader `mise.toml` pins.
+- The profiles' on-disk layout inside the one directory per class.
+- The restricted-origin list, citing `standards-lab/context/ai-strategy.md`, "Constraint: model
+  origin".
+- Whether the vision row needs a sampling override.
+
+### gateway
 
 The gateway task's plan comments: open points it settles, not settled here. Sources are
 spike-model-gateway's at `2f2e8c1`.
@@ -330,7 +366,18 @@ The plan also settles:
 - whether agentgateway v1.7.0 reads each secret from a file or the environment, and what to do
   with any it can't (G9);
 - the tracing ratio, with open point 6 (G23);
-- the ports' home: the host-class profile or the gateway.
+- the compose project's name;
+- the gateway document's path;
+- the per-alias overflow switch's form (G3);
+- whether a compose profile gates the observability services.
+
+### cleanup
+
+- Which spike clones each host holds (Cleanup inventory, every workstation).
+
+### upgrades
+
+- The verb of the read-only listing of rows measured on a release older than the pin.
 
 ## multilingual-e5-large on Foundry managed compute
 
@@ -427,7 +474,7 @@ From the evaluation of `host/` at `6ce3210`.
 | H9 · native vLLM drops | Accepted → hosts (not carried); `/opt/vllm`, unit, sudoers → cleanup |
 | H10 · preflight skips the bind and CDI | Accepted → hosts: sysctl and CDI checks; `docs/engines/` not carried; a runbook per class |
 | H11 · comments are history | Accepted → hosts: comments cut to the five kinds; measurements stay in `ai-hosting.md` |
-| H12 · the dispatcher carries | Accepted → hosts: `hosting`, `hosting-<group>-<verb>`, one link, usage exit 2; the group is `engine` |
+| H12 · the dispatcher carries | Accepted → hosts: `hosting`, `hosting-<group>-<verb>`, one link by `mise run install`, usage exit 2; the group is `engine` |
 | H13 · surrounding files | Accepted → hosts: currency's vLLM check and `.shellcheckrc` carry; `mise.host.toml` and `scripts/check.sh` drop; hf from ai-hosting's `mise.toml` |
 | H14 · v0.34.0 unmeasured | Accepted → acceptance: pin and flags carry at the current release; floors rerun, start log read |
 | Q16 · audio requests of 10 s or more fail in MIOpen on gfx1151 | Accepted → hosts: the audio Dockerfile carries `ENV MIOPEN_FIND_MODE=FAST` |
@@ -449,8 +496,8 @@ From the evaluation of spike-model-gateway at `2f2e8c1`.
 | G6 · budgets and buckets sized from benchmarks | Accepted → gateway: mechanism kept, amounts sized for the named consumers |
 | G7 · telemetry is traces only | Accepted → gateway: Collector, Tempo, Grafana kept; Loki, Mimir, `prometheus` and `fluentforward` receivers added from go-web-service; stats port and Tempo retention at the plan |
 | G8 · priority on Messages unproven | Accepted → acceptance: carried as is; acceptance proves it |
-| G9 · rendered config holds secrets, default mode | Revised → secrets, gateway: Compose secrets fed by fnox, no secret in the rendered config, the 0600/0700 rule drops; what v1.7.0 can't read from file or environment → gateway's plan |
-| G10 · laptop-side deploy | Accepted → gateway: the `hosting gateway` group; keys stored encrypted under SOPS and fnox, the gateway holds hashes |
+| G9 · rendered config holds secrets, default mode | Revised → secrets, gateway: values in the private `secrets` store through fnox's age provider and mise's `[secrets.fnox]`; Compose secrets fed by fnox, no secret in the rendered config, the 0600/0700 rule drops; what v1.7.0 can't read from file or environment → gateway's plan |
+| G10 · laptop-side deploy | Accepted → gateway: the `hosting gateway` group, and the `hosting key` group; keys stored in the `secrets` store through fnox's age provider, the gateway holds hashes |
 | G11 · new stack and `~/gateway` share every name | Accepted → gateway (old project down first, fresh Postgres volume); `~/gateway`, volumes, images → cleanup |
 | G12 · `compose.sh` starts with no config | Accepted → gateway: `up` refuses without a rendered config; validate-before-rename and `storage: readOnly` carry |
 | G13 · comments hold reasoning and history | Accepted → gateway: one header and a provenance line per file; reasoning in the gateway document, comments link to it |
@@ -458,7 +505,7 @@ From the evaluation of spike-model-gateway at `2f2e8c1`.
 | G15 · six probes served only the spike | Accepted → gateway: six drop; `rows-down` and the overlay code only if acceptance or G3's switch use them |
 | G16 · attestation workaround applied twice | Accepted → gateway: re-read gb10-2's Compose version, keep one form |
 | G17 · agentgateway's pin outside the image rule | Accepted → gateway: one-line Dockerfile, currency's `FROM` rule and `crane`, tag pattern for `v` tags; compose layered as go-web-service's |
-| G18 · row-to-host map in three files | Accepted → gateway: derived from the host-class profiles |
+| G18 · row-to-host map in three files | Accepted → gateway: the alias-to-host map's one home is the gateway's config; ports derive from the host-class profiles |
 | G19 · embedding's limits are granite's | Accepted → embedding (the figure, measured on the Framework beside the audio model), gateway (the value) |
 | G20 · watch register and upgrade convention overlap | Accepted → gateway (the register carries), upgrades (whether its skill runs it) |
 | G21 · `docs/gateway.md` lives in an archived spike | Accepted → gateway: ai-hosting's own gateway document; findings and comparison linked at `2f2e8c1` |
@@ -477,7 +524,7 @@ From the evaluation of spike-model-hosting's profile package at `aac0764`.
 | P4 · a class profile can't say which rows a host stands on | Accepted → hosts: one profile per class; aliases at install, recorded on the host; the class list closed and shared; the GB10 class named `gb10` |
 | P5 · the renderer shrinks to one command line | Accepted → hosts: the profile is every row's one home; `profile render` prints a row's `vllm serve` command, and install and update call it |
 | P6 · the validation discipline | Accepted → hosts: carried whole |
-| P7 · a vLLM row's fields and invariants | Accepted → hosts: typed fields and checked invariants; the port's home → gateway |
+| P7 · a vLLM row's fields and invariants | Accepted → hosts: typed fields and checked invariants; the port's home is the profile, and the gateway derives from it |
 | P8 · the free-flag deny-list | Accepted → hosts: free flags with a reason; only suite-owned and typed flags refused |
 | P9 · provenance and the origin check | Accepted → hosts: closed origin list, `origin_reason` required, base origin; first use → embedding |
 | P10 · reasons as required data | Accepted → hosts: reasons state the present measurement and cite ai-hosting's documents |

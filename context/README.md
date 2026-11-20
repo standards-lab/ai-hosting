@@ -12,8 +12,8 @@ It is built from experiment.hosting's spikes, and its design note settles which 
 which spike.
 
 - [`design.md`](design.md): the design note: the layout, the `hosting` suite, the gateway's
-  secrets, its open points, the Foundry scope for embedding overflow, the cleanup
-  inventory, and the settled findings.
+  secrets, what each later task's plan settles, the Foundry scope for embedding overflow, the
+  cleanup inventory, and the settled findings.
 
 ## Capability map
 
