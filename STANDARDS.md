@@ -2,10 +2,11 @@
 
 The judgement calls the standards-reviewer applies to ai-hosting, beyond what `mise run check`
 enforces: each one line, with a pointer to the architecture page that applies. They come from
-ai-hosting's design review, `context/design.md`, and apply to its shell, TOML, compose files, and
-Markdown; ai-hosting holds no Go, so Go Elemental's pages don't apply.
+ai-hosting's notes in `context/`, and apply to its shell, TOML, compose files, and Markdown;
+ai-hosting holds no Go, so Go Elemental's pages don't apply.
 
-- `architecture/principles/comments.md`: every comment is one of the five kinds; a script, profile,
+- `architecture/principles/comments.md`: every comment is one of the five kinds, in scripts and in
+  every configuration file (TOML, YAML, `.gitignore`), not just source; a script, profile,
   Dockerfile, or compose file points at the document or principle that governs it with a one-line
   reference instead of restating its reasoning, which lives in ai-hosting's documents.
 - `architecture/principles/rolling-currency.md`: every pin is explicit and one that `mise run
