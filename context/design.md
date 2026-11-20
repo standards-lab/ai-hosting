@@ -4,8 +4,7 @@ What ai-hosting takes from experiment.hosting's spikes, the `hosting` suite it b
 and what leaves each workstation once it stands. Spike files are cited as `path` at the spike's
 commit; spike-model-engines is read at `6ce3210`, spike-model-gateway at `2f2e8c1`,
 spike-model-hosting's profile package at `aac0764`, personal-agents' `outpost` at `d3e0755`, and
-go-web-service's compose files at `2e31ca4`. The goal's tasks, in order, are design, secrets,
-hosts, embedding, gateway, cleanup, upgrades, acceptance, and architecture.
+go-web-service's compose files at `2e31ca4`. The goal record holds the tasks and their order.
 
 ## Layout
 
@@ -251,9 +250,8 @@ Consumers' keys are their own group, built with the gateway.
 
 ## The host-class profile
 
-Each host class in the closed list, `gb10` and `strix-halo`, has one profile, which lists every
-row the class can serve. The profile is the one home of every row; the spike's `vllm-rows` is not
-carried. The schema is TOML, and `mise.toml` gains a pinned TOML reader for the hosts, which
+Each host class has one profile, which lists every row the class can serve and is each row's one
+home. The schema is TOML, and `mise.toml` gains a pinned TOML reader for the hosts, which
 currency reads.
 
 **A row** is one alias, `agent`, `vision`, `audio`, or `embedding`; the spike's role `chat` is
@@ -271,8 +269,7 @@ currency reads.
   their source, passed as a generation-config override;
 - `dims`, on an embedding row.
 
-The port's home is the profile; the gateway derives each alias's port from it, and the map from
-alias to tailnet host lives in the gateway's config.
+The port's home is the profile; the gateway derives each alias's port from it.
 
 **Invariants.** Aliases, ports, and containers are unique in the profile; a queue limit, where
 set, is twice the cap; the fractions of the rows that stand together on a host sum to at most 1.
@@ -298,7 +295,7 @@ embedding task's replacement is the first and sets the pattern.
 
 **go-ai profiles.** ai-hosting publishes each alias's go-ai profile as a JSON file in go-ai's own
 field names, declaring the reasoning efforts the row refuses (gateway). Acceptance runs go-ai's
-integration tier with them through `AI_<ROLE>_PROFILE`. go-ai's docs take an edit for it, pending.
+integration tier with them through `AI_<ROLE>_PROFILE`.
 
 ## Secrets in the gateway
 
@@ -306,15 +303,13 @@ integration tier with them through `AI_<ROLE>_PROFILE`. go-ai's docs take an edi
   `[secrets.fnox]`, with a pinned `fnox exec` as the fallback. The values live in a private
   `secrets` store repository, which each consumer's `fnox.toml` imports from its sibling
   checkout: a global file and the consumer's own file, the repository's scope overriding the
-  global one. The `secrets` task, next after design, builds the store and the convention before
-  any other ai-hosting task.
+  global one. The `secrets` task builds the store and the convention.
 - The store holds the Foundry key and account, and the live spike gateway's `go-ai` key until the
-  gateway task replaces it with issued keys. hf's token stays in each host's cache.
+  gateway task replaces it with issued keys.
 - Secrets reach the containers only as Compose secrets fed by fnox. The rendered config holds no
   secret, so the 0600/0700 rule drops.
-- `hosting key issue <consumer>` stores the key in the store under the consumer's name, and the
-  gateway holds only its hash. A consumer's machine is an age recipient and reads its key after
-  pulling the store. `hosting key revoke` deletes both.
+- A consumer's key is the `key` group's (The `key` group). A consumer's machine is an age
+  recipient and reads its key after pulling the store.
 - The `key` group's verbs are the only ones that call fnox; the suite has no `secrets` group.
 
 ## Open at the task plans
@@ -365,6 +360,8 @@ The plan also settles:
   class field in the key's metadata if v1.7.0 accepts one (G5, G6);
 - whether agentgateway v1.7.0 reads each secret from a file or the environment, and what to do
   with any it can't (G9);
+- the new stack's Postgres password: its source and whether the store holds it; the spike's
+  `postgres.env` isn't carried, and the volume is fresh (G9, G11);
 - the tracing ratio, with open point 6 (G23);
 - the compose project's name;
 - the gateway document's path;
