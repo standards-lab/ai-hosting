@@ -24,10 +24,9 @@ ai-hosting holds no Go, so Go Elemental's pages don't apply.
   beside the harness repositories, and is the one hosting repository on each workstation.
 - The remaining principle pages govern Go modules, libraries, and services, and ai-hosting holds
   none.
-- Development-time secrets live in ai-hosting's own committed, age-encrypted `fnox.toml`, each
-  with a description of what it is, what reads it, and how to generate one's own; no plaintext
-  secret is committed, and a published development credential is not a secret and stays
-  committed (the architecture page `architecture/principles/development-secrets.md` arrives with
-  the `secrets` task).
+- `architecture/principles/development-secrets.md`: development-time secrets live in ai-hosting's
+  own committed, age-encrypted `fnox.toml`, each with a description of what it is, what reads it,
+  and how to generate one's own; no plaintext secret is committed, and a published development
+  credential is not a secret and stays committed.
 - No tailnet identifier (MagicDNS suffix or address) is committed; hosts go by short name
   (`standards-lab/context/ai-hosting.md`).
