@@ -54,6 +54,6 @@ A device decrypts `fnox.toml` with its own age identity, which never leaves it. 
 4. Commit `fnox.toml` and pull it on the new device. `fnox -c ./fnox.toml get <KEY> | wc -c`
    there confirms it decrypts without printing the value.
 
-Removing a recipient and re-encrypting doesn't revoke it: the old ciphertext stays in git history,
-and the removed identity still decrypts it. Rotate each value at the source that issues it, then
-set it again.
+Removing a recipient doesn't revoke it (`architecture/principles/development-secrets.md`, "Adding
+a device, rotating, and restoring"); rotate each value at the source that issues it, then set it
+again.

@@ -115,8 +115,8 @@ The plan also settles:
 - where `key issue` writes an issued key, and how its consumer reads it ([secrets](secrets.md));
 - whether agentgateway v1.7.0 reads each secret from a file or the environment, and what to do
   with any it can't;
-- the new stack's Postgres password: its source and whether ai-hosting's `fnox.toml` holds it; the spike's
-  `postgres.env` isn't carried, and the volume is fresh;
+- the new stack's Postgres password: its source and whether ai-hosting's `fnox.toml` holds it;
+  the spike's `postgres.env` isn't carried, and the volume is fresh;
 - the tracing ratio, with open point 6;
 - the compose project's name;
 - the gateway document's path;

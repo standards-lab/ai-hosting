@@ -23,10 +23,8 @@ architecture page `architecture/principles/development-secrets.md`.
   `secrets = [...]` lists the key, and mise redacts the value from the task's output. No task
   lists one yet. With no identity, fnox leaves the variable unset and warns, so `mise run check`
   and `mise run currency` run unchanged without a key.
-- `scripts/lint-secrets.sh`, which `mise run check` runs without a key, refuses a secret with no
-  description, an age-provider value that isn't age ciphertext, a tracked file holding an age
-  secret key, and a `fnox.local.toml` git doesn't ignore. It holds nothing specific to
-  ai-hosting, so another repository copies it unchanged.
+- `scripts/lint-secrets.sh`, which `mise run check` runs without a key, guards the file; its header
+  says what it refuses. go-ai and docinfer carry copies that differ only in their `See` line.
 - A machine's own values go in the gitignored `fnox.local.toml`, encrypted to that machine's own
   recipient; the [README](../README.md#secrets) gives the steps.
 - Secrets reach the containers only as Compose secrets fed by fnox, and the rendered config holds
