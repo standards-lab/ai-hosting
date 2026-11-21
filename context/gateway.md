@@ -87,7 +87,7 @@ benchmark traffic. [Cleanup](cleanup.md) removes what the old project leaves.
 
 ## Open at the gateway plan
 
-1. **The `/models` root.** Each alias's `/models` is the gateway's own answer, so go-ai v0.3.0's
+1. **The `/models` root.** Each alias's `/models` is the gateway's own answer, so go-ai's
    `Model.Native` carries no served model; pass the row's `root` through, or keep it hidden.
    Source: `docs/gateway.md:50-56`, `gateway/agentgateway/config.yaml:298-304`.
 2. **Route `ai` or `llm`.** The inline route `ai` backends are labeled legacy; the `llm` form
