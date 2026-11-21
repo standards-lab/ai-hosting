@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Shellchecks every tracked file whose first line is a sh or bash shebang, checks that every
-# relative link in a tracked Markdown file resolves to a present file, and runs lint-context and
-# lint-references. Reads no network.
+# relative link in a tracked Markdown file resolves to a present file, and runs lint-context,
+# lint-references, and scripts/lint-secrets.sh. Reads no network.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit
 
@@ -51,4 +51,5 @@ shellcheck_scripts
 check_relative_links
 run_lint lint-context
 run_lint lint-references
+scripts/lint-secrets.sh || fail=1
 exit "$fail"

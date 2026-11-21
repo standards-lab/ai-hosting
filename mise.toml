@@ -1,13 +1,21 @@
+min_version = "2026.10.4"
+
 [settings]
+experimental = true
 task.run_auto_install = false
 
 [tools]
 "github:standards-lab/claude-plugins" = { version = "0.22.0", version_prefix = "marathon/v" }
+"aqua:FiloSottile/age" = "1.3.2"
+fnox = "1.50.0"
 jq = "1.8.2"
 shellcheck = "0.11.0"
+yq = "4.54.3"
+
+[secrets.fnox]
 
 [tasks.check]
-description = "Shellcheck every tracked shell script, resolve every relative Markdown link, and run lint-context and lint-references; reads no network, since no task installs a missing tool, and writes nothing"
+description = "Shellcheck every tracked shell script, resolve every relative Markdown link, and run lint-context, lint-references, and lint-secrets; reads no network, since no task installs a missing tool, and writes nothing"
 run = "scripts/check.sh"
 
 [tasks.currency]

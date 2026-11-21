@@ -31,8 +31,8 @@ plan of the task that builds it; the goal record holds the tasks and their order
   overflow, and telemetry; the `gateway` group runs it and the `key` group issues consumers' keys
   ([gateway.md](gateway.md)). The embedding route overflows to Foundry managed compute
   ([foundry-overflow.md](foundry-overflow.md)).
-- **Secrets** (planned): read through fnox from the private `secrets` store repository
-  ([secrets.md](secrets.md)).
+- **Secrets** (built): the Foundry key and account, age-encrypted in ai-hosting's committed
+  `fnox.toml`, each described, and checked by `scripts/lint-secrets.sh` ([secrets.md](secrets.md)).
 - **Runbooks** (planned): one per host class
   ([host-classes.md](host-classes.md), [engines.md](engines.md)).
 - **Upgrade evaluation** (planned): the convention and its `hosting-upgrades` skill
