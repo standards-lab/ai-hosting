@@ -5,10 +5,8 @@ enforces: each one line, with a pointer to the architecture page that applies. T
 ai-hosting's notes in `context/`, and apply to its shell, TOML, compose files, and Markdown;
 ai-hosting holds no Go, so Go Elemental's pages don't apply.
 
-- `architecture/principles/comments.md`: every comment is one of the five kinds, in scripts and in
-  every configuration file (TOML, YAML, `.gitignore`), not just source; a script, profile,
-  Dockerfile, or compose file points at the document or principle that governs it with a one-line
-  reference instead of restating its reasoning, which lives in ai-hosting's documents.
+- `architecture/principles/comments.md`: applies to every script and configuration file here;
+  reasoning lives in ai-hosting's documents.
 - `architecture/principles/rolling-currency.md`: every pin is explicit and one that `mise run
   currency` reads, and a pin held behind the latest release carries its reason beside it.
 - `architecture/principles/minimal-footprint.md`: no Go toolchain and no module; a need is met by
@@ -24,9 +22,8 @@ ai-hosting holds no Go, so Go Elemental's pages don't apply.
   thin consumer of the suite's shell library, which holds the logic the commands share.
 - `architecture/principles/repository-topology.md`: ai-hosting stands outside the five tiers,
   beside the harness repositories, and is the one hosting repository on each workstation.
-- `architecture/principles/`'s `resolution.md`, `downward-dependencies.md`, `service-tiers.md`,
-  `independent-releases.md`, `composition-root.md`, and `composition-terms.md` don't apply: they
-  govern Go modules, libraries, and services, and ai-hosting holds none.
+- The remaining principle pages govern Go modules, libraries, and services, and ai-hosting holds
+  none.
 - Development-time secrets reach ai-hosting only through the workspace's fnox store, never a
   committed file; a published development credential is not a secret and stays committed (the
   architecture page arrives with the `secrets` task).

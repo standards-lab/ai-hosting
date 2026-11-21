@@ -7,7 +7,7 @@ jq = "1.8.2"
 shellcheck = "0.11.0"
 
 [tasks.check]
-description = "Shellcheck every tracked shell script, resolve every relative Markdown link, and run lint-context and lint-references; reads no network, writes nothing"
+description = "Shellcheck every tracked shell script, resolve every relative Markdown link, and run lint-context and lint-references; reads no network, since no task installs a missing tool, and writes nothing"
 run = "scripts/check.sh"
 
 [tasks.currency]
