@@ -7,9 +7,11 @@ architecture page `architecture/principles/development-secrets.md`.
 - Each repository holds its own secrets in a committed root `fnox.toml`, with `root = true`, and
   no store repository holds them. fnox's age provider writes each value as ciphertext inline, so
   the file is safe to commit and stays a public reference.
-- ai-hosting's `fnox.toml` encrypts to two named recipients: `laptop`, the architect's machine,
-  whose identity is `~/.config/fnox/age.txt` (a plain 0600 file that no dotfiles repository
-  tracks), and `backup`, whose identity is held offline. Only public keys are committed.
+- ai-hosting's `fnox.toml` encrypts to three named recipients: `laptop`, the architect's
+  machine, and `gb10-2`, the workstation, each with its own identity at `~/.config/fnox/age.txt`
+  (a plain 0600 file generated on that device, which no dotfiles repository tracks), and
+  `backup`, whose identity is held offline. Only public keys are committed. The
+  [README](../README.md#adding-a-device) gives the steps to add a device.
 - It holds `AZURE_FOUNDRY_KEY`, the Azure AI Foundry account's key, and
   `AZURE_FOUNDRY_ACCOUNT`, the account's resource name; the gateway's overflow to
   [Azure AI Foundry](foundry-overflow.md) reads both. The values came from
