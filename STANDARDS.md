@@ -5,8 +5,8 @@ enforces: each one line, with a pointer to the architecture page that applies. T
 ai-hosting's notes in `context/`, and apply to its shell, TOML, compose files, and Markdown;
 ai-hosting holds no Go, so Go Elemental's pages don't apply.
 
-- `architecture/principles/comments.md`: applies to every script and configuration file here;
-  reasoning lives in ai-hosting's documents.
+- `architecture/principles/comments.md`: the reasoning a comment points to lives in ai-hosting's
+  documents.
 - `architecture/principles/rolling-currency.md`: every pin is explicit and one that `mise run
   currency` reads, and a pin held behind the latest release carries its reason beside it.
 - `architecture/principles/minimal-footprint.md`: no Go toolchain and no module; a need is met by
