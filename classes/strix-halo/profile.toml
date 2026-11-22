@@ -3,11 +3,11 @@
 store = "/srv/models"
 
 [[rows]]
-# Adapted from spike-model-engines (6ce3210): host/vllm-rows' gemma-4-E4B-it-audio-framework row, its image named under ai-hosting.
+# Adapted from spike-model-engines (6ce3210): host/vllm-rows' gemma-4-E4B-it-audio-framework row, its image named under ai-hosting, on port 8002 in place of 8001, one port an alias across the classes.
 alias = "audio"
 model = "google/gemma-4-E4B-it"
 container = "vllm-audio"
-port = 8001
+port = 8002
 image = "ai-hosting/vllm-openai-rocm-audio"
 context = 8192
 card_context = 131072
@@ -32,11 +32,11 @@ origin = "United States"
 licence = "Apache-2.0"
 card_url = "https://huggingface.co/google/gemma-4-E4B-it"
 [[rows]]
-# Adapted from spike-model-engines (6ce3210): host/vllm-rows' granite-embedding-english-r2-framework row.
+# Adapted from spike-model-engines (6ce3210): host/vllm-rows' granite-embedding-english-r2-framework row, on port 8003 in place of 8002, one port an alias across the classes.
 alias = "embedding"
 model = "ibm-granite/granite-embedding-english-r2"
 container = "vllm-embed"
-port = 8002
+port = 8003
 context = 8192
 card_context = 8192
 context_reason = "8,192 tokens, the card's context; the row ran every embedding cell at it, the knee at 16 streams of 512-token inputs among them (spike-model-layout docs/findings/vllm-layout.md, F.2; standards-lab context/ai-hosting.md, \"The layout\")."

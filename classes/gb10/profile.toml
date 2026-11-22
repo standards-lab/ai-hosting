@@ -3,11 +3,11 @@
 store = "/srv/models"
 
 [[rows]]
-# Adapted from spike-model-engines (6ce3210): host/vllm-rows' gpt-oss-120b-agent-fp8 row, in the vllm-agent container on port 8003, which keeps the profile's ports unique.
+# Adapted from spike-model-engines (6ce3210): host/vllm-rows' gpt-oss-120b-agent-fp8 row, in its own container, vllm-agent, in place of the default vllm.
 alias = "agent"
 model = "openai/gpt-oss-120b"
 container = "vllm-agent"
-port = 8003
+port = 8000
 context = 131072
 card_context = 131072
 context_reason = "131,072 tokens, the agent's session and the model's trained context: the FP8 KV cache, sized in bytes, held 13.23 sessions of it at the start, and the row met the agent's floor at 12 sessions of 131,072 on a GB10 alone (spike-model-layout docs/findings/vllm-layout.md, C.7 and D; standards-lab context/ai-hosting.md, \"The layout\")."
@@ -31,11 +31,11 @@ origin = "United States"
 licence = "Apache-2.0"
 card_url = "https://huggingface.co/openai/gpt-oss-120b"
 [[rows]]
-# Adapted from spike-model-engines (6ce3210): host/vllm-rows' gemma-4-26B-A4B-NVFP4-vision-gb10 row.
+# Adapted from spike-model-engines (6ce3210): host/vllm-rows' gemma-4-26B-A4B-NVFP4-vision-gb10 row, on port 8001 in place of 8000, one port an alias across the classes.
 alias = "vision"
 model = "nvidia/Gemma-4-26B-A4B-NVFP4"
 container = "vllm-vision"
-port = 8000
+port = 8001
 context = 8192
 card_context = 262144
 context_reason = "8,192 tokens a request, the length every capability row was measured at (spike-model-layout docs/findings/capability-vllm.md); the row met vision's floor at 16 requests of 8,192 on a GB10 alone (spike-model-layout docs/findings/vllm-layout.md, E.5; standards-lab context/ai-hosting.md, \"The layout\")."
