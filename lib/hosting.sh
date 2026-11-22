@@ -2,13 +2,15 @@
 # The hosting suite's shell library, sourced by the hosting dispatcher and every
 # hosting-<group>-<verb> command, which stay thin consumers of it. It holds the usage error every
 # command reports the same way, the host-class detection the commands that differ by class share,
-# from lib/profile.sh, the host-class profiles' validator and editor, and from lib/row.sh, the
-# container a row runs. See context/hosting-suite.md.
+# from lib/profile.sh, the host-class profiles' validator and editor, from lib/row.sh, the
+# container a row runs, and from lib/model.sh, the model store. See context/hosting-suite.md.
 
 # shellcheck source=lib/profile.sh
 source "$(dirname "${BASH_SOURCE[0]}")/profile.sh"
 # shellcheck source=lib/row.sh
 source "$(dirname "${BASH_SOURCE[0]}")/row.sh"
+# shellcheck source=lib/model.sh
+source "$(dirname "${BASH_SOURCE[0]}")/model.sh"
 
 # The closed list of host classes, which the profiles, the detection, and HOSTING_CLASS share.
 HOSTING_CLASSES=(gb10 strix-halo)
