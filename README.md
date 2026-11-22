@@ -1,15 +1,16 @@
 # ai-hosting
 
 ai-hosting specifies how the organization's workstations host models: the vLLM rows each host
-class serves and the one gateway in front of them. Nothing is built yet; the working context,
-with each planned capability's note, starts at [`context/README.md`](context/README.md).
+class serves and the one gateway in front of them. Only its development-time secrets are built;
+the working context, with each planned capability's note, starts at
+[`context/README.md`](context/README.md).
 
 ## Secrets
 
 `fnox.toml` holds ai-hosting's development-time secrets, the Azure AI Foundry account's key and
 name, encrypted with [age](https://age-encryption.org) to the maintainer's recipients. The
 ciphertext is safe to read, but only those recipients can decrypt it. Each secret says what it is,
-what reads it, and how to generate your own; list them, with no key, with:
+what reads it, and how to generate your own. This lists them without a key:
 
 ```sh
 mise secrets ls
