@@ -1,0 +1,60 @@
+# The strix-halo host class's profile: every row a Strix Halo host can serve, each row's one home.
+# See classes/README.md.
+store = "/srv/models"
+
+[[rows]]
+# Adapted from spike-model-engines (6ce3210): host/vllm-rows' gemma-4-E4B-it-audio-framework row, its image named under ai-hosting.
+alias = "audio"
+model = "google/gemma-4-E4B-it"
+container = "vllm-audio"
+port = 8001
+image = "ai-hosting/vllm-openai-rocm-audio"
+context = 8192
+card_context = 131072
+context_reason = "8,192 tokens a request, the length every capability row was measured at (spike-model-layout docs/findings/capability-vllm.md); the row met audio's floor at 4 requests of 8,192 beside the embedding row (spike-model-layout docs/findings/vllm-layout.md, F.4; standards-lab context/ai-hosting.md, \"The layout\")."
+cap = 4
+cap_reason = "4 requests at once: beside the embedding row at 34 requests a second it met audio's floor, an RTFx median of at least 5, at 4 streams, 5.84 in cell vllm-layout-fw-pair-a4r34, and missed at 8, 4.94 in cell vllm-layout-fw-stress-a8r34 (spike-model-layout docs/findings/vllm-layout.md, F.4 and F.5; standards-lab context/ai-hosting.md, \"The layout\")."
+queue_limit = 8
+fraction = 0.18
+fraction_reason = "0.18: its KV cache held 106,065 tokens, 12.95 requests of 8,192, over the cap of 4, and with the embedding row at 0.03 the host's rows left 89.50 GiB of GTT free when idle (spike-model-layout docs/findings/vllm-layout.md, F.6; standards-lab context/ai-hosting.md, \"The layout\")."
+flags = ["--kv-cache-dtype", "bfloat16", "--reasoning-parser", "gemma4", "--enable-auto-tool-choice", "--tool-call-parser", "gemma4"]
+flags_reason = "A BF16 KV cache, which every Gemma 4 row keeps (spike-model-engines host/vllm-rows), and Gemma 4's own reasoning and tool-call parsers."
+measured_vllm = "v0.33.0"
+
+[rows.load]
+target = "4 requests"
+source = "spike-model-layout docs/findings/vllm-layout.md, F.4 and J: an RTFx median of 5.84 at 4 requests beside the embedding row at 34 requests a second, 5.78 with every host at its target; standards-lab context/ai-hosting.md, \"The layout\""
+
+# Adapted from spike-model-hosting (aac0764): devices/strix-halo/profile.toml's Gemma 4 E4B entry, its card context moved to the row.
+[rows.provenance]
+publisher = "Google"
+origin = "United States"
+licence = "Apache-2.0"
+card_url = "https://huggingface.co/google/gemma-4-E4B-it"
+[[rows]]
+# Adapted from spike-model-engines (6ce3210): host/vllm-rows' granite-embedding-english-r2-framework row.
+alias = "embedding"
+model = "ibm-granite/granite-embedding-english-r2"
+container = "vllm-embed"
+port = 8002
+context = 8192
+card_context = 8192
+context_reason = "8,192 tokens, the card's context; the row ran every embedding cell at it, the knee at 16 streams of 512-token inputs among them (spike-model-layout docs/findings/vllm-layout.md, F.2; standards-lab context/ai-hosting.md, \"The layout\")."
+cap = 128
+cap_reason = "128 requests at once: throughput stops rising at 16 streams, 98,325 prompt tok/s, and 128 sequences held that plateau to 128 streams with no error or preemption (spike-model-layout docs/findings/vllm-layout.md, F.2; standards-lab context/ai-hosting.md, \"The layout\")."
+fraction = 0.03
+fraction_reason = "0.03: on the pooling runner the row keeps no KV pool, and its weights took 0.29 GiB; with the audio row at 0.18 the host's rows left 89.50 GiB of GTT free when idle (spike-model-layout docs/findings/vllm-layout.md, F.1 and F.6; standards-lab context/ai-hosting.md, \"The layout\")."
+dims = 768
+flags = ["--runner", "pooling", "--max-num-batched-tokens", "65536"]
+flags_reason = "The pooling runner, which serves embeddings, and 65,536 batched tokens a step, since vLLM's default of 8,192 batches only 16 of the embedding cells' 512-token inputs (spike-model-layout docs/findings/capability-vllm.md, G)."
+measured_vllm = "v0.33.0"
+
+[rows.load]
+target = "16 streams, at most 34 requests a second"
+source = "spike-model-layout docs/findings/vllm-layout.md, F.2, F.4, and J: the knee at 16 streams, and 17,442 prompt tok/s at the gateway's 34 requests a second beside the audio row; standards-lab context/ai-hosting.md, \"The layout\""
+
+[rows.provenance]
+publisher = "IBM"
+origin = "United States"
+licence = "Apache-2.0"
+card_url = "https://huggingface.co/ibm-granite/granite-embedding-english-r2"

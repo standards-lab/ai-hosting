@@ -15,7 +15,7 @@ yq = "4.54.3"
 [secrets.fnox]
 
 [tasks.check]
-description = "Shellcheck every tracked shell script, resolve every relative Markdown link, run lint-context, lint-references, lint-secrets, and the shell tests; reads no network, since no task installs a missing tool, and writes nothing"
+description = "Shellcheck every tracked shell script, resolve every relative Markdown link, run lint-context, lint-references, lint-secrets, hosting profile validate on every class profile, and the shell tests; reads no network, since no task installs a missing tool, and writes nothing"
 run = "scripts/check.sh"
 
 [tasks.currency]

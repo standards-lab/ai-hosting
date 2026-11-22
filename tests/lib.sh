@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # The test harness every tests/*.test.sh sources: each test_ function runs in a fresh copy of the
-# clone's bin/, lib/, scripts/, and mise.toml, under a temporary HOME and XDG directories, with a
-# stub directory first on PATH and an empty fake system tree as HOSTING_SYSROOT, so no test touches
-# the real ~/.local/bin, Docker, or host. A test script ends with run_tests, which prints a FAIL line
-# per failed assertion and exits 1 if any fails. See context/hosting-suite.md.
+# clone's bin/, lib/, scripts/, classes/, and mise.toml, under a temporary HOME and XDG
+# directories, with a stub directory first on PATH and an empty fake system tree as
+# HOSTING_SYSROOT, so no test touches the real ~/.local/bin, Docker, or host. A test script ends
+# with run_tests, which prints a FAIL line per failed assertion and exits 1 if any fails. See
+# context/hosting-suite.md.
 set -uo pipefail
 
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -37,7 +38,7 @@ set_up() {
   sysroot=$tmp/sys
   stubs=$tmp/stubs
   mkdir -p "$clone" "$tmp/home" "$sysroot" "$stubs"
-  cp -R "$repo/bin" "$repo/lib" "$repo/scripts" "$repo/mise.toml" "$clone/"
+  cp -R "$repo/bin" "$repo/lib" "$repo/scripts" "$repo/classes" "$repo/mise.toml" "$clone/"
   export HOME=$tmp/home
   export XDG_CONFIG_HOME=$HOME/.config XDG_STATE_HOME=$HOME/.local/state
   export XDG_DATA_HOME=$HOME/.local/share XDG_CACHE_HOME=$HOME/.cache

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# hosting:summary=Validates every class profile, or the profile files given
+# `hosting profile validate [<profile.toml>...]`: with no argument, checks the classes directory's
+# layout and validates every class's profile; with files, validates each. Prints every error at
+# once, each by its key path, and exits 1 if any. See classes/README.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# == 0)); then
+  hosting_profile_validate_all
+  exit
+fi
+
+fail=0
+for file in "$@"; do
+  if hosting_profile_validate "$file"; then
+    echo "$file: valid"
+  else
+    fail=1
+  fi
+done
+exit "$fail"

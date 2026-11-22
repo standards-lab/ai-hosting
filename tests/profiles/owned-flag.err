@@ -1,0 +1,1 @@
+rows[0].flags[4]: --max-num-seqs is set by the profile's typed fields or the suite, not a free flag

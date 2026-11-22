@@ -4,7 +4,12 @@
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 
+remove_the_suite_commands() {
+  rm -f "$clone"/bin/hosting-*-*
+}
+
 test_no_arguments_lists_only_the_usage_with_no_commands() {
+  remove_the_suite_commands
   run_hosting
   assert_equal status "$status" 0
   assert_equal stdout "$out" "usage: hosting <group> <verb> [args...]"
@@ -12,6 +17,7 @@ test_no_arguments_lists_only_the_usage_with_no_commands() {
 }
 
 test_no_arguments_lists_each_command_with_its_summary() {
+  remove_the_suite_commands
   write_command profile validate "Validates the host-class profiles" ':'
   write_command engine install "Starts each named row" ':'
   run_hosting
@@ -22,6 +28,7 @@ test_no_arguments_lists_each_command_with_its_summary() {
 }
 
 test_listing_skips_files_that_are_not_executable() {
+  remove_the_suite_commands
   write_command engine install "Starts each named row" ':'
   chmod -x "$clone/bin/hosting-engine-install"
   run_hosting

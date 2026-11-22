@@ -1,0 +1,1 @@
+rows[0].provenance.generation_config: required with base_model when the row sets no sampling

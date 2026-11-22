@@ -1,0 +1,59 @@
+store = "/srv/models"
+
+[[rows]]
+alias = "vision"
+model = "example/vision-model-NVFP4"
+container = "vllm-vision"
+port = 8000
+context = 8192
+card_context = 262144
+context_reason = "The context's measurement, in its document."
+cap = 16
+cap_reason = "The cap's measurement, in its document."
+queue_limit = 32
+fraction = 0.40
+fraction_reason = "The fraction's measurement, in its document."
+flags = ["--scheduling-policy", "priority", "--kv-cache-dtype", "bfloat16"]
+flags_reason = "Why the row sets its free flags."
+measured_vllm = "v0.33.0"
+
+[rows.load]
+target = "4 requests"
+source = "The load target's measurement, in its document."
+
+[rows.provenance]
+publisher = "Example Quantizer"
+origin = "United States"
+licence = "Apache-2.0"
+card_url = "https://huggingface.co/example/vision-model-NVFP4"
+base_model = "example/vision-model"
+base_origin = "United States"
+generation_config = "The checkpoint's generation config matches the base model card's."
+[[rows]]
+alias = "embedding"
+model = "example/embedding-model"
+container = "vllm-embed"
+port = 8002
+context = 8192
+card_context = 8192
+context_reason = "The context's measurement, in its document."
+cap = 128
+cap_reason = "The cap's measurement, in its document."
+fraction = 0.03
+fraction_reason = "The fraction's measurement, in its document."
+dims = 768
+measured_vllm = "v0.33.0"
+
+[rows.load]
+target = "16 streams"
+source = "The load target's measurement, in its document."
+
+[rows.provenance]
+publisher = "Example Lab"
+origin = "France"
+licence = "MIT"
+card_url = "https://huggingface.co/example/embedding-model"
+
+[rows.sampling]
+source = "https://huggingface.co/example/embedding-model"
+temperature = 1.0
