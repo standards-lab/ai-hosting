@@ -1,0 +1,2 @@
+# run_tests calls each test_ function by the name declare -F lists, a call shellcheck can't see.
+disable=SC2329

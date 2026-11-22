@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# The hosting suite's one command: `hosting <group> <verb> [args...]` runs hosting-<group>-<verb>
+# from this directory with the remaining arguments, and with no arguments lists the commands, each
+# with the summary from its `# hosting:summary=` line. It resolves its own path, so a link to it
+# runs every command from the clone; a new command is a new hosting-<group>-<verb> file here, with
+# nothing to register. An unknown command or a usage error goes to stderr and exits 2. See
+# context/hosting-suite.md.
+# Adapted from spike-model-engines (6ce3210): host/engines, renamed hosting, with a group and a
+# verb each a lowercase word, and usage errors exiting 2.
+set -euo pipefail
+
+dir=$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")
+# shellcheck source=lib/hosting.sh
+source "$dir/../lib/hosting.sh"
+
+usage='<group> <verb> [args...]'
+
+if (($# == 0)); then
+  echo "usage: hosting $usage"
+  for script in "$dir"/hosting-*-*; do
+    [[ -x $script ]] || continue
+    name=${script##*/hosting-}
+    summary=$(sed -n 's/^# hosting:summary=//p' "$script")
+    printf '  hosting %-22s %s\n' "${name%%-*} ${name#*-}" "$summary"
+  done
+  exit 0
+fi
+
+if (($# == 1)); then
+  hosting_usage_error "'$1' names no verb; run hosting with no arguments to list the commands" \
+    "$usage"
+fi
+
+target="$dir/hosting-$1-$2"
+if [[ ! $1 =~ ^[a-z]+$ || ! $2 =~ ^[a-z]+$ || ! -x $target ]]; then
+  hosting_usage_error "no command '$1 $2'; run hosting with no arguments to list the commands"
+fi
+shift 2
+exec "$target" "$@"

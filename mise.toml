@@ -15,10 +15,18 @@ yq = "4.54.3"
 [secrets.fnox]
 
 [tasks.check]
-description = "Shellcheck every tracked shell script, resolve every relative Markdown link, and run lint-context, lint-references, and lint-secrets; reads no network, since no task installs a missing tool, and writes nothing"
+description = "Shellcheck every tracked shell script, resolve every relative Markdown link, run lint-context, lint-references, lint-secrets, and the shell tests; reads no network, since no task installs a missing tool, and writes nothing"
 run = "scripts/check.sh"
 
 [tasks.currency]
 description = "Report every mise tool and action pin behind its latest, exiting nonzero if any; reads the network, writes nothing"
 run = "scripts/currency.sh"
 quiet = true
+
+[tasks.install]
+description = "Link ~/.local/bin/hosting to this clone's hosting command, refusing when that path holds anything else; writes only the link"
+run = "scripts/install.sh"
+
+[tasks.uninstall]
+description = "Remove ~/.local/bin/hosting when it links into this clone, leaving anything else in place; writes only that removal"
+run = "scripts/uninstall.sh"
