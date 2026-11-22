@@ -15,5 +15,5 @@ secrets and recipients. What follows is ai-hosting's own.
   no secret ([gateway](gateway.md)).
 - `scripts/lint-secrets.sh` is the principle's `lint-secrets`; go-ai and docinfer carry copies
   that differ only in their `See` line.
-- A published development credential is not a secret and stays committed: Azurite's well-known
-  key, MinIO's admin/secret, Postgres's "app", and go-web-service's `secrets.example.json`.
+- Azurite's well-known key, MinIO's admin/secret, Postgres's "app", and go-web-service's
+  `secrets.example.json` are published development credentials, which stay committed.
