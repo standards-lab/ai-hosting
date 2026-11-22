@@ -81,7 +81,7 @@ benchmark traffic. [Cleanup](cleanup.md) removes what the old project leaves.
 
 | Command | What it does |
 | --- | --- |
-| `key issue <consumer>` | Generates a consumer's key, stores it in the `secrets` store under the consumer's name, and gives the gateway only its hash |
+| `key issue <consumer>` | Generates a consumer's key, writes it where the gateway plan settles, and gives the gateway only its hash |
 | `key revoke <consumer>` | Deletes the stored key and its hash |
 | `key list` | The consumers that hold an issued key |
 
@@ -112,10 +112,11 @@ The plan also settles:
   network, and Tempo's retention;
 - the key set, Cerebro, Athena, Pi, and Claude Code, with the budget and bucket amounts, and the
   class field in the key's metadata if v1.7.0 accepts one;
+- where `key issue` writes an issued key, and how its consumer reads it ([secrets](secrets.md));
 - whether agentgateway v1.7.0 reads each secret from a file or the environment, and what to do
   with any it can't;
-- the new stack's Postgres password: its source and whether the store holds it; the spike's
-  `postgres.env` isn't carried, and the volume is fresh;
+- the new stack's Postgres password: its source and whether ai-hosting's `fnox.toml` holds it;
+  the spike's `postgres.env` isn't carried, and the volume is fresh;
 - the tracing ratio, with open point 6;
 - the compose project's name;
 - the gateway document's path;

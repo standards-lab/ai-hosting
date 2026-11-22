@@ -3,9 +3,9 @@
 ai-hosting will specify how the organization's local model hosts serve models: the settings the
 Framework desktop and the two GB10 workstations use, stated generally enough that another host of
 the same class follows them. It will serve Pi sessions, Claude Code subagents, go-ai, and the
-capstone's services through one gateway, with overflow to Azure AI Foundry. Nothing is built yet.
-It is low-level infrastructure outside the five tiers, beside the harness repositories, and the
-one hosting repository on each workstation.
+capstone's services through one gateway, with overflow to Azure AI Foundry. Only its secrets are
+built. It is low-level infrastructure outside the five tiers, beside the harness repositories,
+and the one hosting repository on each workstation.
 
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.
@@ -31,8 +31,8 @@ plan of the task that builds it; the goal record holds the tasks and their order
   overflow, and telemetry; the `gateway` group runs it and the `key` group issues consumers' keys
   ([gateway.md](gateway.md)). The embedding route overflows to Foundry managed compute
   ([foundry-overflow.md](foundry-overflow.md)).
-- **Secrets** (planned): read through fnox from the private `secrets` store repository
-  ([secrets.md](secrets.md)).
+- **Secrets** (built): the Foundry key and account, age-encrypted in ai-hosting's committed
+  `fnox.toml`, each described, and checked by `scripts/lint-secrets.sh` ([secrets.md](secrets.md)).
 - **Runbooks** (planned): one per host class
   ([host-classes.md](host-classes.md), [engines.md](engines.md)).
 - **Upgrade evaluation** (planned): the convention and its `hosting-upgrades` skill
