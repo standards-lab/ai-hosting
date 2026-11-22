@@ -1,6 +1,6 @@
-# The host-class profile validator: reads a profile decoded to JSON (yq -p toml -o json) and
-# prints one line per error, "<key path>: <message>", in the profile's order, printing nothing for
-# a valid profile. Run by hosting_profile_validate in lib/profile.sh. See classes/README.md.
+# The host-class profile's schema, a jq module over a profile decoded to JSON (yq -p toml -o json):
+# its validator, profile_errors, which yields each error in the profile's order, and the fields
+# hosting profile set edits. Included by lib/profile.sh. See classes/README.md.
 # Adapted from spike-model-hosting (aac0764): hosting/profile/profile.go's Parse and Validate, as
 # jq over vLLM rows in place of llama.cpp models and sets.
 
@@ -17,6 +17,20 @@ def provenance_keys: [
   "generation_config"
 ];
 def sampling_keys: ["source", "temperature", "top_p", "top_k", "min_p"];
+
+# The fields of a row hosting profile set edits, by their dotted key paths: every key but a table.
+def settable_fields:
+  (row_keys - ["load", "provenance", "sampling"])
+  + (load_keys | map("load." + .))
+  + (provenance_keys | map("provenance." + .))
+  + (sampling_keys | map("sampling." + .));
+
+# The settable fields whose value is a number, and the one whose value is a list of words.
+def number_fields: [
+  "port", "context", "card_context", "cap", "queue_limit", "fraction", "dims",
+  "sampling.temperature", "sampling.top_p", "sampling.top_k", "sampling.min_p"
+];
+def list_fields: ["flags"];
 
 # The aliases a row may serve under.
 def aliases: ["agent", "vision", "audio", "embedding"];
@@ -235,4 +249,3 @@ def profile_errors:
   duplicate_errors,
   host_identity_errors;
 
-profile_errors | "\(.path | key_path): \(.message)"

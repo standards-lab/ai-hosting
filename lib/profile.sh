@@ -27,6 +27,12 @@ hosting_yq() {
   return 1
 }
 
+# Runs jq with the program given, which may call lib/profile.jq's definitions, and the remaining
+# arguments, printing raw strings.
+hosting_profile_jq() {
+  jq -r -L "$(dirname "${BASH_SOURCE[0]}")" "include \"profile\"; $1" "${@:2}"
+}
+
 # Validates the profile at the path given, printing each error to stderr as
 # "hosting: <name>: <key path>: <message>", every error at once, and fails if it has any. The name
 # is the path, unless a second argument names it: hosting_profile_validate <path> [name].
@@ -37,7 +43,8 @@ hosting_profile_validate() {
     echo "hosting: $name: ${json#Error: }" >&2
     return 1
   fi
-  errors=$(jq -r -f "$(dirname "${BASH_SOURCE[0]}")/profile.jq" <<<"$json") || return
+  errors=$(hosting_profile_jq 'profile_errors | "\(.path | key_path): \(.message)"' <<<"$json") ||
+    return
   if [[ -n $errors ]]; then
     while IFS= read -r line; do
       echo "hosting: $name: $line" >&2
@@ -98,4 +105,63 @@ hosting_profile_validate_all() {
     fi
   done
   return "$fail"
+}
+
+# Loads the host's class profile, which a command validates before its first effect: detects the
+# class (hosting_class), validates the class's profile, and holds its path in HOSTING_PROFILE, its
+# name in HOSTING_PROFILE_NAME, and the profile decoded to JSON in HOSTING_PROFILE_JSON. Fails, the
+# errors printed, when the profile is invalid.
+hosting_profile_load() {
+  hosting_class || return
+  HOSTING_PROFILE=$(hosting_profile_path "$HOSTING_CLASS")
+  HOSTING_PROFILE_NAME=classes/$HOSTING_CLASS/profile.toml
+  hosting_profile_validate "$HOSTING_PROFILE" "$HOSTING_PROFILE_NAME" || return
+  HOSTING_PROFILE_JSON=$(hosting_yq -p toml -o json '.' "$HOSTING_PROFILE")
+}
+
+# Refuses an alias the loaded profile (hosting_profile_load) has no row for, listing its aliases.
+hosting_profile_alias() {
+  local aliases
+  aliases=$(jq -r '[.rows[].alias] | join(" ")' <<<"$HOSTING_PROFILE_JSON")
+  if [[ " $aliases " != *" $1 "* ]]; then
+    echo "hosting: $HOSTING_PROFILE_NAME has no row $1; its aliases are $aliases" >&2
+    return 1
+  fi
+}
+
+# Sets one field of the row with the alias given in the loaded profile (hosting_profile_load) and
+# writes the profile in place, only when the edited profile validates: hosting_profile_set <alias>
+# <field> <value>. The field is a row's key path in the schema's dotted form, such as cap or
+# load.target; a number field's value is read as a number, flags' as words split on spaces, and
+# any other's as text. Refuses an unknown alias or field, and an edit that fails validation,
+# printing its errors and leaving the profile byte-identical.
+hosting_profile_set() {
+  local kind value candidate
+  hosting_profile_alias "$1" || return
+  # shellcheck disable=SC2016 # $field is jq's, bound by --arg.
+  kind=$(hosting_profile_jq '
+    if number_fields | index([$field]) then "number"
+    elif list_fields | index([$field]) then "list"
+    elif settable_fields | index([$field]) then "text"
+    else "" end' -n --arg field "$2")
+  if [[ -z $kind ]]; then
+    echo "hosting: $2 is no field of a row; see classes/README.md for a row's keys" >&2
+    return 1
+  fi
+  case $kind in
+    number) value='env(HOSTING_SET_VALUE)' ;;
+    list) value='strenv(HOSTING_SET_VALUE) | split(" ")' ;;
+    text) value='strenv(HOSTING_SET_VALUE)' ;;
+  esac
+  candidate=$(mktemp) || return
+  cp "$HOSTING_PROFILE" "$candidate"
+  if HOSTING_SET_ALIAS=$1 HOSTING_SET_VALUE=$3 hosting_yq -p toml -o toml -i \
+    "(.rows[] | select(.alias == strenv(HOSTING_SET_ALIAS))).$2 = ($value)" "$candidate" &&
+    hosting_profile_validate "$candidate" "$HOSTING_PROFILE_NAME"; then
+    cp "$candidate" "$HOSTING_PROFILE"
+    rm -f "$candidate"
+    return
+  fi
+  rm -f "$candidate"
+  return 1
 }
