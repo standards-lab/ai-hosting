@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
-# retrieval runs MTEB's BelebeleRetrieval against an embedding row's /v1/embeddings, sending the
-# row's served name, embedding, with the query prefix on every query and the passage prefix on
-# every passage, and writes MTEB's result for each subset under the output directory.
+# retrieval runs MTEB's BelebeleRetrieval against an embedding row's /v1/embeddings, in the bench
+# environment, and writes MTEB's result for each subset under the output directory. It exits 2 on
+# a refusal.
 #
 #   bench/retrieval.sh --endpoint <host:port> --query-prefix <prefix> --passage-prefix <prefix>
 #     [--output <dir>] [<subset>...]
 #
-# Both prefixes are required, either may be empty. With no subset it runs the 37 for ~/docs' 13
-# languages: each language against itself, and each but English against English both ways. The
-# output defaults to the untracked .state/bench/retrieval. It refuses a missing or malformed
-# argument, and a subset not named <lang>_<Script>-<lang>_<Script>, before it runs anything;
-# bench/retrieval.py then refuses a subset BelebeleRetrieval doesn't define. It runs in the bench
-# environment, MISE_ENV=bench mise exec -- bench/retrieval.sh, and exits 2 on a refusal.
 # See bench/README.md.
 set -uo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd) || exit

@@ -1,11 +1,5 @@
-"""Runs MTEB's BelebeleRetrieval against an embedding row's /v1/embeddings.
-
-bench/retrieval.sh validates the arguments and runs this file with the Python of the bench
-environment's MTEB. This file refuses a subset BelebeleRetrieval doesn't define and a row that
-doesn't serve `embedding`, before the first embedding request. It prepends the query prefix to
-every query and the passage prefix to every passage, sends each batch of MTEB's as one request,
-never asks the row to truncate, and stops at the first request the row refuses. It writes MTEB's
-result, one score set a subset, under the output directory. See bench/README.md.
+"""Runs MTEB's BelebeleRetrieval against an embedding row's /v1/embeddings for bench/retrieval.sh,
+which validates the arguments first. See bench/README.md.
 """
 
 import argparse
