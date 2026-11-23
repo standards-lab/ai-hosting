@@ -20,7 +20,7 @@ measured_vllm = "v0.33.0"
 target = "4 requests"
 source = "The load target's measurement, in its document."
 
-[rows.origin]
+[rows.source]
 publisher = "Example Quantizer"
 origin = "United States"
 licence = "Apache-2.0"
@@ -47,7 +47,7 @@ measured_vllm = "v0.33.0"
 target = "16 streams"
 source = "The load target's measurement, in its document."
 
-[rows.origin]
+[rows.source]
 publisher = "Example Lab"
 origin = "France"
 licence = "MIT"

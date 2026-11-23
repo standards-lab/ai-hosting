@@ -23,7 +23,7 @@ measured_vllm = "v0.33.0"
 target = "4 sessions"
 source = "spike-model-layout docs/findings/vllm-layout.md, D and J: 49.13 ms inter-token latency median at 4 sessions alone, 48.13 ms with every host at its target; standards-lab context/ai-hosting.md, \"The layout\""
 
-[rows.origin]
+[rows.source]
 publisher = "OpenAI"
 origin = "United States"
 licence = "Apache-2.0"
@@ -49,7 +49,7 @@ measured_vllm = "v0.33.0"
 target = "4 requests"
 source = "spike-model-layout docs/findings/vllm-layout.md, E.2 and J: 4.68 s request latency median at 4 requests alone, 4.49 s with every host at its target; standards-lab context/ai-hosting.md, \"The layout\""
 
-[rows.origin]
+[rows.source]
 publisher = "NVIDIA"
 origin = "United States"
 licence = "Apache-2.0"

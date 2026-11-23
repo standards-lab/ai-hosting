@@ -1,1 +1,1 @@
-rows[0].origin.generation_config: required with base_model when the row sets no sampling
+rows[0].source.generation_config: required with base_model when the row sets no sampling

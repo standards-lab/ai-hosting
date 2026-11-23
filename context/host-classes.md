@@ -18,7 +18,7 @@ This note keeps the reasoning behind the profiles and what later tasks add to th
 - **The fraction sum is install's.** The validator checks each fraction alone. The sum of the
   fractions of the rows standing on one host depends on that host's record, so `engine install`
   checks it in its preflight, against the recorded aliases plus the new ones.
-- **No sampling override.** No standing row sets `sampling`. The vision row's origin table records
+- **No sampling override.** No standing row sets `sampling`. The vision row's source table records
   that its checkpoint's generation config carries its card's values, which vLLM applies by
   default.
 - **No engine version.** A row's `measured_vllm` names the release its measurements ran on; the
@@ -55,7 +55,7 @@ go-ai's integration tier with them through `AI_<ROLE>_PROFILE`.
 ## What later tasks take from spike-model-hosting
 
 The validator, `lib/profile.jq`, ports spike-model-hosting's `hosting/profile/profile.go`
-(`Parse` and `Validate`) at `aac0764` to jq over vLLM rows. The origin tables of the `agent`,
+(`Parse` and `Validate`) at `aac0764` to jq over vLLM rows. The source tables of the `agent`,
 `vision`, and `audio` rows come from the spike's `devices/strix-halo/profile.toml` entries for
 gpt-oss-120b, Gemma 4 26B-A4B, and Gemma 4 E4B, with each card's context moved to the row. The rest
 of the spike's profile package is not carried: its Go code, llama.cpp's fields and templates, model
