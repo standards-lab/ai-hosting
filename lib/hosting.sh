@@ -3,7 +3,8 @@
 # hosting-<group>-<verb> command, which stay thin consumers of it. It holds the usage error every
 # command reports the same way, the host-class detection the commands that differ by class share,
 # from lib/profile.sh, the host-class profiles' validator and editor, from lib/row.sh, the
-# container a row runs, and from lib/model.sh, the model store. See context/hosting-suite.md.
+# container a row runs, from lib/model.sh, the model store, and from lib/engine.sh, the rows a host
+# stands on. See context/hosting-suite.md.
 
 # shellcheck source=lib/profile.sh
 source "$(dirname "${BASH_SOURCE[0]}")/profile.sh"
@@ -11,6 +12,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/profile.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/row.sh"
 # shellcheck source=lib/model.sh
 source "$(dirname "${BASH_SOURCE[0]}")/model.sh"
+# shellcheck source=lib/engine.sh
+source "$(dirname "${BASH_SOURCE[0]}")/engine.sh"
 
 # The closed list of host classes, which the profiles, the detection, and HOSTING_CLASS share.
 HOSTING_CLASSES=(gb10 strix-halo)
