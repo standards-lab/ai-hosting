@@ -44,6 +44,9 @@ record holds the tasks and their order.
   scenarios and the BelebeleRetrieval runner the `embedding` task measures with, run from the laptop
   ([bench/README.md](../bench/README.md)). The scenarios and `levels.jq` come from
   spike-model-layout's `bench/` at `e64d9c4`.
+- **Findings** (built): the measurements behind a row's settings, each cell with its command,
+  time, figures, and tool versions, which the profile's reasons cite: the embedding row's in
+  [docs/findings/embedding.md](../docs/findings/embedding.md).
 - **Upgrade evaluation** (planned): the convention and its `hosting-upgrades` skill
   ([host-classes.md](host-classes.md), [engines.md](engines.md)).
 - **Admin tooling** (planned): experiment.admin's Go CLI, which implements the profile schema
