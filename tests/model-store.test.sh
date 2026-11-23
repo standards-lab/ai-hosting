@@ -6,11 +6,6 @@
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 
-# Builds the fake store, $tmp/store, which the clone's strix-halo profile names: the audio and
-# embedding rows' models, each with a snapshot linking its blob, the audio model with an incomplete
-# blob beside it, and old/model, which no row serves, with one of its own; records the aliases
-# given; and stubs hf, whose cache ls lists each models--<owner>--<name> directory at 1.5G, warning
-# on stderr, and whose cache rm removes the repository's directory.
 fake_store() {
   local repo dir
   store=$tmp/store
@@ -24,8 +19,7 @@ fake_store() {
   echo partial >"$store/models--google--gemma-4-E4B-it/blobs/2222.incomplete"
   echo partial >"$store/models--old--model/blobs/3333.incomplete"
   sed -i "s|^store = .*|store = \"$store\"|" "$clone/classes/strix-halo/profile.toml"
-  mkdir -p "$XDG_STATE_HOME/hosting"
-  printf '%s\n' "$@" >"$XDG_STATE_HOME/hosting/aliases"
+  record "$@"
   # shellcheck disable=SC2016 # The stub's body expands when hf runs.
   write_stub hf '
 if [[ $1 == cache && $2 == ls ]]; then
@@ -41,7 +35,6 @@ elif [[ $1 == cache && $2 == rm ]]; then
 fi'
 }
 
-# Prints every path under the store with each file's checksum.
 tree() {
   (cd "$store" && find . | sort && find . -type f -exec md5sum {} + | sort)
 }

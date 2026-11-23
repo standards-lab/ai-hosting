@@ -5,11 +5,9 @@
 # command issues the docker calls its row needs and keeps the install record.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
+# shellcheck source=lib/hosting.sh
+source "$repo/lib/hosting.sh"
 
-# Stubs the commands the engine verbs run, on a host that passes the preflight: docker answering
-# from the fake Docker state under HOSTING_TEST_DOCKER (container_of and image_of write it), hf
-# signed in, tailscale giving 192.0.2.10, net.ipv4.ip_nonlocal_bind at 1, and a CDI spec whose
-# every file is present.
 ready_host() {
   export HOSTING_TEST_DOCKER=$tmp/docker
   mkdir -p "$HOSTING_TEST_DOCKER"/{ls,container,image}
@@ -40,29 +38,19 @@ EOF
     >"$sysroot/var/run/cdi/nvidia.yaml"
 }
 
-# Sets net.ipv4.ip_nonlocal_bind in the fake system tree.
 nonlocal_bind() {
   mkdir -p "$sysroot/proc/sys/net/ipv4"
   echo "$1" >"$sysroot/proc/sys/net/ipv4/ip_nonlocal_bind"
 }
 
-# Gives the fake Docker state a container with the row label of the alias given:
-# container_of <alias> <container id> <image id> <command as JSON>.
 container_of() {
   echo "$2" >"$HOSTING_TEST_DOCKER/ls/label=ai-hosting.row=$1"
   echo "$2" >>"$HOSTING_TEST_DOCKER/ls/ancestor=$3"
   echo "$3 $4" >"$HOSTING_TEST_DOCKER/container/$2"
 }
 
-# Gives the fake Docker state an image: image_of <reference> <image id>.
 image_of() {
   echo "$2" >"$HOSTING_TEST_DOCKER/image/${1//\//_}"
-}
-
-# Writes the install record, one alias given a line.
-record() {
-  mkdir -p "$XDG_STATE_HOME/hosting"
-  printf '%s\n' "$@" >"$XDG_STATE_HOME/hosting/aliases"
 }
 
 recorded() {
@@ -73,8 +61,6 @@ docker_calls() {
   calls | grep '^docker' || true
 }
 
-# Prints the docker run command hosting profile render prints for the row given, on one line, as
-# the docker stub logs it: rendered <class> <alias>.
 rendered() {
   HOSTING_CLASS=$1 run_hosting profile render "$2"
   tr '\n' ' ' <<<"$out" | sed 's/ $//'
@@ -192,7 +178,7 @@ test_install_on_strix_halo_reads_no_cdi_spec() {
 
 test_install_refuses_an_invalid_profile_before_docker() {
   ready_host
-  hosting_yq_in_clone '.rows[0].fraction = 1.5' gb10
+  hosting_yq -p toml -o toml -i '.rows[0].fraction = 1.5' "$clone/classes/gb10/profile.toml"
   engine gb10 install agent
   assert_equal status "$status" 1
   assert_equal stderr "$err" "hosting: classes/gb10/profile.toml: rows[0].fraction: 1.5 is over 1"
@@ -207,15 +193,11 @@ test_install_takes_at_least_one_alias() {
 usage: hosting engine install <alias>..."
 }
 
-# Prints the vllm serve command hosting profile render prints for the row given, after its image,
-# as compact JSON, the form docker's {{json .Config.Cmd}} takes: command_of <class> <alias>.
 command_of() {
   HOSTING_CLASS=$1 run_hosting profile render "$2"
   sed -n "/^\(vllm\|ai-hosting\)\/.*:v[0-9]/,\$p" <<<"$out" | tail -n +2 | jq -Rnc '[inputs]'
 }
 
-# Gives the fake Docker state the gb10 agent row running exactly as the profile has it, with
-# vllm/vllm-openai:v0.34.0 at sha256:pinned.
 agent_as_profiled() {
   image_of vllm/vllm-openai:v0.34.0 sha256:pinned
   container_of agent c1 sha256:pinned "$(command_of gb10 agent)"
@@ -281,7 +263,7 @@ test_update_replaces_a_row_whose_command_differs_and_keeps_its_image() {
   ready_host
   record agent
   agent_as_profiled
-  hosting_yq_in_clone '(.rows[] | select(.alias == "agent")).fraction = 0.75' gb10
+  hosting_yq -p toml -o toml -i '(.rows[] | select(.alias == "agent")).fraction = 0.75' "$clone/classes/gb10/profile.toml"
   : >"$tmp/calls"
   engine gb10 update agent
   assert_equal status "$status" 0
@@ -444,16 +426,6 @@ test_no_engine_command_uses_sudo() {
   uninstall
   assert_equal "uninstall status" "$status" 0
   [[ $(calls) != *sudo* ]] || fail "ran sudo: $(calls)"
-}
-
-# Edits the clone's profile of the class given with the yq expression given:
-# hosting_yq_in_clone <expression> <class>.
-hosting_yq_in_clone() {
-  (
-    # shellcheck source=lib/hosting.sh
-    source "$clone/lib/hosting.sh"
-    hosting_yq -p toml -o toml -i "$1" "$clone/classes/$2/profile.toml"
-  )
 }
 
 run_tests

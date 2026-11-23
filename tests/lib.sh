@@ -79,6 +79,12 @@ fake_gpu() {
   echo "$2" >"$card/device"
 }
 
+# Writes the install record under the temporary XDG_STATE_HOME, one alias given a line.
+record() {
+  mkdir -p "$XDG_STATE_HOME/hosting"
+  printf '%s\n' "$@" >"$XDG_STATE_HOME/hosting/aliases"
+}
+
 # Runs the command given, holding its stdout in out, its stderr in err, and its status in status.
 # shellcheck disable=SC2034 # The test scripts that source this file read out, err, and status.
 run() {

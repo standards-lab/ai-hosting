@@ -6,9 +6,6 @@
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 
-# Stubs docker answering from the fake Docker state under HOSTING_TEST_DOCKER (row_container and
-# processes write it), and curl answering each URL from the fake answers under HOSTING_TEST_CURL
-# (answer writes them), failing as curl --fail does for a URL with none.
 observed_host() {
   export HOSTING_TEST_DOCKER=$tmp/docker HOSTING_TEST_CURL=$tmp/curl
   mkdir -p "$HOSTING_TEST_DOCKER"/{inspect,top} "$HOSTING_TEST_CURL"
@@ -35,8 +32,6 @@ EOF
     >"$sysroot/proc/meminfo"
 }
 
-# Gives the fake Docker state a container carrying the row label of the alias given:
-# row_container <alias> <id> <name> <state> <bind host:port or -> <published ports> <networks>.
 row_container() {
   echo "$2" >>"$HOSTING_TEST_DOCKER/ids"
   jq -n --arg alias "$1" --arg id "$2" --arg name "$3" --arg state "$4" --arg bind "$5" \
@@ -51,32 +46,22 @@ row_container() {
     >"$HOSTING_TEST_DOCKER/inspect/$2"
 }
 
-# A running row, published on its bind and on the bridge network: running_row <alias> <id> <port>.
 running_row() {
   row_container "$1" "$2" "vllm-$1" running "192.0.2.10:$3" 1 1
 }
 
-# Gives the fake Docker state the host PIDs of the container with the ID given: processes <id>
-# <pid>...
 processes() {
   printf '%s\n' PID "${@:2}" >"$HOSTING_TEST_DOCKER/top/$1"
 }
 
-# Gives the URL given, without its scheme, the body on stdin: answer <host:port/path>.
 answer() {
   cat >"$HOSTING_TEST_CURL/${1//\//_}"
-}
-
-record() {
-  mkdir -p "$XDG_STATE_HOME/hosting"
-  printf '%s\n' "$@" >"$XDG_STATE_HOME/hosting/aliases"
 }
 
 engine() {
   HOSTING_CLASS=${class:-} run_hosting engine "$@"
 }
 
-# Fails when the stubs logged a docker call other than one that reads.
 assert_read_only() {
   local writes
   writes=$(calls | grep '^docker' | grep -Ev '^docker (container (ls|inspect)|top) ' || true)
