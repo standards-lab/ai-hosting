@@ -117,12 +117,17 @@ yq --version"
 }
 
 test_a_path_without_mikefarahs_yq_is_refused() {
-  local dir dirs path=$stubs
+  local dir dirs entry n=0 path=$stubs
   write_stub yq 'echo "yq 4.4.5"'
   IFS=: read -ra dirs <<<"$base_path"
   for dir in "${dirs[@]}"; do
     if [[ -x $dir/yq ]] && "$dir/yq" --version 2>/dev/null | grep -q mikefarah/yq; then
-      continue
+      n=$((n + 1))
+      mkdir "$tmp/path-$n"
+      for entry in "$dir"/*; do
+        [[ ${entry##*/} == yq ]] || ln -s "$entry" "$tmp/path-$n/"
+      done
+      dir=$tmp/path-$n
     fi
     path+=:$dir
   done
