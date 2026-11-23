@@ -353,6 +353,99 @@ test_update_takes_at_most_one_alias() {
 usage: hosting engine update [<alias>]"
 }
 
+uninstall() {
+  run_hosting engine uninstall "$@"
+}
+
+test_uninstall_removes_the_container_and_its_unused_image_and_drops_the_alias() {
+  ready_host
+  record agent vision
+  container_of agent c1 sha256:pinned '["openai/gpt-oss-120b"]'
+  uninstall agent
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "removed agent's container c1
+removed image sha256:pinned"
+  assert_equal "docker calls" "$(docker_calls)" "docker container ls --all --quiet --filter label=ai-hosting.row=agent
+docker container inspect --format {{.Image}} {{json .Config.Cmd}} c1
+docker rm --force c1
+docker container ls --all --quiet --filter ancestor=sha256:pinned
+docker image rm sha256:pinned"
+  assert_equal record "$(recorded)" vision
+}
+
+test_uninstall_keeps_an_image_another_container_uses() {
+  ready_host
+  record audio embedding
+  container_of embedding c1 sha256:rocm '["ibm-granite/granite-embedding-english-r2"]'
+  container_of audio c2 sha256:audio '["google/gemma-4-E4B-it"]'
+  echo c9 >>"$HOSTING_TEST_DOCKER/ls/ancestor=sha256:rocm"
+  uninstall embedding
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "removed embedding's container c1"
+  [[ $(docker_calls) != *"image rm"* ]] || fail "removed an image a container uses: $(docker_calls)"
+  assert_equal record "$(recorded)" audio
+}
+
+test_uninstall_with_no_alias_acts_on_the_record_and_never_detects_the_class() {
+  ready_host
+  record agent vision
+  container_of agent c1 sha256:pinned '[]'
+  container_of vision c2 sha256:pinned '[]'
+  write_stub nvidia-smi
+  write_stub amdgpu_top
+  uninstall
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "removed agent's container c1
+removed vision's container c2
+removed image sha256:pinned"
+  assert_equal record "$(recorded)" ""
+  [[ $(calls) != *nvidia-smi* && $(calls) != *amdgpu_top* ]] || fail "probed the host: $(calls)"
+}
+
+test_uninstall_of_a_row_without_a_container_drops_it_from_the_record() {
+  ready_host
+  record agent
+  uninstall agent
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "agent has no container"
+  assert_equal record "$(recorded)" ""
+}
+
+test_uninstall_refuses_an_alias_neither_recorded_nor_a_rows_before_docker() {
+  ready_host
+  uninstall chat
+  assert_equal status "$status" 1
+  assert_equal stderr "$err" "hosting: chat is neither in the install record $XDG_STATE_HOME/hosting/aliases nor a row's alias, agent, vision, audio, embedding"
+  assert_equal calls "$(calls)" ""
+}
+
+test_uninstall_with_an_empty_record_does_nothing() {
+  ready_host
+  uninstall
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "the install record $XDG_STATE_HOME/hosting/aliases holds no alias; nothing to uninstall"
+  assert_equal calls "$(calls)" ""
+}
+
+test_uninstall_takes_at_most_one_alias() {
+  ready_host
+  uninstall agent vision
+  assert_equal status "$status" 2
+}
+
+test_no_engine_command_uses_sudo() {
+  ready_host
+  write_stub sudo
+  image_of vllm/vllm-openai:v0.34.0 sha256:pinned
+  engine gb10 install agent
+  assert_equal "install status" "$status" 0
+  engine gb10 update
+  assert_equal "update status" "$status" 0
+  uninstall
+  assert_equal "uninstall status" "$status" 0
+  [[ $(calls) != *sudo* ]] || fail "ran sudo: $(calls)"
+}
+
 # Edits the clone's profile of the class given with the yq expression given:
 # hosting_yq_in_clone <expression> <class>.
 hosting_yq_in_clone() {
