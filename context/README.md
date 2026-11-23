@@ -12,10 +12,10 @@ A row is one vLLM container serving one model under its role's alias (`agent`, `
 `embedding`); a host class is `gb10` or `strix-halo`.
 
 Its goals live in the coordinator's roadmap (`standards-lab/roadmap/index.toml`, v1.ai.hosting).
-It is built from experiment.hosting's spikes. Each file adapted from a spike names its source in an
-`Adapted from` line. A planned capability's note settles which parts come from which spike,
-citing spike files as `path` at the spike's commit, and lists what is open at the plan of the task
-that builds it; the goal record holds the tasks and their order.
+It is built from experiment.hosting's spikes. Each capability's note cites the spike files it
+comes from, as `path` at the spike's commit; the files themselves carry no source comments. A
+planned capability's note also lists what is open at the plan of the task that builds it; the goal
+record holds the tasks and their order.
 
 ## Capability map
 

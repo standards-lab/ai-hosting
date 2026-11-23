@@ -18,7 +18,7 @@ This note keeps the reasoning behind the profiles and what later tasks add to th
 - **The fraction sum is install's.** The validator checks each fraction alone. The sum of the
   fractions of the rows standing on one host depends on that host's record, so `engine install`
   checks it in its preflight, against the recorded aliases plus the new ones.
-- **No sampling override.** No standing row sets `sampling`. The vision row's provenance records
+- **No sampling override.** No standing row sets `sampling`. The vision row's origin table records
   that its checkpoint's generation config carries its card's values, which vLLM applies by
   default.
 - **No engine version.** A row's `measured_vllm` names the release its measurements ran on; the
@@ -31,14 +31,16 @@ reports under `/sys/class/drm/card*/device`: `0x10de:0x2e12`, the NVIDIA GB10, i
 `0x1002:0x1586`, the AMD Strix Halo, is `strix-halo`. It refuses a host matching neither.
 `HOSTING_CLASS` overrides the probe and is checked against the same closed list. The function
 exports `HOSTING_CLASS`, so the commands a call runs inherit the class and the host is probed once
-per call.
+per call. It replaces spike-model-engines' `vllm_flavor` (`host/vllm.sh` at `6ce3210`), which took
+any host without AMD's vendor ID as CUDA; the IDs come from spike-hosting-upgrades' host reports,
+gb10-1's at `26b6c37` and the Framework's at `12067db`.
 
 ## Replacing a model
 
 Replacing a model runs `profile set`, `model pull`, and `engine update`, then commits the profile
 (each runbook gives the commands). It is a kind of upgrade:
 the `upgrades` task's convention and its `hosting-upgrades` skill will cover evaluating the
-candidate (its card, its provenance, a probe against the row's floors) before `profile set`. The
+candidate (its card, its origin, a probe against the row's floors) before `profile set`. The
 `embedding` task's replacement is the first and sets the pattern.
 
 A read-only listing of the rows whose `measured_vllm` is older than the pin, the rows an upgrade
@@ -52,10 +54,12 @@ go-ai's integration tier with them through `AI_<ROLE>_PROFILE`.
 
 ## What later tasks take from spike-model-hosting
 
-The validator, `lib/profile.jq`, is adapted from spike-model-hosting's profile package at
-`aac0764`, and each profile's provenance entries name their source. The rest of the package is not
-carried: its Go code, llama.cpp's fields and templates, model sets, the decode-ceiling fields, and
-the evaluation tooling. Two later tasks take parts of it:
+The validator, `lib/profile.jq`, ports spike-model-hosting's `hosting/profile/profile.go`
+(`Parse` and `Validate`) at `aac0764` to jq over vLLM rows. The origin tables of the `agent`,
+`vision`, and `audio` rows come from the spike's `devices/strix-halo/profile.toml` entries for
+gpt-oss-120b, Gemma 4 26B-A4B, and Gemma 4 E4B, with each card's context moved to the row. The rest
+of the spike's profile package is not carried: its Go code, llama.cpp's fields and templates, model
+sets, the decode-ceiling fields, and the evaluation tooling. Two later tasks take parts of it:
 
 - **embedding**: the embedding row's runbook takes the e5 query prefix
   (`hosting/profile/profile.go:340-343`).

@@ -40,11 +40,11 @@ agentgateway's config changes on the way in:
 - priority on Messages carries as is, and `acceptance` proves it;
 - tracing stays at 100%.
 
-Each file keeps one header and a provenance line naming spike-model-gateway at `2f2e8c1`; a
-comment that explains points to the document or principle that governs it. The map from each
-alias to its tailnet host has one home, the gateway's config; each alias's port derives from the
-[host-class profiles](host-classes.md), which name no host, and one lookup of gb10-2's address
-serves every use. The fixed `container_name` drops unless a `gateway` verb needs it, and the
+Each file keeps one header and no source comment; this note or the commit message cites
+spike-model-gateway at `2f2e8c1`. A comment that explains points to the document or principle
+that governs it. The map from each alias to its tailnet host has one home, the gateway's config;
+each alias's port derives from the [host-class profiles](host-classes.md), which name no host, and
+one lookup of gb10-2's address serves every use. The fixed `container_name` drops unless a `gateway` verb needs it, and the
 `spike.config-section` label is renamed. gb10-2's Compose version is read again, and one form of
 the attestation workaround stays, its reason in the gateway document.
 

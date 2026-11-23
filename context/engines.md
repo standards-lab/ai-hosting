@@ -7,17 +7,21 @@ runbook, `classes/<class>/runbook.md`, gives the root steps and each row's comma
 
 ## Where the engine files come from
 
-Each file adapted from a spike names its source in an `Adapted from` line. Most come from
-spike-model-engines `host/` at `6ce3210`: the dispatcher, the row and engine libraries, the vLLM
-pin (`lib/vllm.env`), the four standing rows, the audio image, and `.shellcheckrc`. The other
-sources are:
+The engine files carry no source comments; this list cites each one's spike source.
 
-- the GB10's CDI preflight in `lib/engine.sh`, from spike-ai-pipeline's
-  `scripts/host-update-lib.sh` at `6a631f1`;
-- the GPU memory reads in `lib/observe.sh`, from spike-model-layout's `scripts/measure-lib.sh` at
-  `e64d9c4`;
-- `MIOPEN_FIND_MODE=FAST` in the audio image, which is ai-hosting's own: spike-model-engines at
-  `6ce3210` lacks it.
+- From spike-model-engines at `6ce3210`:
+  - `bin/hosting`, from `host/engines`;
+  - `lib/row.sh` and `lib/engine.sh`, from `host/vllm.sh` and `host/engines.sh`;
+  - `lib/vllm.env`, from `host/vllm.env`;
+  - the four standing rows, from `host/vllm-rows`;
+  - the audio image, from `host/vllm-rocm-audio/Dockerfile`; its `MIOPEN_FIND_MODE=FAST` is
+    ai-hosting's own;
+  - `.shellcheckrc`.
+- The GB10's CDI preflight in `lib/engine.sh` comes from spike-ai-pipeline's
+  `scripts/host-update-lib.sh` at `6a631f1`.
+- The GPU memory reads in `lib/observe.sh` come from spike-model-layout's
+  `scripts/measure-lib.sh` at `e64d9c4`, and the Framework's `amdgpu_top --no-pc` from
+  spike-model-hosting's `evaluation/scripts/footprint.sh` at `aac0764`.
 
 The measurements behind the carried values stay in `standards-lab/context/ai-hosting.md`.
 
