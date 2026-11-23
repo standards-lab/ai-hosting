@@ -7,15 +7,16 @@ Foundry managed-compute endpoint through the provider shape before the route get
 sign-in only in part: its header, its description and its API reference, not its license terms,
 deployment options, regions or SKUs. A fact marked *unconfirmed* is one [A] carries only past
 sign-in or in data its public page doesn't render; it keeps the first read, by 2026-11-20, when
-this note was first committed.
+this note was first committed. The registry entry itself, read through the Azure CLI on
+2026-11-23 [G], settles the license, the deployment options and the engine.
 
 - The catalog entry, `intfloat-multilingual-e5-large`, is a Hugging Face model by intfloat,
-  version 3, generally available, an embeddings model: confirmed. [A] MIT-licensed: unconfirmed,
-  since [A] shows only a License tab; the model's own card says MIT
-  ([findings](../docs/findings/embedding.md#e5-card)).
+  version 3, generally available, an embeddings model: confirmed. [A] MIT-licensed (`license:
+  mit`): confirmed. [G]
 - Hugging Face's collection deploys on managed compute, which needs a hub-based (classic)
-  project: confirmed. [B] That this model has no serverless or per-token offer: unconfirmed, since
-  [B] says the provider chooses a model's deployment options and [A]'s public page states none.
+  project: confirmed. [B] This model has no serverless or per-token offer: confirmed, since its
+  only deployment option is `MaaP`, managed compute. [G] Shared compute capacity is enabled
+  (`SharedComputeCapacityEnabled: true`). [G]
 - The registry is geo-replicated: confirmed, though [B] now says to all Azure regions rather than
   naming about 30. The deployable regions aren't stated. [B]
 - It serves Hugging Face Text Embeddings Inference (TEI): a native `POST` taking `inputs`, and
@@ -24,8 +25,8 @@ this note was first committed.
   prepends `query: `: confirmed. [A] The maximum, 512 tokens: unconfirmed, since [A] says only
   "the maximum supported size"; the model's card and the served row give 512
   ([findings](../docs/findings/embedding.md#e5-probes)).
-- No recommended SKU is published (`inferenceRecommendedSkus` is null); the engine is
-  `tei-gpu-extra-small`: unconfirmed. [A]
+- The engine is `tei-gpu-extra-small` (`skuBasedEngineIds`): confirmed. [G] That no recommended
+  SKU is published (`inferenceRecommendedSkus` null): unconfirmed, since [G] doesn't show it. [A]
 - Linux pay-as-you-go VM prices, by the hour, which managed compute bills: Standard_NC4as_T4_v3
   $0.526 in East US and East US 2; NC8as_T4_v3 $0.752 in both; DS3_v2 $0.293 in East US, $0.229
   in East US 2: confirmed, as `Virtual Machines` meters (the note called them managed hosting
@@ -51,5 +52,6 @@ Sources: [A] `https://ai.azure.com/catalog/models/intfloat-multilingual-e5-large
 `https://prices.azure.com/api/retail/prices`; [D]
 `https://learn.microsoft.com/en-us/azure/machine-learning/concept-endpoints-online`; [E]
 `https://learn.microsoft.com/en-us/azure/machine-learning/how-to-autoscale-endpoints`; [F]
-`https://learn.microsoft.com/en-us/answers/a/12259624` (community). The deploy flow:
+`https://learn.microsoft.com/en-us/answers/a/12259624` (community); [G] `az ml model show
+--registry-name HuggingFace --name intfloat-multilingual-e5-large --version 3`. The deploy flow:
 `https://learn.microsoft.com/en-us/azure/foundry-classic/how-to/deploy-models-managed`.
