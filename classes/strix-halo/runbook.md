@@ -6,12 +6,12 @@ the root steps, the suite's install, and each row's commands. The Framework, `fr
 [profile](profile.toml), whose keys [the schema](../README.md) defines; this runbook names them and
 restates no value.
 
-Commands with `sudo` are root steps, the architect's. The rest run as the account that serves the
-rows, which the suite runs as; no `hosting` command needs `sudo`.
+The architect runs the root steps, the commands with `sudo`. The rest run as the account that
+serves the rows, which the suite runs as; no `hosting` command needs `sudo`.
 
 ## Root steps
 
-Run them once a host, before its first `hosting engine install`, from the clone
+Run them once on each host, before its first `hosting engine install`, from the clone
 ([Install the suite](#install-the-suite)). `hosting engine install` and `update` refuse a host
 that lacks the nonlocal bind, pointing here.
 

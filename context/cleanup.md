@@ -2,8 +2,8 @@
 
 What the `cleanup` task removes, so ai-hosting is the one hosting repository on each workstation
 and a host holds only what its rows serve. Each item is unconfirmed until `cleanup` checks it on
-the host, and the architect runs the steps that need root. What ai-hosting drops from the spike
-files it carries is in [engines](engines.md), [host-class profiles](host-classes.md), and
+the host, and the architect runs the steps that need root. What ai-hosting doesn't carry from the
+spikes' files is in [engines](engines.md), [host-class profiles](host-classes.md), and
 [the gateway](gateway.md).
 
 **Every workstation**
@@ -21,7 +21,9 @@ files it carries is in [engines](engines.md), [host-class profiles](host-classes
 - The spike-named audio images, `spike-model-engines/vllm-openai-rocm-audio:*`.
 - The llama.cpp router's paths: `/opt/llama.cpp/current`, `/etc/llama-router`, and its system
   unit.
-- `outpost`'s links in `~/.local/bin` (`outpost` and `outpost-*`).
+- `outpost`'s links in `~/.local/bin` (`outpost` and `outpost-*`). A read-only ssh check found
+  none there.
+- The ufw rules for ports 8000 and 8080, which no strix-halo row uses.
 
 **gb10-1 and gb10-2**
 
@@ -30,7 +32,8 @@ files it carries is in [engines](engines.md), [host-class profiles](host-classes
 
 **gb10-2**
 
-- spike-ai-pipeline's host clone and its router.
+- spike-ai-pipeline's host clone and its router. A read-only ssh check found no spike-ai-pipeline
+  clone in `~/repos`.
 - `~/gateway`, after the old project is down: its `postgres.env`, the rendered config, the old
   volumes, the four built images, and the pulled agentgateway image.
 

@@ -19,17 +19,17 @@ A profile names no host. Which of its rows a host stands on is the aliases given
 
 Profiles are TOML, read and written with mikefarah yq, the reader `mise.toml` pins, and committed
 in the format yq writes in place, so `hosting profile set` changes only the lines it edits. A
-profile's comments are its header, a short description and a `See` line to this document, and a
-provenance line where a row or its provenance is adapted from a spike.
+profile's only comments are its header, which describes it and links this document, and a
+provenance line above each row or provenance table adapted from a spike.
 
-## The profile
+## The profile's keys
 
 | Key | Required | Meaning |
 | --- | --- | --- |
 | `store` | yes | The absolute path of the class's model store, the Hugging Face cache every row's container mounts. |
 | `rows` | yes | The rows, an array of tables, at least one. |
 
-## A row
+## A row's keys
 
 Each `[[rows]]` table is one vLLM container serving one model under its alias.
 
@@ -121,5 +121,5 @@ reads a profile validates it first. It reports every error at once, one line eac
   or `sampling`;
 - `sampling` on a row without `base_model`, or without its source or a value.
 
-The sum of the fractions of the rows standing on one host is `hosting engine install`'s to check,
-against the host's recorded aliases, not the validator's.
+The validator doesn't check the sum of the fractions of the rows standing on one host:
+`hosting engine install` does, over the host's recorded aliases and the ones it installs.
