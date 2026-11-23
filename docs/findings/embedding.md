@@ -320,3 +320,60 @@ latency medians were 45.31 to 45.62 ms.
   request latency median 0.12 to 0.18 s.
 - No audio run met the floor of 5, alone or beside, which this path doesn't judge ([Path](#path)).
 - After the cells ended at 17:42Z, both rows' `/metrics` read no preemption.
+
+## e5-runes
+
+On the laptop, 2026-11-23T17:50:30Z to 17:51:29Z, with e5's tokenizer (`XLMRobertaTokenizer`, from
+the checkpoint above) through transformers 5.20.2, in GuideLLM's Python 3.14.10 in the bench
+environment. For docinfer, whose chunks are counted in
+runes: the tokens per rune e5 gives each language in `~/docs`, and the runes that fit the row's
+512 tokens.
+
+The method, a one-off script not kept:
+
+- **Text.** EN, BG, EL and PL: the EU act's XHTML twins,
+  `pdf/multilang/eurlex-32011D0833/decision-2011-833-<lang>.html`, their text through Python's
+  `html.parser` without `<head>`, `<script>` or `<style>`. HE, JA and RU: the Tears of Steel
+  subtitles, `video/tears-of-steel/tos-{he,jp,ru}.srt`, cue text without numbers or times; JA and
+  RU add FLEURS' transcripts. AR, ZH and HI: FLEURS' transcripts,
+  `audio/short/fleurs-*/*.truth.json`, the `text` of each item, ZH's spaces between characters
+  removed as the pool's README says. ES, FR and KO: MInDS-14's transcripts,
+  `audio/short/minds14-*/*.truth.json`. `office/multilang/multilang-rtl.truth.json` adds nothing:
+  its AR, HE, JA and RU paragraphs are lines of these same sources. Each text joins its parts with
+  a space and collapses every run of whitespace to one space.
+- **Runes** are Unicode code points, Python's `len` of the decoded string, which is Go's
+  `utf8.RuneCountInString` on valid UTF-8.
+- **Tokens** are `len(tok(text, add_special_tokens=False)["input_ids"])` over the whole text.
+  Tokens per rune is their ratio, summed over a language's sources.
+- **Rune bound** = floor((512 − 2 special tokens − 2 tokens of `passage: `) / tokens per rune) =
+  floor(508 / tokens per rune). `passage: ` tokenizes as `▁passage`, `:`.
+- **Windows.** Where a text runs past twice the bound, the four EU acts, every window of the bound's
+  length starting at each 25th rune was tokenized as `passage: ` plus the window, with the special
+  tokens; the window bound is the largest length, in steps of 5 runes, at which every such window
+  fits 512.
+
+| Language | Source | Runes | Tokens | Tokens per rune | Rune bound | Largest window at the bound, tokens | Window bound |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| EN | EU act | 16,112 | 3,347 | 0.208 | 2,445 | 553 | 2,240 |
+| BG | EU act | 17,292 | 3,811 | 0.220 | 2,304 | 550 | 2,099 |
+| EL | EU act | 18,009 | 4,549 | 0.253 | 2,011 | 570 | 1,801 |
+| PL | EU act | 18,606 | 4,156 | 0.223 | 2,274 | 566 | 2,019 |
+| AR | FLEURS | 406 | 122 | 0.300 | 1,690 | | |
+| HE | subtitles | 1,844 | 744 | 0.403 | 1,259 | | |
+| JA | subtitles, FLEURS | 1,047 | 640 | 0.611 | 831 | | |
+| RU | subtitles, FLEURS | 2,111 | 620 | 0.294 | 1,729 | | |
+| ZH | FLEURS | 105 | 72 | 0.686 | 740 | | |
+| HI | FLEURS | 436 | 130 | 0.298 | 1,703 | | |
+| ES | MInDS-14 | 391 | 73 | 0.187 | 2,720 | | |
+| FR | MInDS-14 | 194 | 39 | 0.201 | 2,526 | | |
+| KO | MInDS-14 | 116 | 51 | 0.440 | 1,155 | | |
+
+- The bound from a whole text's rate doesn't hold for every chunk: in each EU act some window of
+  the bound's length runs 38 to 58 tokens over 512, since the rate varies along a text. The window
+  bounds sit 8 to 11% under the rate's bounds.
+- A chunk of 2,000 runes, docinfer's current start, fits every window checked in the EN, BG and PL
+  acts, and not every one in the EL act, whose window bound is 1,801. By the rate alone it
+  overflows in every language over 0.254 tokens a rune: AR, HE, JA, RU, ZH, HI and KO.
+- The smallest bound is ZH's, 740 runes, then JA's, 831. Every sample but the EU acts and the
+  subtitles is a few hundred runes or fewer, ZH's 105, so those rates are a sample's, not a
+  language's.
