@@ -152,3 +152,77 @@ Of the pool's 112.00 GiB, the fraction 0.03 is 3,441 MiB. e5 starts and serves w
   remove `ibm-granite/granite-embedding-english-r2` (599.7M); `--yes` removed it; `hosting model
   prune` then printed "nothing to prune: every model in /srv/models is served by a row recorded
   on this host".
+
+## e5-retrieval
+
+From the laptop, 2026-11-23T16:19:19Z to 16:28:19Z, a wall time of 9 min 0 s (MTEB's evaluation
+time 532 s), the row at cap 32 with nothing else sent to it:
+
+```sh
+MISE_ENV=bench mise exec -- bench/retrieval.sh --endpoint framework:8003 \
+  --query-prefix 'query: ' --passage-prefix 'passage: ' --output .state/bench/e5/retrieval-e5
+```
+
+It ran the default 37 subsets to the end; no passage was over 512 tokens. The result is
+`.state/bench/e5/retrieval-e5/results/intfloat__multilingual-e5-large/embedding/BelebeleRetrieval.json`.
+It ran on MTEB 2.27.22 under Python 3.14.10, with transformers 5.24.0, torch 2.15.0,
+sentence-transformers 6.3.0, datasets 5.2.0 and requests 2.34.2, against the Belebele dataset
+`mteb/belebele` at `979a211276faa22f671e69d096634193567cfd05`.
+
+The published scores are
+[`results/intfloat__multilingual-e5-large/ab10c1a7f42e74530fe7ae5be82e6d4f11a719eb/BelebeleRetrieval.json`](https://github.com/embeddings-benchmark/results/blob/2aa494226cb43a73ac028d865d569e38cb7151e2/results/intfloat__multilingual-e5-large/ab10c1a7f42e74530fe7ae5be82e6d4f11a719eb/BelebeleRetrieval.json)
+in embeddings-benchmark/results at commit `2aa494226cb43a73ac028d865d569e38cb7151e2`, read at
+16:20Z; the file last changed in `91a7962cbda383ab59203627c0214e665d058067`. They ran on MTEB
+1.38.3 against `facebook/belebele` at `75b399394a9803252cfec289d103de462763db7c`. The two dataset
+revisions hold the same data: `mteb/belebele`'s one commit duplicates `facebook/belebele`, and
+Hugging Face's tree of each lists the same 123 data files with the same hashes and sizes, only the
+README differing.
+
+Each score is nDCG@10, BelebeleRetrieval's main score; the difference is served minus published,
+and a subset passes within 0.02.
+
+| Subset | Published | Served | Difference | Verdict |
+| --- | --- | --- | --- | --- |
+| `eng_Latn-eng_Latn` | 0.96501 | 0.96542 | +0.00041 | pass |
+| `bul_Cyrl-bul_Cyrl` | 0.94790 | 0.94788 | -0.00002 | pass |
+| `eng_Latn-bul_Cyrl` | 0.90998 | 0.91039 | +0.00041 | pass |
+| `bul_Cyrl-eng_Latn` | 0.94082 | 0.94090 | +0.00008 | pass |
+| `ell_Grek-ell_Grek` | 0.94507 | 0.94507 | +0.00000 | pass |
+| `eng_Latn-ell_Grek` | 0.88037 | 0.88034 | -0.00003 | pass |
+| `ell_Grek-eng_Latn` | 0.93635 | 0.93635 | +0.00000 | pass |
+| `pol_Latn-pol_Latn` | 0.95278 | 0.95252 | -0.00026 | pass |
+| `eng_Latn-pol_Latn` | 0.92291 | 0.92291 | +0.00000 | pass |
+| `pol_Latn-eng_Latn` | 0.94916 | 0.94907 | -0.00009 | pass |
+| `arb_Arab-arb_Arab` | 0.93480 | 0.93480 | +0.00000 | pass |
+| `eng_Latn-arb_Arab` | 0.87164 | 0.87172 | +0.00008 | pass |
+| `arb_Arab-eng_Latn` | 0.92082 | 0.92082 | +0.00000 | pass |
+| `heb_Hebr-heb_Hebr` | 0.92538 | 0.92543 | +0.00005 | pass |
+| `eng_Latn-heb_Hebr` | 0.83819 | 0.83860 | +0.00041 | pass |
+| `heb_Hebr-eng_Latn` | 0.92039 | 0.92039 | +0.00000 | pass |
+| `jpn_Jpan-jpn_Jpan` | 0.94625 | 0.94630 | +0.00005 | pass |
+| `eng_Latn-jpn_Jpan` | 0.89743 | 0.89735 | -0.00008 | pass |
+| `jpn_Jpan-eng_Latn` | 0.91834 | 0.91845 | +0.00011 | pass |
+| `rus_Cyrl-rus_Cyrl` | 0.95283 | 0.95283 | +0.00000 | pass |
+| `eng_Latn-rus_Cyrl` | 0.92340 | 0.92386 | +0.00046 | pass |
+| `rus_Cyrl-eng_Latn` | 0.93891 | 0.93883 | -0.00008 | pass |
+| `zho_Hans-zho_Hans` | 0.95232 | 0.95236 | +0.00004 | pass |
+| `eng_Latn-zho_Hans` | 0.87899 | 0.87908 | +0.00009 | pass |
+| `zho_Hans-eng_Latn` | 0.91372 | 0.91367 | -0.00005 | pass |
+| `hin_Deva-hin_Deva` | 0.90736 | 0.90734 | -0.00002 | pass |
+| `eng_Latn-hin_Deva` | 0.86776 | 0.86774 | -0.00002 | pass |
+| `hin_Deva-eng_Latn` | 0.94193 | 0.94152 | -0.00041 | pass |
+| `spa_Latn-spa_Latn` | 0.95530 | 0.95530 | +0.00000 | pass |
+| `eng_Latn-spa_Latn` | 0.92942 | 0.92927 | -0.00015 | pass |
+| `spa_Latn-eng_Latn` | 0.95349 | 0.95349 | +0.00000 | pass |
+| `fra_Latn-fra_Latn` | 0.95512 | 0.95512 | +0.00000 | pass |
+| `eng_Latn-fra_Latn` | 0.93646 | 0.93698 | +0.00052 | pass |
+| `fra_Latn-eng_Latn` | 0.95479 | 0.95479 | +0.00000 | pass |
+| `kor_Hang-kor_Hang` | 0.94499 | 0.94499 | +0.00000 | pass |
+| `eng_Latn-kor_Hang` | 0.86452 | 0.86460 | +0.00008 | pass |
+| `kor_Hang-eng_Latn` | 0.92031 | 0.92031 | +0.00000 | pass |
+
+- Every subset passes. The largest difference is +0.00052, `eng_Latn-fra_Latn`; the largest below
+  published is -0.00041, `hin_Deva-eng_Latn`. Thirteen subsets match to the fifth decimal.
+- Prefixes, truncation, pooling and normalization need no diagnosis: no subset misses, the
+  runner sent `query: ` and `passage: ` and never asked the row to truncate, and the row's mean
+  pooling and unit vectors are [e5-update](#e5-update)'s and [e5-probes](#e5-probes)'.
