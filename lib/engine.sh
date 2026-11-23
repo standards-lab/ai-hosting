@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The rows a host stands on: the install record, the checks engine install and update run before
-# they touch Docker, and the container and image each row runs, found by its row label. Sourced by
+# they change anything, and the container and image each row runs, found by its row label. Sourced by
 # lib/hosting.sh. See context/hosting-suite.md and context/engines.md.
 
 # The directory holding one build directory per image the suite builds, images/<name> for an
@@ -167,10 +167,38 @@ hosting_engine_remove_unused_image() {
   echo "removed image $1"
 }
 
-# Checks what engine install and update need before they touch Docker, for the aliases given:
+# Refuses each alias given whose row (hosting_row, after hosting_tailnet_address) a container
+# without the row label stands in the way of: one, running or stopped, named as the row's
+# container, or a running one publishing the row's port. Prints each such container with the
+# command that removes it. Reads Docker once, and fails when Docker does.
+hosting_engine_occupied() {
+  local containers alias kind holder fail=0
+  containers=$(docker container ls --all --format \
+    "{{.Names}}"$'\t'"{{.State}}"$'\t'"{{.Label \"$HOSTING_ROW_LABEL\"}}"$'\t'"{{.Ports}}") || return
+  for alias in "$@"; do
+    hosting_row "$alias" "$HOSTING_ADDRESS" || return
+    while read -r kind holder; do
+      if [[ $kind == name ]]; then
+        echo "hosting: the container $holder, without the $HOSTING_ROW_LABEL label, holds" \
+          "$alias's container name; docker rm -f $holder removes it" >&2
+      else
+        echo "hosting: the running container $holder, without the $HOSTING_ROW_LABEL label," \
+          "publishes $alias's port $HOSTING_ROW_PORT; docker rm -f $holder removes it" >&2
+      fi
+      fail=1
+    done < <(awk -F '\t' -v name="$HOSTING_ROW_CONTAINER" -v port="$HOSTING_ROW_PORT" '
+      $3 != "" { next }
+      $1 == name { print "name", $1 }
+      $2 == "running" && index($4, ":" port "->") { print "port", $1 }' <<<"$containers")
+  done
+  return "$fail"
+}
+
+# Checks what engine install and update need before they change anything, for the aliases given:
 # each is a row of the loaded profile (hosting_profile_load) with an image the suite can fetch,
 # the rows standing on the host fit its GPU's memory (hosting_engine_fractions), the host passes
-# the preflight (hosting_engine_preflight), and it has a tailnet address (hosting_tailnet_address).
+# the preflight (hosting_engine_preflight), it has a tailnet address (hosting_tailnet_address),
+# and no container outside the rows holds a row's name or port (hosting_engine_occupied).
 hosting_engine_check() {
   local alias
   for alias in "$@"; do
@@ -179,7 +207,8 @@ hosting_engine_check() {
   done
   hosting_engine_fractions "$@" || return
   hosting_engine_preflight || return
-  hosting_tailnet_address
+  hosting_tailnet_address || return
+  hosting_engine_occupied "$@"
 }
 
 # Prints what the container with the ID given runs, "<image ID> <command as compact JSON>", the

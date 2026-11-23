@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Tests for hosting engine install, update, and uninstall (lib/engine.sh), with docker, hf, and
 # tailscale stubbed to log their calls, docker answering from a fake Docker state, and a fake system
-# tree holding the sysctl and the CDI spec: each refusal comes before any docker call, and each
-# command issues the docker calls its row needs and keeps the install record.
+# tree holding the sysctl and the CDI spec: each refusal comes before any docker call that changes
+# anything, and each command issues the docker calls its row needs and keeps the install record.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 # shellcheck source=lib/hosting.sh
@@ -16,7 +16,13 @@ ready_host() {
 key=${*: -1}
 key=${key//\//_}
 case "$1 $2" in
-  "container ls") cat "$HOSTING_TEST_DOCKER/ls/$key" 2>/dev/null || true ;;
+  "container ls")
+    if [[ $* == *--format* ]]; then
+      cat "$HOSTING_TEST_DOCKER/ps" 2>/dev/null || true
+    else
+      cat "$HOSTING_TEST_DOCKER/ls/$key" 2>/dev/null || true
+    fi
+    ;;
   "container inspect") cat "$HOSTING_TEST_DOCKER/container/$key" ;;
   "image inspect") cat "$HOSTING_TEST_DOCKER/image/$key" ;;
   "rm --force")
@@ -49,6 +55,13 @@ container_of() {
   echo "$3 $4" >"$HOSTING_TEST_DOCKER/container/$2"
 }
 
+listed() {
+  local IFS=$'\t'
+  echo "$*" >>"$HOSTING_TEST_DOCKER/ps"
+}
+
+ps_call="docker container ls --all --format {{.Names}}"$'\t'"{{.State}}"$'\t'"{{.Label \"ai-hosting.row\"}}"$'\t'"{{.Ports}}"
+
 image_of() {
   echo "$2" >"$HOSTING_TEST_DOCKER/image/${1//\//_}"
 }
@@ -77,7 +90,8 @@ test_install_pulls_the_model_and_image_runs_the_rendered_row_and_records_it() {
   assert_equal stderr "$err" ""
   assert_contains stdout "$out" "agent runs vllm/vllm-openai:v0.34.0 in vllm-agent"
   assert_contains calls "$(calls)" "hf download openai/gpt-oss-120b --cache-dir /srv/models"
-  assert_equal "docker calls" "$(docker_calls)" "docker container ls --all --quiet --filter label=ai-hosting.row=agent
+  assert_equal "docker calls" "$(docker_calls)" "$ps_call
+docker container ls --all --quiet --filter label=ai-hosting.row=agent
 docker pull vllm/vllm-openai:v0.34.0
 $(rendered gb10 agent)"
   assert_equal record "$(recorded)" agent
@@ -107,7 +121,8 @@ test_install_leaves_an_installed_row_and_records_it() {
   engine gb10 install agent
   assert_equal status "$status" 0
   assert_equal stdout "$out" "agent is already installed; hosting engine update agent moves it to the profile"
-  assert_equal "docker calls" "$(docker_calls)" "docker container ls --all --quiet --filter label=ai-hosting.row=agent"
+  assert_equal "docker calls" "$(docker_calls)" "$ps_call
+docker container ls --all --quiet --filter label=ai-hosting.row=agent"
   assert_equal record "$(recorded)" agent
 }
 
@@ -193,6 +208,47 @@ test_install_takes_at_least_one_alias() {
 usage: hosting engine install <alias>..."
 }
 
+test_install_refuses_an_unlabeled_container_holding_the_rows_name() {
+  ready_host
+  listed vllm-agent exited "" ""
+  engine gb10 install agent
+  assert_equal status "$status" 1
+  assert_equal stdout "$out" ""
+  assert_equal stderr "$err" "hosting: the container vllm-agent, without the ai-hosting.row label, holds agent's container name; docker rm -f vllm-agent removes it"
+  assert_equal calls "$(calls)" "tailscale ip -4
+$ps_call"
+  assert_equal record "$(recorded)" ""
+}
+
+test_install_refuses_a_running_unlabeled_container_publishing_the_rows_port() {
+  ready_host
+  listed llama running "" "0.0.0.0:8000->8080/tcp, [::]:8000->8080/tcp"
+  listed stopped exited "" ""
+  engine gb10 install agent
+  assert_equal status "$status" 1
+  assert_equal stdout "$out" ""
+  assert_equal stderr "$err" "hosting: the running container llama, without the ai-hosting.row label, publishes agent's port 8000; docker rm -f llama removes it"
+  assert_equal calls "$(calls)" "tailscale ip -4
+$ps_call"
+  assert_equal record "$(recorded)" ""
+}
+
+test_install_leaves_the_rows_own_labeled_container_unrefused() {
+  ready_host
+  listed vllm-agent running agent "192.0.2.10:8000->8000/tcp"
+  listed llama exited "" "0.0.0.0:8000->8080/tcp"
+  listed other running "" "0.0.0.0:18000->8000/tcp"
+  container_of agent c1 sha256:old '[]'
+  engine gb10 install agent
+  assert_equal status "$status" 0
+  assert_equal stderr "$err" ""
+  assert_equal stdout "$out" "agent is already installed; hosting engine update agent moves it to the profile"
+  assert_equal "docker calls" "$(docker_calls)" "$ps_call
+docker container ls --all --quiet --filter label=ai-hosting.row=agent"
+  [[ $(calls) != *"hf download"* ]] || fail "pulled the model: $(calls)"
+  assert_equal record "$(recorded)" agent
+}
+
 command_of() {
   HOSTING_CLASS=$1 run_hosting profile render "$2"
   sed -n "/^\(vllm\|ai-hosting\)\/.*:v[0-9]/,\$p" <<<"$out" | tail -n +2 | jq -Rnc '[inputs]'
@@ -211,7 +267,8 @@ test_update_with_nothing_changed_does_nothing() {
   engine gb10 update agent
   assert_equal status "$status" 0
   assert_equal stdout "$out" "agent already runs vllm/vllm-openai:v0.34.0 as its row; nothing changed"
-  assert_equal "docker calls" "$(docker_calls)" "docker pull vllm/vllm-openai:v0.34.0
+  assert_equal "docker calls" "$(docker_calls)" "$ps_call
+docker pull vllm/vllm-openai:v0.34.0
 docker image inspect --format {{.Id}} vllm/vllm-openai:v0.34.0
 docker container ls --all --quiet --filter label=ai-hosting.row=agent
 docker container inspect --format {{.Image}} {{json .Config.Cmd}} c1"
@@ -325,6 +382,52 @@ test_update_refuses_before_docker_as_install_does() {
   assert_equal status "$status" 1
   assert_contains stderr "$err" "has no row audio"
   assert_equal calls "$(calls)" ""
+}
+
+test_update_refuses_an_unlabeled_container_holding_a_recorded_rows_name() {
+  ready_host
+  record agent
+  agent_as_profiled
+  listed vllm-agent created "" ""
+  : >"$tmp/calls"
+  engine gb10 update
+  assert_equal status "$status" 1
+  assert_equal stdout "$out" ""
+  assert_equal stderr "$err" "hosting: the container vllm-agent, without the ai-hosting.row label, holds agent's container name; docker rm -f vllm-agent removes it"
+  assert_equal calls "$(calls)" "tailscale ip -4
+$ps_call"
+  assert_equal record "$(recorded)" agent
+}
+
+test_update_refuses_a_running_unlabeled_container_publishing_the_rows_port() {
+  ready_host
+  record audio
+  listed whisper running "" "192.0.2.10:8002->9000/tcp"
+  : >"$tmp/calls"
+  engine strix-halo update audio
+  assert_equal status "$status" 1
+  assert_equal stdout "$out" ""
+  assert_equal stderr "$err" "hosting: the running container whisper, without the ai-hosting.row label, publishes audio's port 8002; docker rm -f whisper removes it"
+  assert_equal calls "$(calls)" "tailscale ip -4
+$ps_call"
+  assert_equal record "$(recorded)" audio
+}
+
+test_update_leaves_the_rows_own_labeled_container_unrefused() {
+  ready_host
+  record agent
+  agent_as_profiled
+  listed vllm-agent running agent "192.0.2.10:8000->8000/tcp"
+  : >"$tmp/calls"
+  engine gb10 update agent
+  assert_equal status "$status" 0
+  assert_equal stderr "$err" ""
+  assert_equal stdout "$out" "agent already runs vllm/vllm-openai:v0.34.0 as its row; nothing changed"
+  assert_contains "docker calls" "$(docker_calls)" "$ps_call
+docker pull vllm/vllm-openai:v0.34.0"
+  [[ $(docker_calls) != *"docker rm"* && $(docker_calls) != *"docker run"* ]] ||
+    fail "replaced the row: $(docker_calls)"
+  assert_equal record "$(recorded)" agent
 }
 
 test_update_takes_at_most_one_alias() {
