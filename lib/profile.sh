@@ -54,7 +54,7 @@ hosting_profile_validate() {
 }
 
 # Checks the classes directory's layout: one directory for each of HOSTING_CLASSES, none for any
-# other class, each holding its profile.toml and at most its runbook beside it. Prints each
+# other class, each holding its profile.toml and its runbook, and nothing else. Prints each
 # error to stderr, every one at once, and fails if it finds any.
 hosting_profile_layout() {
   local fail=0 entry class file
@@ -63,10 +63,12 @@ hosting_profile_layout() {
     return 1
   fi
   for class in "${HOSTING_CLASSES[@]}"; do
-    if [[ ! -f $HOSTING_PROFILES/$class/profile.toml ]]; then
-      echo "hosting: classes/$class/profile.toml: missing" >&2
-      fail=1
-    fi
+    for file in profile.toml runbook.md; do
+      if [[ ! -f $HOSTING_PROFILES/$class/$file ]]; then
+        echo "hosting: classes/$class/$file: missing" >&2
+        fail=1
+      fi
+    done
   done
   for entry in "$HOSTING_PROFILES"/*/; do
     class=$(basename "$entry")

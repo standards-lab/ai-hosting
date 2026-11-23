@@ -101,6 +101,15 @@ test_a_class_without_its_profile_is_refused() {
   assert_equal stderr "$err" "hosting: classes/strix-halo/profile.toml: missing"
 }
 
+test_a_class_without_its_runbook_is_refused() {
+  rm "$clone/classes/gb10/runbook.md"
+  run_hosting profile validate
+  assert_equal status "$status" 1
+  assert_equal stdout "$out" "classes/gb10/profile.toml: valid
+classes/strix-halo/profile.toml: valid"
+  assert_equal stderr "$err" "hosting: classes/gb10/runbook.md: missing"
+}
+
 test_a_directory_for_no_class_is_refused() {
   mkdir "$clone/classes/gb20"
   run_hosting profile validate
