@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# hosting:summary=Shows the GPU memory each row holds, and the pool they share
+# `hosting engine memory`: detects the host class, then prints the GPU memory each row's
+# container's processes hold, by their host PIDs, each GPU process no row holds, and the pool: on
+# gb10, nvidia-smi's used_memory, with MemAvailable; on strix-halo, amdgpu_top's VRAM and GTT, with
+# GTT used and MemAvailable. Changes nothing. See context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "engine memory takes no argument" "engine memory"
+fi
+
+hosting_class
+rows=$(hosting_observe_rows)
+hosting_observe_memory "$rows"

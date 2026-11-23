@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# hosting:summary=Summarizes a running row's vLLM /metrics
+# `hosting engine metrics <alias>`: reads the /metrics of the running container carrying the
+# alias's row label, on the address it is configured to listen on, and prints its requests running
+# and waiting, KV cache usage, prompt and generation tokens, finished requests, and preemptions.
+# Refuses an alias no running container carries, and a row whose /metrics doesn't answer with
+# vLLM's metrics. Changes nothing, and never detects the host class. See context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# != 1)); then
+  hosting_usage_error "engine metrics takes one alias" "engine metrics <alias>"
+fi
+
+row=$(hosting_observe_row "$1")
+IFS=$'\t' read -r alias _ name _ address _ <<<"$row"
+if ! metrics=$(hosting_observe_get "$address" /metrics) || ! grep -q '^vllm:' <<<"$metrics"; then
+  echo "hosting: $name gave no vLLM metrics at http://$address/metrics" >&2
+  exit 1
+fi
+echo "row:                 $alias ($name at $address)"
+hosting_observe_metrics <<<"$metrics"
