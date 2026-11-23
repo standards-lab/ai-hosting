@@ -255,6 +255,28 @@ $ps_call"
   assert_equal record "$(recorded)" ""
 }
 
+test_install_refuses_a_running_unlabeled_container_publishing_a_range_over_the_rows_port() {
+  ready_host
+  listed ranged running "" "0.0.0.0:7999-8001->7999-8001/tcp"
+  engine gb10 install agent
+  assert_equal status "$status" 1
+  assert_equal stdout "$out" ""
+  assert_equal stderr "$err" "hosting: the running container ranged, without the ai-hosting.row label, publishes agent's port 8000; docker rm -f ranged removes it"
+  assert_equal calls "$(calls)" "tailscale ip -4
+$ps_call"
+  assert_equal record "$(recorded)" ""
+}
+
+test_install_leaves_a_range_beside_the_rows_port_unrefused() {
+  ready_host
+  listed ranged running "" "0.0.0.0:8100-8102->8000-8002/tcp, 0.0.0.0:7990-7999->7990-7999/tcp"
+  container_of agent c1 sha256:old '[]'
+  engine gb10 install agent
+  assert_equal status "$status" 0
+  assert_equal stderr "$err" ""
+  assert_equal stdout "$out" "agent is already installed; hosting engine update agent moves it to the profile"
+}
+
 test_install_leaves_the_rows_own_labeled_container_unrefused() {
   ready_host
   listed vllm-agent running agent "192.0.2.10:8000->8000/tcp"

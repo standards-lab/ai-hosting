@@ -172,8 +172,9 @@ hosting_engine_remove_unused_image() {
 
 # Refuses each alias given whose row (hosting_row, after hosting_tailnet_address) is blocked by a
 # container without the row label: one, running or stopped, named as the row's container, or a
-# running one publishing the row's port. Prints each such container with the
-# command that removes it. Reads Docker once, and fails when Docker does.
+# running one publishing the row's port on the host side of a mapping, alone or inside a range.
+# Prints each such container with the command that removes it. Reads Docker once, and fails when
+# Docker does.
 hosting_engine_occupied() {
   local containers alias kind holder fail=0
   containers=$(docker container ls --all --format \
@@ -190,9 +191,20 @@ hosting_engine_occupied() {
       fi
       fail=1
     done < <(awk -F '\t' -v name="$HOSTING_ROW_CONTAINER" -v port="$HOSTING_ROW_PORT" '
+      function publishes(ports,   n, i, mapping, host, range) {
+        n = split(ports, mapping, ", ")
+        for (i = 1; i <= n; i++) {
+          if (!index(mapping[i], "->")) continue
+          host = substr(mapping[i], 1, index(mapping[i], "->") - 1)
+          sub(/.*:/, "", host)
+          if (split(host, range, "-") == 1) range[2] = range[1]
+          if (range[1] + 0 <= port + 0 && port + 0 <= range[2] + 0) return 1
+        }
+        return 0
+      }
       $3 != "" { next }
       $1 == name { print "name", $1 }
-      $2 == "running" && index($4, ":" port "->") { print "port", $1 }' <<<"$containers")
+      $2 == "running" && publishes($4) { print "port", $1 }' <<<"$containers")
   done
   return "$fail"
 }
