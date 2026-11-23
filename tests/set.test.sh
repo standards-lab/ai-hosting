@@ -11,12 +11,10 @@ set_field() {
   HOSTING_CLASS=gb10 run_hosting profile set "$@"
 }
 
-# Prints the lines the clone's gb10 profile changed from the committed one, as diff prints them.
 changed_lines() {
   diff "$repo/classes/gb10/profile.toml" "$clone/classes/gb10/profile.toml" | grep '^[<>]'
 }
 
-# Fails unless the clone's gb10 profile is byte-identical to the committed one.
 assert_unchanged() {
   cmp -s "$repo/classes/gb10/profile.toml" "$clone/classes/gb10/profile.toml" || fail "the profile changed: $(changed_lines)"
 }

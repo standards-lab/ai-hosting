@@ -122,8 +122,8 @@ hosting_observe_memory_gb10() {
 # On a Strix Halo, each process's GPU memory is amdgpu_top's VRAM and GTT, and the pool is amdgpu's
 # GTT, with the host's MemAvailable beside it, the memory GTT doesn't cover.
 # Adapted from spike-model-layout (e64d9c4): scripts/measure-lib.sh's _measure_vllm_footprint,
-# reading amdgpu_top -p as it does, with --no-pc as spike-model-hosting (aac0764):
-# evaluation/scripts/footprint.sh does, and GTT from HOSTING_SYSROOT's sysfs.
+# reading amdgpu_top -p as it does, and GTT from HOSTING_SYSROOT's sysfs.
+# Adapted from spike-model-hosting (aac0764): evaluation/scripts/footprint.sh's amdgpu_top --no-pc.
 hosting_observe_memory_strix_halo() {
   local read card gtt=unreadable
   read=$(timeout 30 amdgpu_top -p --no-pc |

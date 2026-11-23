@@ -5,8 +5,6 @@
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 
-# Stubs hf: hf auth whoami succeeds when the first argument is "signed-in", and hf download logs
-# whether the implicit token is off, then runs the body given, if any.
 stub_hf() {
   write_stub hf "
 if [[ \$1 == auth ]]; then [[ $1 == signed-in ]]; exit; fi

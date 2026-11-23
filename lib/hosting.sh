@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # The hosting suite's shell library, sourced by the hosting dispatcher and every
 # hosting-<group>-<verb> command, which stay thin consumers of it. It holds the usage error every
-# command reports the same way, the host-class detection the commands that differ by class share,
-# from lib/profile.sh, the host-class profiles' validator and editor, from lib/row.sh, the
-# container a row runs, from lib/model.sh, the model store, from lib/engine.sh, the rows a host
-# stands on, and from lib/observe.sh, what those rows are doing. See context/hosting-suite.md.
+# command reports the same way and the host-class detection the commands that differ by class
+# share, and sources the rest: lib/profile.sh, the host-class profiles' validator and editor;
+# lib/row.sh, the container a row runs; lib/model.sh, the model store; lib/engine.sh, the rows a
+# host stands on; and lib/observe.sh, what those rows are doing. See context/hosting-suite.md.
 
 # shellcheck source=lib/profile.sh
 source "$(dirname "${BASH_SOURCE[0]}")/profile.sh"
