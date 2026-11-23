@@ -33,8 +33,7 @@ record holds the tasks and their order.
   ([hosting-suite.md](hosting-suite.md)).
 - **The gateway** (planned): agentgateway's compose stack, with keys, priority, budgets,
   overflow, and telemetry; the `gateway` group runs it and the `key` group issues consumers' keys
-  ([gateway.md](gateway.md)). The embedding route overflows to Foundry managed compute
-  ([foundry-overflow.md](foundry-overflow.md)).
+  ([gateway.md](gateway.md)). The embedding route has no cloud fallback.
 - **Secrets** (built): the Foundry key and account, age-encrypted in ai-hosting's committed
   `fnox.toml`, each described, and checked by `scripts/lint-secrets.sh` ([secrets.md](secrets.md)).
 - **Runbooks** (built): one per host class, `classes/<class>/runbook.md`: the root steps, the
