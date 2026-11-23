@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Shellchecks every tracked file whose first line is a sh or bash shebang, checks that every
 # relative link in a tracked Markdown file resolves to a present file, runs lint-context,
-# lint-references, and scripts/lint-secrets.sh, validates every class profile with hosting profile
-# validate, and runs every tests/*.test.sh. Reads no network.
+# lint-references, scripts/lint-secrets.sh, and scripts/lint-bench.sh, validates every class
+# profile with hosting profile validate, and runs every tests/*.test.sh. Reads no network.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit
 
@@ -60,6 +60,7 @@ check_relative_links
 run_lint lint-context
 run_lint lint-references
 scripts/lint-secrets.sh || fail=1
+scripts/lint-bench.sh || fail=1
 bin/hosting profile validate >/dev/null || fail=1
 run_tests
 exit "$fail"

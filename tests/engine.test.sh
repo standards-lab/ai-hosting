@@ -533,7 +533,7 @@ docker image rm sha256:pinned"
 test_uninstall_keeps_an_image_another_container_uses() {
   ready_host
   record audio embedding
-  container_of embedding c1 sha256:rocm '["ibm-granite/granite-embedding-english-r2"]'
+  container_of embedding c1 sha256:rocm '["intfloat/multilingual-e5-large"]'
   container_of audio c2 sha256:audio '["google/gemma-4-E4B-it"]'
   echo c9 >>"$HOSTING_TEST_DOCKER/ls/ancestor=sha256:rocm"
   uninstall embedding

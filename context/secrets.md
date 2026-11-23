@@ -6,7 +6,7 @@ which holds the convention and every procedure. The [README](../README.md#secret
 secrets and recipients. What follows is ai-hosting's own.
 
 - `AZURE_FOUNDRY_KEY` is the Azure AI Foundry account's key and `AZURE_FOUNDRY_ACCOUNT` its
-  resource name; the gateway's overflow to [Azure AI Foundry](foundry-overflow.md) reads both.
+  resource name; the [gateway](gateway.md)'s overflow to Azure AI Foundry reads both.
   The values came from spike-model-gateway's `.state/azure`.
 - The [gateway](gateway.md) task builds the `key` group on this file. Its verbs are the only ones
   that call fnox; the suite has no `secrets` group. Where `key issue` writes an issued key is open

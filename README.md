@@ -16,6 +16,11 @@ gives the root steps a host needs first, the suite's install, and each row's com
 `mise run check` runs the shell tests under `tests/` and validates every class profile, among its
 other checks.
 
+## The bench
+
+The rows are measured from the laptop with GuideLLM and MTEB, in a mise environment of their own
+that the check never installs: [`bench/README.md`](bench/README.md).
+
 ## Secrets
 
 `fnox.toml` holds ai-hosting's development-time secrets, the Azure AI Foundry account's key and

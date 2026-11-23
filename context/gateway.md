@@ -3,8 +3,8 @@
 agentgateway's compose stack on gb10-2, run from ai-hosting's clone, and the `gateway` and `key`
 groups that run it; the `gateway` task builds them. Spike files are cited from
 spike-model-gateway at `2f2e8c1`. The requirements follow `standards-lab/context/ai-hosting.md`,
-with overflow on all four aliases; the embedding route's overflow is
-[Foundry managed compute](foundry-overflow.md), and its secrets are in [secrets](secrets.md).
+with overflow on the agent, vision, and audio aliases; its secrets are in [secrets](secrets.md).
+The embedding route has no cloud fallback: it routes only to self-hosted rows.
 
 ## Layout
 
@@ -31,12 +31,12 @@ agentgateway's config changes on the way in:
 - the keys, budgets, and rate buckets are set for the named consumers, with each amount's reason
   in the gateway document; the per-key policies read a class field in the key's metadata in place
   of comparing the name with `"bulk"`, if v1.7.0 accepts one;
-- each alias's Azure group gets a switch; the embedding route has no Azure group until
-  acceptance's vector-parity cell passes, then names the `embedding` task's model, without the
-  `dimensions` override;
+- the agent, vision, and audio aliases' Azure groups each get a switch; the embedding route gets
+  no Azure group;
 - `..`, `%2e%2e`, and `%2f` are refused before routing, proven with the three requests;
-- embedding's rate buckets keep their form and take the `embedding` task's figure, measured on
-  the Framework beside the audio model;
+- embedding's rate buckets keep their form and take the `embedding` task's figure, at most 14
+  requests a second, measured on the Framework beside the audio model
+  ([findings](../docs/findings/embedding.md#e5-pair));
 - priority on Messages carries as is, and `acceptance` proves it;
 - tracing stays at 100%.
 

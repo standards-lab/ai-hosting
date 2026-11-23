@@ -57,8 +57,9 @@ and that attestation differs on every build. With it, even a fully cached rebuil
 ID, and `engine update`, which replaces a row whose image ID differs, would replace the audio row
 on every run.
 
-- `acceptance` will measure audio RTFx and embedding throughput under FAST. The embedding row's
-  image takes the setting only if the `embedding` task's own long-input probe fails.
+- `acceptance` will measure audio RTFx and embedding throughput under FAST. The embedding row
+  takes no MIOpen setting: its long-input probe, 512 tokens, passed on the stock ROCm image
+  ([findings](../docs/findings/embedding.md#e5-probes)).
 - A report upstream is deferred to the backlog. The `upgrades` task's watch will check each vLLM
   ROCm release for a gfx1151 find database, so FAST can drop.
 

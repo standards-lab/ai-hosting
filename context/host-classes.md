@@ -41,7 +41,11 @@ Replacing a model runs `profile set`, `model pull`, and `engine update`, then co
 (each runbook gives the commands). It is a kind of upgrade:
 the `upgrades` task's convention and its `hosting-upgrades` skill will cover evaluating the
 candidate (its card, its origin, a probe against the row's floors) before `profile set`. The
-`embedding` task's replacement is the first and sets the pattern.
+`embedding` task's replacement of the Framework's embedding model with
+`intfloat/multilingual-e5-large` is the pattern: the card read, the pull and update, probes at the
+context's edge, the sweep that sets the cap, the memory read, retrieval against the published
+scores, the pair beside the host's other row, then pruning the old model, each a cell in
+[its findings](../docs/findings/embedding.md).
 
 A read-only listing of the rows whose `measured_vllm` is older than the pin, the rows an upgrade
 re-measures, is planned for `upgrades`; that task's plan names its verb.
@@ -59,10 +63,10 @@ The validator, `lib/profile.jq`, ports spike-model-hosting's `hosting/profile/pr
 `vision`, and `audio` rows come from the spike's `devices/strix-halo/profile.toml` entries for
 gpt-oss-120b, Gemma 4 26B-A4B, and Gemma 4 E4B, with each card's context moved to the row. The rest
 of the spike's profile package is not carried: its Go code, llama.cpp's fields and templates, model
-sets, the decode-ceiling fields, and the evaluation tooling. Two later tasks take parts of it:
+sets, the decode-ceiling fields, and the evaluation tooling. Two tasks take parts of it:
 
-- **embedding**: the embedding row's runbook takes the e5 query prefix
-  (`hosting/profile/profile.go:340-343`).
+- **embedding**: the strix-halo runbook's embedding section states e5's `query: ` and
+  `passage: ` prefixes (`hosting/profile/profile.go:340-343`).
 - **architecture**: its "sizing a vLLM row" page takes the decode-ceiling method
   (`memory_bandwidth_gb_s`, `active_params_b`, `bits_per_weight`); its "reading a model card" page
   takes `docs/model-cards.md`'s first two sections, "What each value means" and "Why a model runs

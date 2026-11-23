@@ -28,7 +28,7 @@ HOME=/home/vllm
 --env
 USER=operator
 vllm/vllm-openai-rocm:v0.34.0
-ibm-granite/granite-embedding-english-r2
+intfloat/multilingual-e5-large
 --host
 0.0.0.0
 --port
@@ -36,9 +36,9 @@ ibm-granite/granite-embedding-english-r2
 --served-model-name
 embedding
 --max-num-seqs
-128
+32
 --max-model-len
-8192
+512
 --gpu-memory-utilization
 0.03
 --runner

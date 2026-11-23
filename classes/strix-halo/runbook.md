@@ -159,6 +159,13 @@ hosting engine metrics embedding
 hosting engine uninstall embedding
 ```
 
+The row serves the profile's `model`, which takes its input with a prefix the caller adds: each
+query starts `query: ` and each passage `passage: `; the row adds neither. An input may run to the
+row's `context` in tokens, counting the two special tokens the tokenizer adds; the row refuses a
+longer one with a 400 and never truncates it
+([findings](../../docs/findings/embedding.md#e5-probes)). A caller that counts runes sizes its
+chunks from the [tokens per rune](../../docs/findings/embedding.md#e5-runes).
+
 ### Every row
 
 Read-only:
