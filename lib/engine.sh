@@ -44,15 +44,9 @@ hosting_record_drop() {
   printf '%s' "${kept:+$kept$'\n'}" >"$path"
 }
 
-# Refuses unless the rows of the loaded profile (hosting_profile_load) that would stand on the
-# host, the recorded aliases and those given, reserve fractions of the GPU's memory summing to at
-# most 1. Refuses a recorded alias the profile has no row for.
-hosting_engine_fractions() {
-  local alias aliases sum
-  mapfile -t aliases < <({
-    hosting_record
-    printf '%s\n' "$@"
-  } | awk 'NF && !seen[$0]++')
+# Refuses a recorded alias the loaded profile (hosting_profile_load) has no row for.
+hosting_record_check() {
+  local alias
   for alias in $(hosting_record); do
     if ! hosting_profile_alias "$alias" 2>/dev/null; then
       echo "hosting: the record $(hosting_record_path) holds $alias, which" \
@@ -60,6 +54,18 @@ hosting_engine_fractions() {
       return 1
     fi
   done
+}
+
+# Refuses unless the rows of the loaded profile (hosting_profile_load) that would stand on the
+# host, the recorded aliases and those given, reserve fractions of the GPU's memory summing to at
+# most 1. Refuses a recorded alias the profile has no row for (hosting_record_check).
+hosting_engine_fractions() {
+  local aliases sum
+  mapfile -t aliases < <({
+    hosting_record
+    printf '%s\n' "$@"
+  } | awk 'NF && !seen[$0]++')
+  hosting_record_check || return
   # shellcheck disable=SC2016 # $ARGS and $a are jq's.
   sum=$(jq -r '[.rows[] | select(.alias as $a | $ARGS.positional | index([$a]))] as $rows
     | ($rows | map(.fraction) | add // 0 | . * 1000000 | round / 1000000) as $sum
