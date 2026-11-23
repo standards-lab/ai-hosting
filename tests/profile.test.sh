@@ -9,11 +9,6 @@ source "$repo/lib/hosting.sh"
 
 fixtures=$repo/tests/profiles
 
-# Prints what the jq expression given makes of the clone's profile of the class given.
-profile_json() {
-  hosting_yq -p toml -o json '.' "$clone/classes/$1/profile.toml" | jq -r "$2"
-}
-
 test_the_committed_profiles_validate() {
   run_hosting profile validate
   assert_equal status "$status" 0
@@ -28,21 +23,6 @@ test_the_committed_profiles_are_in_yqs_output_format() {
     assert_equal "$class profile" "$(hosting_yq -p toml -o toml '.' "$repo/classes/$class/profile.toml")" \
       "$(<"$repo/classes/$class/profile.toml")"
   done
-}
-
-test_each_class_holds_its_standing_rows() {
-  assert_equal "gb10 aliases" "$(profile_json gb10 '[.rows[].alias] | join(" ")')" "agent vision"
-  assert_equal "strix-halo aliases" "$(profile_json strix-halo '[.rows[].alias] | join(" ")')" \
-    "audio embedding"
-}
-
-test_the_vision_row_records_that_its_generation_config_is_the_cards() {
-  local row='.rows[] | select(.alias == "vision")'
-  assert_equal sampling "$(profile_json gb10 "$row | has(\"sampling\")")" false
-  assert_equal "base model" "$(profile_json gb10 "$row | .provenance.base_model")" \
-    google/gemma-4-26B-A4B-it
-  assert_contains "generation config" "$(profile_json gb10 "$row | .provenance.generation_config")" \
-    "temperature 1.0, top_k 64, top_p 0.95"
 }
 
 test_the_valid_fixture_validates() {

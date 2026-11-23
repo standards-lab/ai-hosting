@@ -20,7 +20,7 @@ render() {
 }
 
 test_each_standing_row_renders_its_golden_command() {
-  local class alias
+  local class alias rendered=()
   stub_host
   for class in gb10 strix-halo; do
     for alias in $(hosting_yq -p toml -o json '.' "$clone/classes/$class/profile.toml" |
@@ -29,8 +29,11 @@ test_each_standing_row_renders_its_golden_command() {
       assert_equal "$alias status" "$status" 0
       assert_equal "$alias stdout" "$out" "$(<"$goldens/$alias.args")"
       assert_equal "$alias stderr" "$err" ""
+      rendered+=("$class:$alias")
     done
   done
+  assert_equal "rendered rows" "${rendered[*]}" \
+    "gb10:agent gb10:vision strix-halo:audio strix-halo:embedding"
   assert_equal goldens "$(cd "$goldens" && echo *.args)" \
     "agent.args audio.args embedding.args vision.args"
 }

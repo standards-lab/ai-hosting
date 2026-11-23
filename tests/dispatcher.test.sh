@@ -68,8 +68,9 @@ usage: hosting <group> <verb> [args...]"
 }
 
 test_a_name_reaching_outside_the_commands_is_unknown() {
-  write_command engine install "Starts each named row" 'echo ran'
   mkdir "$clone/bin/hosting-x"
+  printf '#!/usr/bin/env bash\necho ran\n' >"$clone/bin/engine-install"
+  chmod +x "$clone/bin/engine-install"
   run_hosting x/../engine install
   assert_equal status "$status" 2
   assert_equal stdout "$out" ""
