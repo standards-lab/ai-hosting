@@ -7,6 +7,8 @@ ai-hosting holds no Go, so Go Elemental's pages don't apply.
 
 - `architecture/principles/comments.md`: the reasoning a comment points to lives in ai-hosting's
   documents.
+- `architecture/principles/comments.md`: ai-hosting carries no `Adapted from` provenance comments;
+  a spike source is cited in the notes or the commit message instead.
 - `architecture/principles/rolling-currency.md`: every pin is explicit and one that `mise run
   currency` reads, and a pin held behind the latest release carries its reason beside it.
 - `architecture/principles/minimal-footprint.md`: no Go toolchain and no module; a need is met by

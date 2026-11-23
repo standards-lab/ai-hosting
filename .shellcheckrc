@@ -1,0 +1,2 @@
+# Shellcheck's configuration: it follows the files a script sources, such as lib/vllm.env.
+external-sources=true

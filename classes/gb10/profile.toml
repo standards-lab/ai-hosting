@@ -1,0 +1,59 @@
+# The gb10 host class's profile: every row a GB10 host can serve, each row's one home.
+# See classes/README.md.
+store = "/srv/models"
+
+[[rows]]
+alias = "agent"
+model = "openai/gpt-oss-120b"
+container = "vllm-agent"
+port = 8000
+context = 131072
+card_context = 131072
+context_reason = "131,072 tokens, the agent's session and the model's trained context: the FP8 KV cache, sized in bytes, held 13.23 sessions of it at the start, and the row met the agent's floor at 12 sessions of 131,072 on a GB10 alone (spike-model-layout docs/findings/vllm-layout.md, C.7 and D; standards-lab context/ai-hosting.md, \"The layout\")."
+cap = 12
+cap_reason = "12 sessions at once, the most at which the row met the agent's floor, an inter-token latency median of at most 100 ms: 99.07 ms at 12 sessions against 49.13 ms at the target of 4, on a GB10 alone (spike-model-layout docs/findings/vllm-layout.md, D; standards-lab context/ai-hosting.md, \"The layout\")."
+queue_limit = 24
+fraction = 0.80
+fraction_reason = "0.80, the row alone on its host: at 12 sessions the host's MemAvailable held 12.96 GiB, 0.76 GiB above the 12.2 GiB floor, and the start from the compile cache after a reboot stayed above it (spike-model-layout docs/findings/vllm-layout.md, C.7, D, and I.3; standards-lab context/ai-hosting.md, \"The layout\")."
+flags = ["--scheduling-policy", "priority", "--kv-cache-dtype", "fp8", "--kv-cache-memory-bytes", "32993476982", "--reasoning-parser", "openai_gptoss", "--enable-auto-tool-choice", "--tool-call-parser", "openai"]
+flags_reason = "Priority scheduling, so the gateway ranks its keys' work (spike-model-gateway docs/findings/priority.md); an FP8 KV cache sized in bytes to llama.cpp's agent pool of 1,179,648 tokens, which showed no significant accuracy loss against BF16 (spike-model-layout docs/findings/vllm-layout.md, C.4); and gpt-oss's own reasoning and tool-call parsers."
+measured_vllm = "v0.33.0"
+
+[rows.load]
+target = "4 sessions"
+source = "spike-model-layout docs/findings/vllm-layout.md, D and J: 49.13 ms inter-token latency median at 4 sessions alone, 48.13 ms with every host at its target; standards-lab context/ai-hosting.md, \"The layout\""
+
+[rows.source]
+publisher = "OpenAI"
+origin = "United States"
+licence = "Apache-2.0"
+card_url = "https://huggingface.co/openai/gpt-oss-120b"
+[[rows]]
+alias = "vision"
+model = "nvidia/Gemma-4-26B-A4B-NVFP4"
+container = "vllm-vision"
+port = 8001
+context = 8192
+card_context = 262144
+context_reason = "8,192 tokens a request, the length every capability row was measured at (spike-model-layout docs/findings/capability-vllm.md); the row met vision's floor at 16 requests of 8,192 on a GB10 alone (spike-model-layout docs/findings/vllm-layout.md, E.5; standards-lab context/ai-hosting.md, \"The layout\")."
+cap = 16
+cap_reason = "16 requests at once: on a GB10 alone the row met vision's floor, a request latency median of at most 10 s, at 16 streams, 9.64 s, in cell vllm-layout-g2-vision-capacity (spike-model-layout docs/findings/vllm-layout.md, E.5; standards-lab context/ai-hosting.md, \"The layout\")."
+queue_limit = 32
+fraction = 0.40
+fraction_reason = "0.40: its KV cache held 162,699 tokens, 19.86 requests of 8,192, over the cap of 16, and the host's MemAvailable fell no lower than 36.25 GiB during the start, against the 12.2 GiB floor (spike-model-layout docs/findings/vllm-layout.md, E.1; standards-lab context/ai-hosting.md, \"The layout\")."
+flags = ["--scheduling-policy", "priority", "--kv-cache-dtype", "bfloat16", "--reasoning-parser", "gemma4", "--enable-auto-tool-choice", "--tool-call-parser", "gemma4"]
+flags_reason = "Priority scheduling, so the gateway ranks its keys' work (spike-model-gateway docs/findings/priority.md); a BF16 KV cache, since the NVFP4 checkpoint declares a static FP8 one but ships no calibrated k/v scales (spike-model-engines host/vllm-rows); and Gemma 4's own reasoning and tool-call parsers."
+measured_vllm = "v0.33.0"
+
+[rows.load]
+target = "4 requests"
+source = "spike-model-layout docs/findings/vllm-layout.md, E.2 and J: 4.68 s request latency median at 4 requests alone, 4.49 s with every host at its target; standards-lab context/ai-hosting.md, \"The layout\""
+
+[rows.source]
+publisher = "NVIDIA"
+origin = "United States"
+licence = "Apache-2.0"
+card_url = "https://huggingface.co/nvidia/Gemma-4-26B-A4B-NVFP4"
+base_model = "google/gemma-4-26B-A4B-it"
+base_origin = "United States"
+generation_config = "nvidia/Gemma-4-26B-A4B-NVFP4 ships the same generation_config.json as google/gemma-4-26B-A4B-it, the card's values: temperature 1.0, top_k 64, top_p 0.95."

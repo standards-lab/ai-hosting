@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# hosting:summary=Lists the models no recorded row serves and incomplete downloads; --yes deletes them
+# `hosting model prune [--yes]`: validates the host's class profile and the install record, then
+# prints each model in the class's store that no row recorded on this host serves and each
+# incomplete download, deleting them only with --yes (hosting_model_prune in lib/model.sh). See
+# context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+yes=
+case "$*" in
+  '') ;;
+  --yes) yes=yes ;;
+  *) hosting_usage_error "model prune takes only --yes" "model prune [--yes]" ;;
+esac
+
+hosting_profile_load
+hosting_record_check
+hosting_model_hf
+hosting_model_prune "$(hosting_model_store)" "$yes"

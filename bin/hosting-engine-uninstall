@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# hosting:summary=Removes a row, or every recorded row, and drops it from the install record
+# `hosting engine uninstall [<alias>]`: acts on the alias given, or with none on every alias in the
+# install record, refusing an alias that is neither recorded nor a row's. For each alias, removes
+# the container carrying its row label, then the image that container ran when no other container
+# uses it, and drops the alias from the record. Never detects the host class. See
+# context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 1)); then
+  hosting_usage_error "engine uninstall takes at most one alias" "engine uninstall [<alias>]"
+fi
+
+if (($# == 1)); then
+  if ! hosting_record | grep -qx -- "$1" && ! hosting_profile_jq 'aliases[]' -n | grep -qx -- "$1"
+  then
+    echo "hosting: $1 is neither in the install record $(hosting_record_path) nor a row's" \
+      "alias, $(hosting_profile_jq 'aliases | join(", ")' -n)" >&2
+    exit 1
+  fi
+  aliases=("$1")
+else
+  mapfile -t aliases < <(hosting_record)
+fi
+if ((${#aliases[@]} == 0)); then
+  echo "the install record $(hosting_record_path) holds no alias; nothing to uninstall"
+  exit 0
+fi
+
+for alias in "${aliases[@]}"; do
+  ids=$(hosting_engine_container "$alias")
+  [[ -n $ids ]] || echo "$alias has no container"
+  for id in $ids; do
+    running=$(hosting_engine_running "$id")
+    docker rm --force "$id" >/dev/null
+    echo "removed $alias's container $id"
+    hosting_engine_remove_unused_image "${running%% *}"
+  done
+  hosting_record_drop "$alias"
+done

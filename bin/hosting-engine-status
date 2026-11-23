@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# hosting:summary=Shows each row's container state and health, and flags a stranded row
+# `hosting engine status`: one line a container carrying a row label, and a recorded alias with
+# none, giving its state and whether its /health answers on the address it is configured to listen
+# on; then each running row whose port is published nowhere, with the command that recovers it.
+# Exits 1 when any row is not running and healthy. Changes nothing, and never detects the host
+# class. See context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "engine status takes no argument" "engine status"
+fi
+
+hosting_observe_status

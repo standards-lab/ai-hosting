@@ -1,115 +1,70 @@
 # Host-class profiles
 
-Each host class has one profile, which lists every row the class can serve and is each row's one
-home. The schema is TOML, and `mise.toml` gains a pinned TOML reader for the hosts, which
-currency reads. The `hosts` task builds the profiles and the `profile` group
-([the `hosting` suite](hosting-suite.md)).
+Each host class, `gb10` or `strix-halo`, has one profile, which lists every row the class can serve
+and is each row's one home. [classes/README.md](../classes/README.md) defines the layout, the
+schema, and what `hosting profile validate` refuses; each class's runbook sits beside its profile.
+This note keeps the reasoning behind the profiles and what later tasks add to them.
 
-## The profile
+## Why the profiles take this shape
 
-**A row** is one alias, `agent`, `vision`, `audio`, or `embedding`; the spike's role `chat` is
-`agent`. Its typed fields:
+- **TOML, read by shell, with no Go.** The suite's shell commands read and write the profiles with
+  mikefarah yq, the reader `mise.toml` pins. The schema document is the contract
+  experiment.admin's Go CLI implements.
+- **No host identity.** A profile names no host, so another host of the class follows it. Which
+  rows a host stands on is the aliases given to `hosting engine install`, recorded on the host.
+- **One port an alias, across the classes.** Each alias keeps one port on every class: `agent`
+  8000, `vision` 8001, `audio` 8002, `embedding` 8003. The profile is the port's home, and the
+  gateway derives each alias's port from it.
+- **The fraction sum is install's.** The validator checks each fraction alone. The sum of the
+  fractions of the rows standing on one host depends on that host's record, so `engine install`
+  checks it in its preflight, against the recorded aliases plus the new ones.
+- **No sampling override.** No standing row sets `sampling`. The vision row's source table records
+  that its checkpoint's generation config carries its card's values, which vLLM applies by
+  default.
+- **No engine version.** A row's `measured_vllm` names the release its measurements ran on; the
+  release a row runs is the image pin in `lib/vllm.env`, which currency reads.
 
-- alias, model repository, context (at most the card's context), cap, GPU memory fraction, queue
-  limit, container, port, and an optional image;
-- provenance;
-- the reasons for its cap, context, and fraction, each stating the measurement behind the present
-  value and naming a document in ai-hosting, never a goal record or a value the row doesn't run
-  at;
-- the vLLM release its measurement ran on;
-- its load target, with the source of its measurement;
-- sampling, only where the checkpoint isn't its card publisher's, with the card's values and
-  their source, passed as a generation-config override; the rule's text goes to the
-  `architecture` task;
-- `dims`, on an embedding row.
+## Class detection
 
-The port's home is the profile; the gateway derives each alias's port from it.
+`hosting_class` in `lib/hosting.sh` sets the class from the PCI vendor and device IDs a DRM card
+reports under `/sys/class/drm/card*/device`: `0x10de:0x2e12`, the NVIDIA GB10, is `gb10`, and
+`0x1002:0x1586`, the AMD Strix Halo, is `strix-halo`. It refuses a host matching neither.
+`HOSTING_CLASS` overrides the probe and is checked against the same closed list. The function
+exports `HOSTING_CLASS`, so the commands a call runs inherit the class and the host is probed once
+per call. It replaces spike-model-engines' `vllm_flavor` (`host/vllm.sh` at `6ce3210`), which took
+any host without AMD's vendor ID as CUDA; the IDs come from spike-hosting-upgrades' host reports,
+gb10-1's at `26b6c37` and the Framework's at `12067db`.
 
-**Invariants.** Aliases, ports, and containers are unique in the profile; a queue limit, where
-set, is twice the cap; the fractions of the rows that stand together on a host sum to at most 1.
+## Replacing a model
 
-**Free flags** pass through with one stated reason. The validator refuses the flags the typed
-fields and the suite own: `--host`, `--port`, `--served-model-name`, `--max-num-seqs`,
-`--max-model-len`, `--gpu-memory-utilization`, and `--max-num-queued-reqs`.
+Replacing a model runs `profile set`, `model pull`, and `engine update`, then commits the profile
+(each runbook gives the commands). It is a kind of upgrade:
+the `upgrades` task's convention and its `hosting-upgrades` skill will cover evaluating the
+candidate (its card, its origin, a probe against the row's floors) before `profile set`. The
+`embedding` task's replacement is the first and sets the pattern.
 
-**No host identity.** A profile names no host; the validator refuses an address or a MagicDNS
-name anywhere in it.
+A read-only listing of the rows whose `measured_vllm` is older than the pin, the rows an upgrade
+re-measures, is planned for `upgrades`; that task's plan names its verb.
 
-**Which rows a host stands on** is the aliases given to `hosting engine install`, recorded on the
-host outside git; `engine update` and `engine uninstall` with no alias read that record.
+## go-ai profiles
 
-**The vLLM release** is the image pin currency reads; a profile holds no engine version. A
-read-only listing of the rows whose measurement ran on a release older than the pin, the rows an
-upgrade re-measures, is `upgrades`'; its verb is open at that task's plan.
+Planned for the `gateway` task: ai-hosting will publish each alias's go-ai profile as a JSON file
+in go-ai's own field names, declaring the reasoning efforts the row refuses. Acceptance will run
+go-ai's integration tier with them through `AI_<ROLE>_PROFILE`.
 
-**Replacing a model.** `profile set` → `model pull` → `engine update` → commit. Replacing a model
-is an upgrade kind: `upgrades`' convention and its `hosting-upgrades` skill cover evaluating the
-candidate (its card, its provenance, a probe against the row's floors) before `profile set`. The
-embedding task's replacement is the first and sets the pattern.
+## What later tasks take from spike-model-hosting
 
-**go-ai profiles.** ai-hosting publishes each alias's go-ai profile as a JSON file in go-ai's own
-field names, declaring the reasoning efforts the row refuses (gateway). Acceptance runs go-ai's
-integration tier with them through `AI_<ROLE>_PROFILE`.
+The validator, `lib/profile.jq`, ports spike-model-hosting's `hosting/profile/profile.go`
+(`Parse` and `Validate`) at `aac0764` to jq over vLLM rows. The source tables of the `agent`,
+`vision`, and `audio` rows come from the spike's `devices/strix-halo/profile.toml` entries for
+gpt-oss-120b, Gemma 4 26B-A4B, and Gemma 4 E4B, with each card's context moved to the row. The rest
+of the spike's profile package is not carried: its Go code, llama.cpp's fields and templates, model
+sets, the decode-ceiling fields, and the evaluation tooling. Two later tasks take parts of it:
 
-## From spike-model-hosting's profile package
-
-The package, at `aac0764`, carries as a documented TOML schema and a shell validator and
-renderer, the `hosting profile` group; no Go carries. The schema document is the contract
-experiment.admin's Go CLI implements.
-
-| Part in ai-hosting | Source | Task |
-| --- | --- | --- |
-| The validation discipline: closed keys, every error at once by key path, every command that reads a profile validates it first, a value placed on a command line refused if it holds whitespace or shell syntax | `hosting/profile/profile.go:420-450`, `:495-511`; `hosting/profile/presets.go:37-39`; `hosting/profile/unit.go:38-43` | hosts |
-| Provenance: publisher, origin, licence, card URL, and `origin_reason`; origin a closed list of country names, a restricted origin without `origin_reason` refused, a fine-tune's base origin recorded | `hosting/profile/profile.go:274-292`, `:574-582`; `docs/pool.md:55-58` | hosts; its first use, embedding |
-| The provenance entries of gpt-oss-120b, Gemma 4 26B-A4B, and Gemma 4 E4B | `devices/strix-halo/profile.toml:69-79`, `:118-128`, `:181-194` | hosts |
-| Required reasons, beside a row's cap, context, fraction, and free flags | `hosting/profile/profile.go:588-590`, `:629-631` | hosts |
-| `dims`, for an embedding row | `hosting/profile/profile.go:326-329`, `:609-614` | embedding |
-| Where the model store is mounted: the spike held it per machine, in its `Host` struct; the class profile holds it | `hosting/profile/profile.go:413-419` | hosts |
-| One directory per host class, holding its profile beside its runbook | `hosting/profile/locate.go:12-17` | hosts |
-| The check validates every committed profile, and fixture profiles: one valid, one per refusal, each with the error it must produce | `hosting/profile/profile_test.go`, `hosting/profile/testdata/README.md` | hosts |
-
-These drop:
-
-- all the Go code: `go.mod`, `go.sum`, and `github.com/BurntSushi/toml`; `hosting/profile/*.go`
-  and `hosting/cmd/profile/main.go`, the dispatcher, with its `engines`, `set`, and `render`
-  subcommands;
-- `hosting/profile/edit.go`'s evaluation overrides, `Override`, and `PresetSection`
-  (`hosting/profile/presets.go:73-131`); a narrow `profile set` is written fresh;
-- `hosting/profile/locate.go`, since the suite resolves the clone from the command's real path
-  and the class from detection;
-- llama.cpp's fields and templates: `engine`, `kv`, `defaults`, `mtmd_batch_max_tokens`, the
-  router-tag rule, `hosting/profile/presets.ini.tmpl`, `hosting/profile/unit.service.tmpl`,
-  `RenderPresets`, and `RenderUnit`;
-- `sets`, `startup`, `MaxSetModels`, `SetRoles`, and a model's `roles`;
-- `memory_budget` and the decode-ceiling fields `memory_bandwidth_gb_s`, `active_params_b`, and
-  `bits_per_weight`; the decode-ceiling method goes to the architecture task's "sizing a vLLM
-  row" page;
-- `engine.min_build` (`hosting/profile/profile.go:158-167`) and the `engines` subcommand
-  (`hosting/cmd/profile/main.go:110-148`); the `hosting engine` group is unaffected;
-- `sampling.reasoning` and `consumers`;
-- `prompts` and the ASR rule (`hosting/profile/profile.go:340-343`, `:733-735`); the e5 prefix
-  goes to the embedding row's runbook (embedding);
-- the unit, the `bind` field, and `Host`'s service user;
-- the golden files: `skeleton.ini`, `strix-halo.ini`, `strix-halo.service`, and
-  `unified-96gb.ini` in `hosting/profile/testdata/`;
-- the Strix Halo instance's values, `devices/strix-halo/profile.toml`, apart from the three
-  provenance entries;
-- `docs/pool.md`; its fine-tune origin rule is the provenance's base origin.
-
-The rest of spike-model-hosting is not carried: `hosting/swap`, `hosting/router`,
-`hosting/probe`, and `hosting/cmd/swap` are llama.cpp's, and `evaluation/` and
-`devices/strix-halo/*`, apart from the three provenance entries above, served the spike's
-evaluation.
-
-`docs/model-cards.md`'s first two sections, "What each value means" and "Why a model runs at its
-card's values", go to the architecture task's "reading a model card" page, rewritten for a served
-checkpoint in place of a GGUF.
-
-## Open at the hosts plan
-
-- Where the host records its installed aliases.
-- Which TOML reader `mise.toml` pins.
-- The profiles' on-disk layout inside the one directory per class.
-- The restricted-origin list, citing `standards-lab/context/ai-strategy.md`, "Constraint: model
-  origin".
-- Whether the vision row needs a sampling override.
+- **embedding**: the embedding row's runbook takes the e5 query prefix
+  (`hosting/profile/profile.go:340-343`).
+- **architecture**: its "sizing a vLLM row" page takes the decode-ceiling method
+  (`memory_bandwidth_gb_s`, `active_params_b`, `bits_per_weight`); its "reading a model card" page
+  takes `docs/model-cards.md`'s first two sections, "What each value means" and "Why a model runs
+  at its card's values", rewritten for a served checkpoint in place of a GGUF; and it states the
+  rule that only a row whose checkpoint another publisher's card describes sets `sampling`.

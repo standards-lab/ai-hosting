@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# hosting:summary=Moves a row, or every recorded row, to this host's class profile
+# `hosting engine update [<alias>]`: acts on the alias given, or with none on every alias in the
+# install record. Validates the host's class profile and refuses as engine install does before it
+# touches Docker (hosting_engine_check in lib/engine.sh). Then, for each alias, pulls the row's
+# model and pulls or builds its image first; replaces the row's labeled container when the image ID
+# or the command it runs differs from the row's, then removes the image it ran when no container
+# uses it; starts the row when it has no container; and records the alias. A row whose container
+# already runs it is left as it is. See context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 1)); then
+  hosting_usage_error "engine update takes at most one alias" "engine update [<alias>]"
+fi
+
+hosting_profile_load
+if (($# == 1)); then
+  aliases=("$1")
+else
+  mapfile -t aliases < <(hosting_record)
+fi
+if ((${#aliases[@]} == 0)); then
+  echo "the install record $(hosting_record_path) holds no alias; nothing to update"
+  exit 0
+fi
+hosting_engine_check "${aliases[@]}"
+
+for alias in "${aliases[@]}"; do
+  hosting_row "$alias" "$HOSTING_ADDRESS"
+  hosting_model_pull "${HOSTING_ROW_COMMAND[0]}" "$(hosting_model_store)"
+  hosting_engine_fetch "$alias"
+  wanted=$(hosting_engine_wanted)
+  id=$(hosting_engine_container "$alias")
+  if [[ -z $id ]]; then
+    hosting_engine_run
+    hosting_record_add "$alias"
+    echo "$alias was not installed; it runs $HOSTING_ROW_IMAGE in $HOSTING_ROW_CONTAINER"
+    continue
+  fi
+  running=$(hosting_engine_running "$id")
+  hosting_record_add "$alias"
+  if [[ $running == "$wanted" ]]; then
+    echo "$alias already runs $HOSTING_ROW_IMAGE as its row; nothing changed"
+    continue
+  fi
+  docker rm --force "$id" >/dev/null
+  hosting_engine_run
+  echo "$alias was replaced; it runs $HOSTING_ROW_IMAGE in $HOSTING_ROW_CONTAINER"
+  if [[ ${running%% *} != "${wanted%% *}" ]]; then
+    hosting_engine_remove_unused_image "${running%% *}"
+  fi
+done

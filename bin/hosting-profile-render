@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# hosting:summary=Prints the docker command a row of this host's class runs
+# `hosting profile render <alias>`: validates the host's class profile, then prints the docker run
+# command the row with the alias given runs, one argument a line: its container options, its image,
+# and its vllm serve arguments, published on the host's tailnet IPv4 address. engine install and
+# update run the same command (hosting_row in lib/row.sh). See classes/README.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# != 1)); then
+  hosting_usage_error "profile render takes one alias" "profile render <alias>"
+fi
+
+hosting_profile_load
+hosting_profile_alias "$1"
+hosting_tailnet_address
+hosting_row "$1" "$HOSTING_ADDRESS"
+printf '%s\n' docker run "${HOSTING_ROW_ARGS[@]}"

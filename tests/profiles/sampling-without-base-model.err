@@ -1,0 +1,1 @@
+rows[1].sampling: only a row whose checkpoint another publisher's card describes (source.base_model) overrides its sampling

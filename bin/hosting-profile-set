@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# hosting:summary=Sets one field of a row in this host's class profile, validating before it writes
+# `hosting profile set <alias> <field>=<value>`: validates the host's class profile, then sets the
+# field of the row with the alias given, the field a row's key path such as cap or load.target, and
+# writes the profile in place only when the edited profile validates; otherwise it prints the
+# errors and writes nothing. See classes/README.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+usage='profile set <alias> <field>=<value>'
+if (($# != 2)) || [[ $2 != *=* ]]; then
+  hosting_usage_error "profile set takes an alias and one <field>=<value>" "$usage"
+fi
+
+hosting_profile_load
+hosting_profile_set "$1" "${2%%=*}" "${2#*=}"
+echo "$HOSTING_PROFILE_NAME: set $1's ${2%%=*}"

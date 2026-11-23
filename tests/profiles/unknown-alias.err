@@ -1,0 +1,1 @@
+rows[0].alias: "chat" is not one of agent, vision, audio, embedding

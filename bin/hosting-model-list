@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# hosting:summary=Lists the models in this host's model store, their sizes, and the rows using them
+# `hosting model list`: validates the host's class profile and the install record, then lists each
+# model in the class's store with its size, the rows recorded on this host serving it, and the
+# profile's other rows serving it (hosting_model_list in lib/model.sh). Changes nothing. See
+# context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "model list takes no argument" "model list"
+fi
+
+hosting_profile_load
+hosting_record_check
+hosting_model_hf
+hosting_model_list "$(hosting_model_store)"

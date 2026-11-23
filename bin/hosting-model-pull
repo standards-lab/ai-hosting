@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# hosting:summary=Downloads a model repository into this host's model store with hf
+# `hosting model pull <repo>`: validates the host's class profile, then downloads the repository
+# given into the class's model store (hosting_model_pull in lib/model.sh). See
+# context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# != 1)); then
+  hosting_usage_error "model pull takes one repository" "model pull <repo>"
+fi
+
+hosting_model_repo "$1"
+hosting_profile_load
+hosting_model_pull "$1" "$(hosting_model_store)"

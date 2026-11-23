@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# hosting:summary=Shows the model each running row serves, from its /v1/models
+# `hosting engine models`: one line a model each running row's /v1/models lists, its served name,
+# repository, and maximum context. Exits 1 when any row gives none. Changes nothing, and never
+# detects the host class. See context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "engine models takes no argument" "engine models"
+fi
+
+hosting_observe_models

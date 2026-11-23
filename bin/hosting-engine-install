@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# hosting:summary=Starts each row named from this host's class profile and records it
+# `hosting engine install <alias>...`: validates the host's class profile, then refuses before it
+# touches Docker an alias the profile has no row for, rows whose fractions with the recorded rows'
+# sum over 1, and a host failing the preflight (hosting_engine_check in lib/engine.sh). Then, for
+# each alias, pulls the row's model, builds the row's own image or pulls the class's, starts the
+# row's labeled container on the tailnet address, and appends the alias to the install record. A
+# row whose labeled container exists is left as it is, and recorded. See context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# == 0)); then
+  hosting_usage_error "engine install takes at least one alias" "engine install <alias>..."
+fi
+
+hosting_profile_load
+hosting_engine_check "$@"
+for alias in "$@"; do
+  hosting_row "$alias" "$HOSTING_ADDRESS"
+  if [[ -n $(hosting_engine_container "$alias") ]]; then
+    hosting_record_add "$alias"
+    echo "$alias is already installed; hosting engine update $alias moves it to the profile"
+    continue
+  fi
+  hosting_model_pull "${HOSTING_ROW_COMMAND[0]}" "$(hosting_model_store)"
+  hosting_engine_fetch "$alias"
+  hosting_engine_run
+  hosting_record_add "$alias"
+  echo "$alias runs $HOSTING_ROW_IMAGE in $HOSTING_ROW_CONTAINER;" \
+    "docker logs -f $HOSTING_ROW_CONTAINER shows its start"
+done
