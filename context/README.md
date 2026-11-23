@@ -41,7 +41,7 @@ record holds the tasks and their order.
   suite's install, and each row's commands ([gb10](../classes/gb10/runbook.md),
   [strix-halo](../classes/strix-halo/runbook.md)).
 - **The bench** (built): GuideLLM and MTEB in mise's `bench` environment, with the GuideLLM
-  scenarios the `embedding` task measures with, run from the laptop
+  scenarios and the BelebeleRetrieval runner the `embedding` task measures with, run from the laptop
   ([bench/README.md](../bench/README.md)). The scenarios and `levels.jq` come from
   spike-model-layout's `bench/` at `e64d9c4`.
 - **Upgrade evaluation** (planned): the convention and its `hosting-upgrades` skill

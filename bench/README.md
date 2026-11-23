@@ -76,3 +76,36 @@ GuideLLM concluded. Medians and percentiles interpolate linearly between the two
 jq -r --arg purpose embed -f bench/levels.jq .state/bench/<cell>.json
 jq -r --arg purpose audio -f bench/levels.jq .state/bench/<cell>.json
 ```
+
+## Scoring retrieval
+
+[`retrieval.sh`](retrieval.sh) runs MTEB's BelebeleRetrieval against an embedding row's
+`/v1/embeddings`, through [`retrieval.py`](retrieval.py), with the Python of the environment's
+MTEB. From the repository root, giving the row's address and both prefixes, each of which may be
+empty:
+
+```sh
+MISE_ENV=bench mise exec -- bench/retrieval.sh --endpoint framework:<port> \
+  --query-prefix 'query: ' --passage-prefix 'passage: ' [--output <dir>] [<subset>...]
+```
+
+The runner sends the row's served name, `embedding`, and adds the prefixes itself: a model such as
+multilingual-e5-large declares none that vLLM applies, so a run without them scores the model as
+no caller uses it. MTEB's query texts take the query prefix and its passages the passage prefix.
+With no subset given, it runs the 37 for ~/docs' 13 languages, the list in `retrieval.sh`: each
+language against itself, and each but English paired with English both ways. Chinese is
+`zho_Hans`, Simplified; e5's published results cover it and `zho_Hant` alike. A subset is named
+`<corpus>-<queries>` in Flores codes, as `eng_Latn-rus_Cyrl`.
+
+It refuses a missing or malformed argument, a subset BelebeleRetrieval doesn't define, and a row
+that doesn't serve `embedding`, before the first embedding request. It sends MTEB's batches of 32
+and never asks the row to truncate: an input over the row's context is refused by vLLM, and the run
+stops there with the row's answer, so a long input can't score as a silently shortened one. It
+downloads the Belebele dataset from Hugging Face on its first run.
+
+The result is MTEB's, one score set a subset, at
+`<dir>/results/<served model>/embedding/BelebeleRetrieval.json`, the served model being the
+row's `root` in `/v1/models`. The output defaults to the untracked `.state/bench/retrieval`. A run
+overwrites the result in its directory, so give each cell its own. The run ends by printing each
+subset's nDCG@10, BelebeleRetrieval's main score. The argument handling's tests are
+[`tests/retrieval.test.sh`](../tests/retrieval.test.sh).
