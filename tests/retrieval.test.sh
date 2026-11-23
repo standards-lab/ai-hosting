@@ -94,6 +94,7 @@ test_an_option_without_its_value_is_refused() {
   run_retrieval --query-prefix '' --passage-prefix '' --endpoint
   assert_equal status "$status" 2
   assert_contains stderr "$err" "retrieval: --endpoint needs a value"
+  assert_equal calls "$(calls)" ""
 }
 
 test_outside_the_bench_environment_it_refuses() {
