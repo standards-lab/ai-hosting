@@ -21,7 +21,7 @@ description = "Shellcheck every tracked shell script, resolve every relative Mar
 run = "scripts/check.sh"
 
 [tasks.currency]
-description = "Report every mise tool and action pin behind its latest, exiting nonzero if any; reads the network, writes nothing"
+description = "Report every mise tool and action pin, the vLLM release, and each built image's base digest and Python pins behind its latest, exiting nonzero if any; reads the network, writes nothing"
 run = "scripts/currency.sh"
 quiet = true
 

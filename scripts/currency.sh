@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# currency reports every mise tool and GitHub Actions pin that trails its latest release, one
-# line each, and exits non-zero when it reports any. It reads the network and writes nothing.
+# currency reports every mise tool and GitHub Actions pin that trails its latest release, the vLLM
+# release in lib/vllm.env, and each image the suite builds (images/*/Dockerfile): its base image's
+# tag and digest against the vLLM release's, and its Python packages' pins against PyPI's latest,
+# one line each, and exits non-zero when it reports any. It reads the network and writes nothing.
 set -euo pipefail
 cd "$MISE_PROJECT_ROOT"
 
@@ -33,6 +35,37 @@ report_outdated_actions() {
   done
 }
 
+report_outdated_vllm() {
+  local latest
+  latest=$(gh api repos/vllm-project/vllm/releases/latest --jq .tag_name)
+  [ "$VLLM_RELEASE" = "$latest" ] || report "lib/vllm.env: vLLM $VLLM_RELEASE -> $latest"
+}
+
+report_outdated_images() {
+  local dockerfile base repository tag digest latest pin package version
+  for dockerfile in images/*/Dockerfile; do
+    base=$(sed -n 's/^FROM //p' "$dockerfile")
+    repository=${base%%:*}
+    tag=${base#*:}
+    tag=${tag%@*}
+    digest=${base#*@}
+    [ "$tag" = "$VLLM_RELEASE" ] || report "$dockerfile: $repository $tag -> $VLLM_RELEASE"
+    latest=$(curl -fsSL "https://hub.docker.com/v2/repositories/$repository/tags/$VLLM_RELEASE" |
+      jq -r .digest)
+    [ "$digest" = "$latest" ] || report "$dockerfile: $repository:$VLLM_RELEASE $digest -> $latest"
+    while read -r pin; do
+      package=${pin%%==*}
+      version=${pin#*==}
+      latest=$(curl -fsSL "https://pypi.org/pypi/$package/json" | jq -r .info.version)
+      [ "$version" = "$latest" ] || report "$dockerfile: $package $version -> $latest"
+    done < <(grep -o '[A-Za-z0-9_.-]*==[^ ]*' "$dockerfile")
+  done
+}
+
+# shellcheck source=lib/vllm.env
+source lib/vllm.env
 report_outdated_mise_tools
 report_outdated_actions
+report_outdated_vllm
+report_outdated_images
 exit "$stale"
