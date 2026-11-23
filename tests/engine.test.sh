@@ -25,6 +25,22 @@ case "$1 $2" in
     ;;
   "container inspect") cat "$HOSTING_TEST_DOCKER/container/$key" ;;
   "image inspect") cat "$HOSTING_TEST_DOCKER/image/$key" ;;
+  "image ls") cat "$HOSTING_TEST_DOCKER/images" 2>/dev/null || true ;;
+  "image rm")
+    if ! grep -qxF -- "$3" "$HOSTING_TEST_DOCKER/images" 2>/dev/null; then
+      echo "Error response from daemon: No such image: $3" >&2
+      exit 1
+    fi
+    ;;
+  build\ *)
+    if [[ $* != *--provenance=false* ]]; then
+      args=$*
+      tag=${args#*--tag }
+      tag=${tag%% *}
+      echo "sha256:index$RANDOM" | tee "$HOSTING_TEST_DOCKER/image/${tag//\//_}" \
+        >>"$HOSTING_TEST_DOCKER/images"
+    fi
+    ;;
   "rm --force")
     for users in "$HOSTING_TEST_DOCKER"/ls/ancestor=*; do
       [[ ! -e $users ]] || sed -i "/^$3\$/d" "$users"
@@ -53,6 +69,7 @@ container_of() {
   echo "$2" >"$HOSTING_TEST_DOCKER/ls/label=ai-hosting.row=$1"
   echo "$2" >>"$HOSTING_TEST_DOCKER/ls/ancestor=$3"
   echo "$3 $4" >"$HOSTING_TEST_DOCKER/container/$2"
+  echo "$3" >>"$HOSTING_TEST_DOCKER/images"
 }
 
 listed() {
@@ -64,6 +81,11 @@ ps_call="docker container ls --all --format {{.Names}}"$'\t'"{{.State}}"$'\t'"{{
 
 image_of() {
   echo "$2" >"$HOSTING_TEST_DOCKER/image/${1//\//_}"
+  echo "$2" >>"$HOSTING_TEST_DOCKER/images"
+}
+
+image_gone() {
+  sed -i "/^$1\$/d" "$HOSTING_TEST_DOCKER/images"
 }
 
 recorded() {
@@ -102,7 +124,7 @@ test_install_builds_a_rows_own_image() {
   engine strix-halo install audio
   assert_equal status "$status" 0
   assert_contains "docker calls" "$(docker_calls)" \
-    "docker build --tag ai-hosting/vllm-openai-rocm-audio:v0.34.0 $clone/images/vllm-openai-rocm-audio"
+    "docker build --provenance=false --tag ai-hosting/vllm-openai-rocm-audio:v0.34.0 $clone/images/vllm-openai-rocm-audio"
   assert_contains "docker calls" "$(docker_calls)" "$(rendered strix-halo audio)"
 }
 
@@ -299,9 +321,36 @@ test_update_rebuilds_a_rows_own_image_and_removes_the_superseded_build() {
   engine strix-halo update
   assert_equal status "$status" 0
   assert_contains "docker calls" "$(docker_calls)" \
-    "docker build --tag ai-hosting/vllm-openai-rocm-audio:v0.34.0 $clone/images/vllm-openai-rocm-audio"
+    "docker build --provenance=false --tag ai-hosting/vllm-openai-rocm-audio:v0.34.0 $clone/images/vllm-openai-rocm-audio"
   assert_contains "docker calls" "$(docker_calls)" "docker rm --force c1"
   assert_contains "docker calls" "$(docker_calls)" "docker image rm sha256:built"
+}
+
+test_update_with_a_cached_rebuild_of_a_rows_own_image_does_nothing() {
+  ready_host
+  record audio
+  image_of ai-hosting/vllm-openai-rocm-audio:v0.34.0 sha256:built
+  container_of audio c1 sha256:built "$(command_of strix-halo audio)"
+  : >"$tmp/calls"
+  engine strix-halo update
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "audio already runs ai-hosting/vllm-openai-rocm-audio:v0.34.0 as its row; nothing changed"
+  [[ $(docker_calls) != *"docker rm"* && $(docker_calls) != *"docker run"* ]] ||
+    fail "replaced the row: $(docker_calls)"
+}
+
+test_update_replaces_a_row_whose_superseded_image_is_already_gone() {
+  ready_host
+  record audio
+  image_of ai-hosting/vllm-openai-rocm-audio:v0.34.0 sha256:rebuilt
+  container_of audio c1 sha256:built "$(command_of strix-halo audio)"
+  image_gone sha256:built
+  : >"$tmp/calls"
+  engine strix-halo update
+  assert_equal status "$status" 0
+  assert_equal stderr "$err" ""
+  assert_equal stdout "$out" "audio was replaced; it runs ai-hosting/vllm-openai-rocm-audio:v0.34.0 in vllm-audio"
+  [[ $(docker_calls) != *"image rm"* ]] || fail "removed an image the host no longer has: $(docker_calls)"
 }
 
 test_update_keeps_a_superseded_image_another_container_uses() {
@@ -454,6 +503,7 @@ removed image sha256:pinned"
 docker container inspect --format {{.Image}} {{json .Config.Cmd}} c1
 docker rm --force c1
 docker container ls --all --quiet --filter ancestor=sha256:pinned
+docker image ls --all --quiet --no-trunc
 docker image rm sha256:pinned"
   assert_equal record "$(recorded)" vision
 }

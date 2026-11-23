@@ -133,12 +133,13 @@ hosting_engine_build_dir() {
 }
 
 # Fetches the row's image, after hosting_row: builds the row's own image from its build directory
-# (hosting_engine_build_dir), and pulls the class's.
+# (hosting_engine_build_dir) without a provenance attestation, so a cached rebuild keeps its image
+# ID, and pulls the class's.
 hosting_engine_fetch() {
   local dir
   dir=$(hosting_engine_build_dir "$1") || return
   if [[ -n $dir ]]; then
-    docker build --tag "$HOSTING_ROW_IMAGE" "$dir"
+    docker build --provenance=false --tag "$HOSTING_ROW_IMAGE" "$dir"
   else
     docker pull "$HOSTING_ROW_IMAGE"
   fi
@@ -157,12 +158,14 @@ hosting_engine_run() {
   docker run "${HOSTING_ROW_ARGS[@]}" >/dev/null
 }
 
-# Removes the image with the ID given when no container, running or stopped, uses it, printing
-# what it removed.
+# Removes the image with the ID given when the host still has it and no container, running or
+# stopped, uses it, printing what it removed.
 hosting_engine_remove_unused_image() {
-  local users
+  local users images
   users=$(docker container ls --all --quiet --filter "ancestor=$1") || return
   [[ -z $users ]] || return 0
+  images=$(docker image ls --all --quiet --no-trunc) || return
+  grep -qxF -- "$1" <<<"$images" || return 0
   docker image rm "$1" >/dev/null || return
   echo "removed image $1"
 }
