@@ -43,8 +43,6 @@ The read-only verbs `engine status`, `models`, `metrics`, and `memory` do what p
 unload are not carried, since model management stays off the serving API, and neither are
 `outpost-preset-install` and `outpost-service-restart`.
 
-What the spikes left on the hosts is in [cleanup](cleanup.md).
-
 ## The audio image
 
 The audio image, [`images/vllm-openai-rocm-audio`](../images/vllm-openai-rocm-audio/Dockerfile),
@@ -52,6 +50,12 @@ sets `MIOPEN_FIND_MODE=FAST`, which skips MIOpen's live solver timing. That timi
 Framework's gfx1151: the base image turns off the direct and GEMM convolutions and ships no
 readable gfx1151 find database, so without FAST, Gemma 4's audio encoder fails on audio of 10 s or
 more.
+
+The suite builds the image with `--provenance=false`. Under Docker's containerd image store, which
+the Framework uses, an image's ID covers the provenance attestation BuildKit attaches by default,
+and that attestation differs on every build. With it, even a fully cached rebuild would get a new
+ID, and `engine update`, which replaces a row whose image ID differs, would replace the audio row
+on every run.
 
 - `acceptance` will measure audio RTFx and embedding throughput under FAST. The embedding row's
   image takes the setting only if the `embedding` task's own long-input probe fails.

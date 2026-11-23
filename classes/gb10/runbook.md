@@ -64,10 +64,13 @@ A reboot regenerates it too.
 
 ## Install the suite
 
-In a clone of ai-hosting, with mise's tools on PATH (`mise activate`), install the pinned tools,
-then link the suite's one command, `~/.local/bin/hosting`, into the clone:
+Clone ai-hosting into the serving account's home as `~/ai-hosting`. In the clone, with mise's
+tools on PATH (`mise activate`), install the pinned tools, then link the suite's one command,
+`~/.local/bin/hosting`, into the clone:
 
 ```sh
+git clone https://github.com/standards-lab/ai-hosting.git ~/ai-hosting
+cd ~/ai-hosting
 mise trust
 mise install
 mise run install
@@ -75,6 +78,11 @@ hosting
 ```
 
 `hosting` with no arguments lists every command. `mise run uninstall` removes the link.
+
+Over non-interactive ssh, run the suite from the clone, where mise puts its tools on PATH:
+`ssh <host> 'cd ~/ai-hosting && hosting engine status'`. On a host whose non-interactive shell
+doesn't activate mise or put `~/.local/bin` on PATH, run it through mise instead:
+`ssh <host> 'cd ~/ai-hosting && mise exec -- bin/hosting engine status'`.
 
 A row whose model is gated needs a Hugging Face token on the host, which hf keeps in
 `~/.cache/huggingface`; the suite downloads every other model without one:
