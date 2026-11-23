@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# currency reports every mise tool and GitHub Actions pin that trails its latest release, the vLLM
-# release in lib/vllm.env, and each image the suite builds (images/*/Dockerfile): its base image's
-# tag and digest against the vLLM release's, and its Python packages' pins against PyPI's latest,
-# one line each, and exits non-zero when it reports any. It reads the network and writes nothing.
+# currency reports every mise tool pin, the bench environment's (mise.bench.toml) among them, and
+# every GitHub Actions pin that trails its latest release, the vLLM release in lib/vllm.env, and
+# each image the suite builds (images/*/Dockerfile): its base image's tag and digest against the
+# vLLM release's, and its Python packages' pins against PyPI's latest, one line each, and exits
+# non-zero when it reports any. It reads the network and writes nothing.
 set -euo pipefail
 cd "$MISE_PROJECT_ROOT"
 
@@ -14,11 +15,14 @@ report() {
 
 report_outdated_mise_tools() {
   local outdated line
-  outdated=$(mise outdated --bump --local --json |
-    jq -r 'to_entries[] | "\(.key) \(.value.requested) -> \(.value.bump)"')
+  outdated=$(MISE_ENV=bench MISE_LOG_LEVEL=error mise outdated --bump --local --json |
+    jq -r --arg root "$MISE_PROJECT_ROOT/" 'to_entries[]
+      | (.value.bump // .value.latest) as $latest
+      | select($latest != null and $latest != .value.requested)
+      | "\(.value.source.path | ltrimstr($root)): \(.key) \(.value.requested) -> \($latest)"')
   while read -r line; do
     if [ -n "$line" ]; then
-      report "mise.toml: $line"
+      report "$line"
     fi
   done <<<"$outdated"
 }

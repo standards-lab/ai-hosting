@@ -1,0 +1,7 @@
+spec:
+  backend:
+    kind: openai_http
+    request_format: /v1/chat/completions
+  data:
+    - kind: synthetic_text
+      prompt_tokens: 4096
