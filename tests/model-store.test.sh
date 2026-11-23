@@ -9,7 +9,7 @@ source "$(dirname "$0")/lib.sh"
 fake_store() {
   local repo dir revision
   store=$tmp/store
-  for repo in google/gemma-4-E4B-it ibm-granite/granite-embedding-english-r2 old/model; do
+  for repo in google/gemma-4-E4B-it intfloat/multilingual-e5-large old/model; do
     dir=$store/models--${repo//\//--}
     revision=$(printf %s "$repo" | sha1sum | cut -d ' ' -f 1)
     mkdir -p "$dir/blobs" "$dir/snapshots/$revision" "$dir/refs"
@@ -51,7 +51,7 @@ test_list_shows_each_models_size_and_rows() {
   assert_equal stderr "$err" ""
   assert_equal stdout "$out" "MODEL                                            SIZE       ROWS                 PROFILE ROWS
 google/gemma-4-E4B-it                            1.5G       audio                -
-ibm-granite/granite-embedding-english-r2         1.5G       -                    embedding
+intfloat/multilingual-e5-large                   1.5G       -                    embedding
 old/model                                        1.5G       -                    -"
 }
 
@@ -69,7 +69,7 @@ test_prune_without_yes_changes_nothing() {
   before=$(tree)
   model prune
   assert_equal status "$status" 0
-  assert_equal stdout "$out" "would remove model ibm-granite/granite-embedding-english-r2 (1.5G)
+  assert_equal stdout "$out" "would remove model intfloat/multilingual-e5-large (1.5G)
 would remove model old/model (1.5G)
 would remove incomplete download $store/models--google--gemma-4-E4B-it/blobs/2222.incomplete
 hosting model prune --yes removes them"
@@ -85,10 +85,10 @@ test_prune_yes_removes_only_unused_models_and_incomplete_downloads() {
 removed incomplete download $store/models--google--gemma-4-E4B-it/blobs/2222.incomplete"
   assert_equal tree "$(cd "$store" && find . -name 'models--*' -prune -print | sort)" \
     "./models--google--gemma-4-E4B-it
-./models--ibm-granite--granite-embedding-english-r2"
+./models--intfloat--multilingual-e5-large"
   assert_equal "kept blobs" "$(cd "$store" && find . -path '*/blobs/*' | sort)" \
     "./models--google--gemma-4-E4B-it/blobs/1111
-./models--ibm-granite--granite-embedding-english-r2/blobs/1111"
+./models--intfloat--multilingual-e5-large/blobs/1111"
 }
 
 test_prune_with_nothing_to_remove_says_so() {

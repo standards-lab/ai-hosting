@@ -31,27 +31,27 @@ licence = "Apache-2.0"
 card_url = "https://huggingface.co/google/gemma-4-E4B-it"
 [[rows]]
 alias = "embedding"
-model = "ibm-granite/granite-embedding-english-r2"
+model = "intfloat/multilingual-e5-large"
 container = "vllm-embed"
 port = 8003
-context = 8192
-card_context = 8192
+context = 512
+card_context = 512
 context_reason = "8,192 tokens, the card's context; the row ran every embedding cell at it, the knee at 16 streams of 512-token inputs among them (spike-model-layout docs/findings/vllm-layout.md, F.2; standards-lab context/ai-hosting.md, \"The layout\")."
 cap = 128
 cap_reason = "128 requests at once: throughput stops rising at 16 streams, 98,325 prompt tok/s, and 128 sequences held that plateau to 128 streams with no error or preemption (spike-model-layout docs/findings/vllm-layout.md, F.2; standards-lab context/ai-hosting.md, \"The layout\")."
 fraction = 0.03
 fraction_reason = "0.03: on the pooling runner the row keeps no KV pool, and its weights took 0.29 GiB; with the audio row at 0.18 the host's rows left 89.50 GiB of GTT free when idle (spike-model-layout docs/findings/vllm-layout.md, F.1 and F.6; standards-lab context/ai-hosting.md, \"The layout\")."
-dims = 768
+dims = 1024
 flags = ["--runner", "pooling", "--max-num-batched-tokens", "65536"]
 flags_reason = "The pooling runner, which serves embeddings, and 65,536 batched tokens a step, since vLLM's default of 8,192 batches only 16 of the embedding cells' 512-token inputs (spike-model-layout docs/findings/capability-vllm.md, G)."
-measured_vllm = "v0.33.0"
+measured_vllm = "v0.34.0"
 
 [rows.load]
 target = "16 streams, at most 34 requests a second"
 source = "spike-model-layout docs/findings/vllm-layout.md, F.2, F.4, and J: the knee at 16 streams, and 17,442 prompt tok/s at the gateway's 34 requests a second beside the audio row; standards-lab context/ai-hosting.md, \"The layout\""
 
 [rows.source]
-publisher = "IBM"
+publisher = "Microsoft"
 origin = "United States"
-licence = "Apache-2.0"
-card_url = "https://huggingface.co/ibm-granite/granite-embedding-english-r2"
+licence = "MIT"
+card_url = "https://huggingface.co/intfloat/multilingual-e5-large"
