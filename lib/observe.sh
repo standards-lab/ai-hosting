@@ -15,7 +15,7 @@ hosting_observe_rows() {
   [[ -n $ids ]] || return 0
   # shellcheck disable=SC2086 # One container ID a word.
   docker container inspect $ids | jq -r --arg label "$HOSTING_ROW_LABEL" '.[]
-    | (first((.HostConfig.PortBindings // {})[] | (. // [])[])) as $bind
+    | ([(.HostConfig.PortBindings // {})[] | (. // [])[]] | first) as $bind
     | [.Config.Labels[$label], .Id[0:12], (.Name | ltrimstr("/")), .State.Status,
         (if $bind then "\(if ($bind.HostIp // "") == "" then "127.0.0.1" else $bind.HostIp end):\($bind.HostPort)"
          else "-" end),
@@ -167,11 +167,11 @@ hosting_observe_metrics() {
 
 # Prints a table of the rows on the host, each labeled container and each recorded alias with
 # none: its alias, container, state, health (its /health answering, for a running row), and the
-# address it is configured to listen on. Then flags each stranded row, a running container
-# configured to listen whose port is published nowhere, printing the command that recovers it.
+# address it is configured to listen on. Then flags each stranded row, a running container on no
+# network or publishing no port, printing the command that recovers it.
 # Fails when any row is not running and healthy, or none could be read.
 hosting_observe_status() {
-  local rows alias id name state address published networks health fail=0 flags=()
+  local rows alias id name state address published networks health bound fail=0 flags=()
   rows=$(hosting_observe_rows) || return
   printf '%-12s %-20s %-10s %-10s %s\n' ROW CONTAINER STATE HEALTH ADDRESS
   while IFS=$'\t' read -r alias id name state address published networks; do
@@ -185,12 +185,14 @@ hosting_observe_status() {
     fi
     [[ $health == healthy ]] || fail=1
     printf '%-12s %-20s %-10s %-10s %s\n' "$alias" "$name" "$state" "$health" "$address"
-    [[ $state == running && $address != - ]] || continue
+    [[ $state == running ]] || continue
+    bound=$address
+    [[ $address != - ]] || bound="its address"
     if ((networks == 0)); then
-      flags+=("$name is stranded: it is on no network, so $address is published nowhere;\
+      flags+=("$name is stranded: it is on no network, so $bound is published nowhere;\
  docker network connect bridge $name reattaches it")
     elif ((published == 0)); then
-      flags+=("$name is stranded: its start couldn't bind $address, so it publishes no port;\
+      flags+=("$name is stranded: its start couldn't bind $bound, so it publishes no port;\
  docker restart $name binds it, once the host holds the address")
     fi
   done <<<"$rows"

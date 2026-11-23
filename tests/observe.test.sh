@@ -105,6 +105,17 @@ test_status_flags_a_networked_container_publishing_no_port_with_a_restart() {
   assert_read_only
 }
 
+test_status_lists_and_flags_a_running_container_binding_no_port_on_no_network() {
+  observed_host
+  row_container agent c00000000001 vllm-agent running - 0 0
+  engine status
+  assert_equal status "$status" 1
+  assert_contains stdout "$out" "agent        vllm-agent           running    unhealthy  -"
+  assert_contains stdout "$out" "vllm-agent is stranded: it is on no network, so its address is published nowhere; docker network connect bridge vllm-agent reattaches it"
+  assert_contains stdout "$out" "net.ipv4.ip_nonlocal_bind = 1"
+  assert_read_only
+}
+
 test_status_never_flags_a_stopped_container_and_lists_a_recorded_alias_with_none() {
   observed_host
   row_container agent c00000000001 vllm-agent exited 192.0.2.10:8000 0 0

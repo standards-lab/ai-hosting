@@ -7,14 +7,15 @@
 source "$(dirname "$0")/lib.sh"
 
 fake_store() {
-  local repo dir
+  local repo dir revision
   store=$tmp/store
   for repo in google/gemma-4-E4B-it ibm-granite/granite-embedding-english-r2 old/model; do
     dir=$store/models--${repo//\//--}
-    mkdir -p "$dir/blobs" "$dir/snapshots/abc" "$dir/refs"
+    revision=$(printf %s "$repo" | sha1sum | cut -d ' ' -f 1)
+    mkdir -p "$dir/blobs" "$dir/snapshots/$revision" "$dir/refs"
     echo "$repo" >"$dir/blobs/1111"
-    ln -s ../../blobs/1111 "$dir/snapshots/abc/config.json"
-    printf abc >"$dir/refs/main"
+    ln -s ../../blobs/1111 "$dir/snapshots/$revision/config.json"
+    printf %s "$revision" >"$dir/refs/main"
   done
   echo partial >"$store/models--google--gemma-4-E4B-it/blobs/2222.incomplete"
   echo partial >"$store/models--old--model/blobs/3333.incomplete"
