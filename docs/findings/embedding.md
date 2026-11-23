@@ -18,7 +18,29 @@ Every cell ran on the tools below unless it names others.
 
 The row ran as the profile renders it: `--max-model-len 512`, `--gpu-memory-utilization 0.03`,
 `--runner pooling`, `--max-num-batched-tokens 65536`, and the `--max-num-seqs` each cell names.
-The audio row stood beside it, idle, in every cell.
+The audio row stood beside it, idle, in every cell but the audio cells,
+[e5-audio-alone](#e5-audio-alone) and [e5-pair](#e5-pair). Those load the audio row as the
+profile renders it, on `ai-hosting/vllm-openai-rocm-audio:v0.34.0` at
+`sha256:da0499371911becb1d50c0d96a5cae18cd607b3bdebf02b155cbe44225c319f7`, built on the image
+above, with Gemma 4 E4B's own tokenizer in GuideLLM.
+
+## Path
+
+Every cell ran from the laptop, and its figures are client-side over Tailscale's DERP relay
+(`iad`), not the LAN: the laptop has no direct path to the Framework. `tailscale ping -c 3
+framework`, run right before each audio cell, answered via `DERP(iad)` every time, in 47 to 68 ms,
+with "direct connection not established"; the first, at 16:36Z, came after
+[e5-audio-alone](#e5-audio-alone). No ping preceded the earlier cells, [e5-probes](#e5-probes),
+[e5-sweep-128](#e5-sweep-128), [e5-sweep-32](#e5-sweep-32) and [e5-retrieval](#e5-retrieval);
+they ran from the laptop on the same network, so the sweeps and the cap they set were measured
+over the same relay. Retrieval's scores don't depend on the path.
+
+Over the relay, audio's RTFx median alone is about 4.4 to 4.6, against 6.54 on the LAN in
+spike-model-layout (`docs/findings/vllm-layout.md`, F.4): its inter-token latency median is the
+LAN's, 45.6 ms, and the difference is the request's time on the relay. So audio's floor, an RTFx
+median of at least 5, is not judged on this path; the standing layout cell judges it. Beside
+embedding, audio holds when its RTFx median is at least 0.89 times its median alone, measured right
+before on the same path: granite's ratio at 34 requests a second on the LAN, 5.84 over 6.54.
 
 ## e5-card
 
@@ -226,3 +248,75 @@ and a subset passes within 0.02.
 - Prefixes, truncation, pooling and normalization need no diagnosis: no subset misses, the
   runner sent `query: ` and `passage: ` and never asked the row to truncate, and the row's mean
   pooling and unit vectors are [e5-update](#e5-update)'s and [e5-probes](#e5-probes)'.
+
+## e5-audio-alone
+
+From the laptop, 2026-11-23T16:31:44Z to 16:35:44Z, the audio row at 4 streams with the
+embedding row idle (its finished requests stayed at 60,630):
+
+```sh
+GUIDELLM__SPEC__BACKEND__TARGET=http://framework:8002 \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/audio.yaml \
+  --backend kind=openai_http,model=audio \
+  --tokenizer kind=huggingface_auto,model=google/gemma-4-E4B-it \
+  --output kind=json,path=.state/bench/e5/audio-alone.json
+```
+
+`levels.jq` with `--arg purpose audio`: 642/0/3 requests, 2.675 req/s, request latency median
+1.30 s and p90 2.22 s, time to first token median 530 ms, inter-token latency median 45.60 ms,
+**RTFx median 4.43**, minimum 1.51, 152 of 642 at 5 or more, 240 s. The median sat at 4.3 to 4.6
+in every 30 s window after the first, so it is no warm-up. The row's `/metrics` after it: 642
+requests finished, no preemption. This cell is the record of audio alone; each pair in
+[e5-pair](#e5-pair) is judged against the alone run right before it.
+
+## e5-pair
+
+From the laptop, 2026-11-23T16:50:37Z to 17:42:09Z: at each rate, `tailscale ping`, audio alone
+for 240 s, `tailscale ping`, then the pair: audio at 4 streams and embedding at the rate, two
+GuideLLM processes started together in the background of one shell and waited on, each for
+240 s. Nothing else loaded either row. For rate `<r>`, the alone run is the command of
+[e5-audio-alone](#e5-audio-alone) writing `.state/bench/e5/alone-r<r>.json`
+(`audio-alone-2.json` at 34), and the pair:
+
+```sh
+GUIDELLM__SPEC__BACKEND__TARGET=http://framework:8002 \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/audio.yaml \
+  --backend kind=openai_http,model=audio \
+  --tokenizer kind=huggingface_auto,model=google/gemma-4-E4B-it \
+  --output kind=json,path=.state/bench/e5/pair-a4r<r>-audio.json &
+GUIDELLM__SPEC__PROFILE__RATE=<r> GUIDELLM__SPEC__BACKEND__TARGET=http://framework:8003 \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/embedding-rate.yaml \
+  --backend kind=openai_http,model=embedding \
+  --tokenizer kind=huggingface_auto,model=intfloat/multilingual-e5-large \
+  --output kind=json,path=.state/bench/e5/pair-a4r<r>-embed.json &
+wait
+```
+
+Audio holds when its pair median is at least 0.89 times the alone median ([Path](#path)).
+Embedding keeps its rate when it errs on no request and its achieved rate is within 2% of the
+target. Descending from 34 requests a second in steps of 4, the first rate that holds ends the
+cells. Figures are `levels.jq`'s, with each RTFx median to two places and the ratio from the
+unrounded medians.
+
+| Rate req/s | Alone, UTC | Alone RTFx median | Pair, UTC | Audio ok/err/inc | Audio RTFx median | Ratio | Audio ITL median ms | Embedding ok/err/inc | Embedding req/s | Prompt tok/s | Holds |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 34 | 16:50:37 to 16:54:37 | 4.57 | 16:54:51 to 16:58:54 | 503/0/4 | 3.52 | 0.769 | 61.46 | 8155/0/6 | 33.975 | 17,361 | no |
+| 30 | 16:59:38 to 17:03:38 | 4.41 | 17:03:51 to 17:07:54 | 525/0/3 | 3.71 | 0.840 | 59.24 | 7197/0/4 | 29.987 | 15,324 | no |
+| 26 | 17:08:11 to 17:12:11 | 4.45 | 17:12:25 to 17:16:28 | 534/0/2 | 3.81 | 0.856 | 57.26 | 6237/0/4 | 25.987 | 13,280 | no |
+| 22 | 17:16:46 to 17:20:46 | 4.45 | 17:20:59 to 17:25:02 | 558/0/2 | 3.88 | 0.872 | 54.98 | 5278/0/3 | 21.987 | 11,236 | no |
+| 18 | 17:25:19 to 17:29:19 | 4.43 | 17:29:32 to 17:33:35 | 549/0/4 | 3.82 | 0.864 | 52.59 | 4319/0/2 | 17.992 | 9,194 | no |
+| 14 | 17:33:52 to 17:37:52 | 4.37 | 17:38:05 to 17:42:09 | 586/0/4 | 4.09 | 0.937 | 50.80 | 3358/0/3 | 13.992 | 7,150 | yes |
+
+Every ping before these cells answered via `DERP(iad)`, 47 to 68 ms. The alone runs' inter-token
+latency medians were 45.31 to 45.62 ms.
+
+- **14 requests a second holds**: audio's RTFx median 4.09 against 4.37 alone, a drop of 0.28,
+  ratio 0.937; embedding achieved 13.992 req/s, 99.94% of the target, with 3,358 requests and no
+  error, at 7,150 prompt tok/s, 1.66 times its floor of 4,300.
+- At 34, the rate the gateway admitted for granite, audio drops 1.06 from 4.57, ratio 0.769, and
+  its inter-token latency median rises from 45.59 ms to 61.46 ms. From 30 to 18 the ratio stays
+  0.84 to 0.87, under 0.89.
+- Embedding kept its rate with no error at every rate, at least 99.93% of the target, with its
+  request latency median 0.12 to 0.18 s.
+- No audio run met the floor of 5, alone or beside, which this path doesn't judge ([Path](#path)).
+- After the cells ended at 17:42Z, both rows' `/metrics` read no preemption.

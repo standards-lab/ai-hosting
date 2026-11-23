@@ -35,8 +35,9 @@ agentgateway's config changes on the way in:
   acceptance's vector-parity cell passes, then names the `embedding` task's model, without the
   `dimensions` override;
 - `..`, `%2e%2e`, and `%2f` are refused before routing, proven with the three requests;
-- embedding's rate buckets keep their form and take the `embedding` task's figure, measured on
-  the Framework beside the audio model;
+- embedding's rate buckets keep their form and take the `embedding` task's figure, at most 14
+  requests a second, measured on the Framework beside the audio model
+  ([findings](../docs/findings/embedding.md#e5-pair));
 - priority on Messages carries as is, and `acceptance` proves it;
 - tracing stays at 100%.
 
