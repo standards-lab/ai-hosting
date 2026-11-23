@@ -48,7 +48,7 @@ test_render_publishes_on_the_tailnet_address_and_touches_no_docker() {
 test_a_row_with_a_queue_limit_and_sampling_renders_both_flags() {
   stub_host
   hosting_yq -p toml -o toml -i '(.rows[] | select(.alias == "vision")) |=
-    (.sampling = {"source": "The card.", "temperature": 1.0, "top_k": 64} | del(.provenance.generation_config))' \
+    (.sampling = {"source": "The card.", "temperature": 1.0, "top_k": 64} | del(.origin.generation_config))' \
     "$clone/classes/gb10/profile.toml"
   render gb10 vision
   assert_equal status "$status" 0

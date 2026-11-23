@@ -2,10 +2,6 @@
 # The rows a host stands on: the install record, the checks engine install and update run before
 # they touch Docker, and the container and image each row runs, found by its row label. Sourced by
 # lib/hosting.sh. See context/hosting-suite.md and context/engines.md.
-# Adapted from spike-model-engines (6ce3210): host/vllm.sh's vllm_pull, vllm_running, vllm_run, and
-# vllm_remove_images, and host/engines.sh's engines_preflight, finding a row's container by its
-# label, building a row's own image in place of refusing it, comparing the image ID and the
-# command, and removing only the image a replaced or removed container leaves unused.
 
 # The directory holding one build directory per image the suite builds, images/<name> for an
 # image ai-hosting/<name>.
@@ -95,8 +91,6 @@ hosting_engine_preflight() {
 
 # Refuses when a CDI spec (HOSTING_CDI_SPECS) names a driver file that is gone, as an upgrade
 # without a reboot leaves it, printing the command that regenerates the spec.
-# Adapted from spike-ai-pipeline (6a631f1): scripts/host-update-lib.sh's cdi_host_paths and
-# host_facts, reading each spec's hostPath entries under HOSTING_SYSROOT.
 hosting_engine_preflight_gb10() {
   local spec path missing fail=0
   for spec in "${HOSTING_CDI_SPECS[@]}"; do

@@ -107,10 +107,8 @@ hosting_observe_join() {
 }
 
 # On a GB10, each process's GPU memory is nvidia-smi's used_memory, and the pool is the host's
-# MemAvailable, since the GPU allocates from system memory.
-# Adapted from spike-model-layout (e64d9c4): scripts/measure-lib.sh's _measure_vllm_footprint,
-# joining nvidia-smi's processes to each row's container by docker top's host PIDs, on the host
-# itself in place of over ssh.
+# MemAvailable, since the GPU allocates from system memory. It joins nvidia-smi's processes to each
+# row's container by docker top's host PIDs.
 hosting_observe_memory_gb10() {
   local read
   read=$(nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader,nounits |
@@ -120,10 +118,8 @@ hosting_observe_memory_gb10() {
 }
 
 # On a Strix Halo, each process's GPU memory is amdgpu_top's VRAM and GTT, and the pool is amdgpu's
-# GTT, with the host's MemAvailable beside it, the memory GTT doesn't cover.
-# Adapted from spike-model-layout (e64d9c4): scripts/measure-lib.sh's _measure_vllm_footprint,
-# reading amdgpu_top -p as it does, and GTT from HOSTING_SYSROOT's sysfs.
-# Adapted from spike-model-hosting (aac0764): evaluation/scripts/footprint.sh's amdgpu_top --no-pc.
+# GTT, with the host's MemAvailable beside it, the memory GTT doesn't cover. It reads amdgpu_top -p
+# and GTT from HOSTING_SYSROOT's sysfs.
 hosting_observe_memory_strix_halo() {
   local read card gtt=unreadable
   read=$(timeout 30 amdgpu_top -p --no-pc |

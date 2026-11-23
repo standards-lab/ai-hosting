@@ -3,7 +3,6 @@
 store = "/srv/models"
 
 [[rows]]
-# Adapted from spike-model-engines (6ce3210): host/vllm-rows' gpt-oss-120b-agent-fp8 row, in its own container, vllm-agent, in place of the default vllm.
 alias = "agent"
 model = "openai/gpt-oss-120b"
 container = "vllm-agent"
@@ -24,14 +23,12 @@ measured_vllm = "v0.33.0"
 target = "4 sessions"
 source = "spike-model-layout docs/findings/vllm-layout.md, D and J: 49.13 ms inter-token latency median at 4 sessions alone, 48.13 ms with every host at its target; standards-lab context/ai-hosting.md, \"The layout\""
 
-# Adapted from spike-model-hosting (aac0764): devices/strix-halo/profile.toml's gpt-oss-120b entry, its card context moved to the row.
-[rows.provenance]
+[rows.origin]
 publisher = "OpenAI"
 origin = "United States"
 licence = "Apache-2.0"
 card_url = "https://huggingface.co/openai/gpt-oss-120b"
 [[rows]]
-# Adapted from spike-model-engines (6ce3210): host/vllm-rows' gemma-4-26B-A4B-NVFP4-vision-gb10 row, on port 8001 in place of 8000, one port an alias across the classes.
 alias = "vision"
 model = "nvidia/Gemma-4-26B-A4B-NVFP4"
 container = "vllm-vision"
@@ -52,8 +49,7 @@ measured_vllm = "v0.33.0"
 target = "4 requests"
 source = "spike-model-layout docs/findings/vllm-layout.md, E.2 and J: 4.68 s request latency median at 4 requests alone, 4.49 s with every host at its target; standards-lab context/ai-hosting.md, \"The layout\""
 
-# Adapted from spike-model-hosting (aac0764): devices/strix-halo/profile.toml's Gemma 4 26B-A4B entry, for NVIDIA's NVFP4 checkpoint of it, with Google's model as its base.
-[rows.provenance]
+[rows.origin]
 publisher = "NVIDIA"
 origin = "United States"
 licence = "Apache-2.0"

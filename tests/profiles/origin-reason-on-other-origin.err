@@ -1,1 +1,1 @@
-rows[1].provenance.origin_reason: only a model whose origin or base origin is China records why it was chosen
+rows[1].origin.origin_reason: only a model whose origin or base origin is China records why it was chosen

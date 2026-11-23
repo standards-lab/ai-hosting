@@ -3,7 +3,6 @@
 store = "/srv/models"
 
 [[rows]]
-# Adapted from spike-model-engines (6ce3210): host/vllm-rows' gemma-4-E4B-it-audio-framework row, its image named under ai-hosting, on port 8002 in place of 8001, one port an alias across the classes.
 alias = "audio"
 model = "google/gemma-4-E4B-it"
 container = "vllm-audio"
@@ -25,14 +24,12 @@ measured_vllm = "v0.33.0"
 target = "4 requests"
 source = "spike-model-layout docs/findings/vllm-layout.md, F.4 and J: an RTFx median of 5.84 at 4 requests beside the embedding row at 34 requests a second, 5.78 with every host at its target; standards-lab context/ai-hosting.md, \"The layout\""
 
-# Adapted from spike-model-hosting (aac0764): devices/strix-halo/profile.toml's Gemma 4 E4B entry, its card context moved to the row.
-[rows.provenance]
+[rows.origin]
 publisher = "Google"
 origin = "United States"
 licence = "Apache-2.0"
 card_url = "https://huggingface.co/google/gemma-4-E4B-it"
 [[rows]]
-# Adapted from spike-model-engines (6ce3210): host/vllm-rows' granite-embedding-english-r2-framework row, on port 8003 in place of 8002, one port an alias across the classes.
 alias = "embedding"
 model = "ibm-granite/granite-embedding-english-r2"
 container = "vllm-embed"
@@ -53,7 +50,7 @@ measured_vllm = "v0.33.0"
 target = "16 streams, at most 34 requests a second"
 source = "spike-model-layout docs/findings/vllm-layout.md, F.2, F.4, and J: the knee at 16 streams, and 17,442 prompt tok/s at the gateway's 34 requests a second beside the audio row; standards-lab context/ai-hosting.md, \"The layout\""
 
-[rows.provenance]
+[rows.origin]
 publisher = "IBM"
 origin = "United States"
 licence = "Apache-2.0"

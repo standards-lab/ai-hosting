@@ -2,9 +2,6 @@
 # A row's container, in one place: the image, the docker run options, and the vllm serve arguments
 # a row of the host's class profile runs, which hosting profile render prints and engine install
 # and update run. Sourced by lib/hosting.sh. See context/engines.md and classes/README.md.
-# Adapted from spike-model-engines (6ce3210): host/vllm.sh's vllm_flavor, vllm_row, and vllm_run,
-# reading the row from the class profile in place of the rows file, with the row label, and
-# without tracing.
 
 # shellcheck source=lib/vllm.env
 source "$(dirname "${BASH_SOURCE[0]}")/vllm.env"

@@ -1,18 +1,16 @@
 # The host-class profile's schema, a jq module over a profile decoded to JSON (yq -p toml -o json):
 # its validator, profile_errors, which yields each error in the profile's order, and the fields
 # hosting profile set edits. Included by lib/profile.sh. See classes/README.md.
-# Adapted from spike-model-hosting (aac0764): hosting/profile/profile.go's Parse and Validate, as
-# jq over vLLM rows in place of llama.cpp models and sets.
 
 # The keys each table of the profile defines.
 def profile_keys: ["store", "rows"];
 def row_keys: [
   "alias", "model", "container", "port", "image", "context", "card_context", "cap",
   "queue_limit", "fraction", "dims", "flags", "cap_reason", "context_reason", "fraction_reason",
-  "flags_reason", "measured_vllm", "load", "provenance", "sampling"
+  "flags_reason", "measured_vllm", "load", "origin", "sampling"
 ];
 def load_keys: ["target", "source"];
-def provenance_keys: [
+def origin_keys: [
   "publisher", "origin", "origin_reason", "licence", "card_url", "base_model", "base_origin",
   "generation_config"
 ];
@@ -20,9 +18,9 @@ def sampling_keys: ["source", "temperature", "top_p", "top_k", "min_p"];
 
 # The fields of a row hosting profile set edits, by their dotted key paths: every key but a table.
 def settable_fields:
-  (row_keys - ["load", "provenance", "sampling"])
+  (row_keys - ["load", "origin", "sampling"])
   + (load_keys | map("load." + .))
-  + (provenance_keys | map("provenance." + .))
+  + (origin_keys | map("origin." + .))
   + (sampling_keys | map("sampling." + .));
 
 # The settable fields whose value is a number, and the one whose value is a list of words.
@@ -127,13 +125,13 @@ def flag_errors($prefix):
     (if (.flags | length) > 0 then field($prefix; "flags_reason"; "text"; true) else empty end)
   end;
 
-# The errors of a row's provenance: its fields, and an origin or base origin the organization
+# The errors of a row's origin table: its fields, and an origin or base origin the organization
 # restricts without its reason, or a reason on any other origin.
-def provenance_errors($prefix):
-  (.provenance | table_error($prefix + ["provenance"])),
-  (.provenance | objects
-    | ($prefix + ["provenance"]) as $p
-    | unknown_keys(provenance_keys; $p),
+def origin_errors($prefix):
+  (.origin | table_error($prefix + ["origin"])),
+  (.origin | objects
+    | ($prefix + ["origin"]) as $p
+    | unknown_keys(origin_keys; $p),
       field($p; "publisher"; "text"; true),
       field($p; "origin"; "text"; true),
       field($p; "origin_reason"; "text"; false),
@@ -156,7 +154,7 @@ def provenance_errors($prefix):
 # publisher's, and a checkpoint of another publisher's model without a sampling override or a
 # statement that its generation config matches the card's.
 def sampling_errors($prefix):
-  (.provenance | if type == "object" then .base_model else null end) as $base
+  (.origin | if type == "object" then .base_model else null end) as $base
   | if has("sampling") then
       ($prefix + ["sampling"]) as $p
       | (.sampling | table_error($p)),
@@ -168,10 +166,10 @@ def sampling_errors($prefix):
             (if [keys[] | select(. != "source")] == [] then
               problem($p; "sets no value") else empty end)),
         (if $base == null then
-          problem($p; "only a row whose checkpoint another publisher's card describes (provenance.base_model) overrides its sampling")
+          problem($p; "only a row whose checkpoint another publisher's card describes (origin.base_model) overrides its sampling")
         else empty end)
-    elif $base != null and (.provenance | has("generation_config") | not) then
-      problem($prefix + ["provenance", "generation_config"]; "required with base_model when the row sets no sampling")
+    elif $base != null and (.origin | has("generation_config") | not) then
+      problem($prefix + ["origin", "generation_config"]; "required with base_model when the row sets no sampling")
     else empty end;
 
 # The errors of one row, the input, at index $i.
@@ -213,7 +211,7 @@ def row_errors($i):
         | unknown_keys(load_keys; $prefix + ["load"]),
           field($prefix + ["load"]; "target"; "text"; true),
           field($prefix + ["load"]; "source"; "text"; true)),
-      provenance_errors($prefix),
+      origin_errors($prefix),
       sampling_errors($prefix)
     end;
 

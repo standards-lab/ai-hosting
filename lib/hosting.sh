@@ -32,9 +32,7 @@ hosting_usage_error() {
 # Prints the class whose GPU a DRM card under HOSTING_SYSROOT's /sys reports by its PCI vendor and
 # device IDs: gb10 for the NVIDIA GB10 (0x10de:0x2e12), strix-halo for the AMD Strix Halo
 # (0x1002:0x1586). Fails, printing nothing, on a host matching neither.
-# Adapted from spike-model-engines (6ce3210): host/vllm.sh's vllm_flavor, which took any host
-# without AMD's vendor ID as cuda; here each class has its own positive probe, by the IDs
-# spike-hosting-upgrades' host reports recorded, gb10-1's at 26b6c37 and the Framework's at 12067db.
+# See context/host-classes.md.
 hosting_probe_class() {
   local card ids
   for card in "${HOSTING_SYSROOT:-}"/sys/class/drm/card*/device; do

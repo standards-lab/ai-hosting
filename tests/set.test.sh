@@ -77,7 +77,7 @@ test_an_unknown_alias_is_refused() {
 
 test_an_unknown_field_is_refused() {
   local field
-  for field in kv_cache load provenance.country rows; do
+  for field in kv_cache load origin.country rows; do
     set_field agent "$field=1"
     assert_equal "$field status" "$status" 1
     assert_equal "$field stderr" "$err" \

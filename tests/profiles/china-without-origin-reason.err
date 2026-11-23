@@ -1,1 +1,1 @@
-rows[1].provenance.origin_reason: required for a model whose origin or base origin is China
+rows[1].origin.origin_reason: required for a model whose origin or base origin is China

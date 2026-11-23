@@ -19,8 +19,7 @@ A profile names no host. Which of its rows a host stands on is the aliases given
 
 Profiles are TOML, read and written with mikefarah yq, the reader `mise.toml` pins, and committed
 in the format yq writes in place, so `hosting profile set` changes only the lines it edits. A
-profile's only comments are its header, which describes it and links this document, and a
-provenance line above each row or provenance table adapted from a spike.
+profile's only comment is its header, which describes it and links this document.
 
 ## The profile's keys
 
@@ -53,7 +52,7 @@ Each `[[rows]]` table is one vLLM container serving one model under its alias.
 | `flags_reason` | with `flags` | Why the row sets its free flags. | |
 | `measured_vllm` | yes | The vLLM release the row's measurements ran on, such as `v0.33.0`. The vLLM the row runs is the suite's image pin; a row whose release is older than the pin is one an upgrade re-measures. | |
 | `load` | yes | The row's load target, a table. | |
-| `provenance` | yes | The served checkpoint's provenance, a table. | |
+| `origin` | yes | The served checkpoint's origin, a table. | |
 | `sampling` | no | A sampling override, a table. | `--override-generation-config` |
 
 Each reason states the measurement behind the present value and names the document that records
@@ -66,7 +65,7 @@ it. It never names a goal record, or a value the row doesn't run at.
 | `target` | yes | The load the row is sized to hold, such as `4 sessions`. |
 | `source` | yes | The measurement at the target, and the document that records it. |
 
-### `provenance`
+### `origin`
 
 | Key | Required | Meaning |
 | --- | --- | --- |
@@ -99,7 +98,7 @@ card's values, passed as vLLM's generation-config override.
 profile; given files, it validates each. The check runs it with no argument. Every command that
 reads a profile validates it first. It reports every error at once, one line each,
 `hosting: <file>: <key path>: <message>`, with the key path in TOML's dotted form, such as
-`rows[1].provenance.origin_reason`, and exits 1 if it finds any. It refuses:
+`rows[1].origin.origin_reason`, and exits 1 if it finds any. It refuses:
 
 - a key this document doesn't define, in any table;
 - a required key that is absent, or a value of the wrong kind;

@@ -1,3 +1,2 @@
 # Shellcheck's configuration: it follows the files a script sources, such as lib/vllm.env.
-# Adapted from spike-model-engines (6ce3210): .shellcheckrc, its comment reworded.
 external-sources=true
