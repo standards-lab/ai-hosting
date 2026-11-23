@@ -17,7 +17,9 @@ repository root:
 MISE_ENV=bench mise install
 ```
 
-Python is held on 3.14 for the reason beside its pin, so currency reports it until the hold lifts.
+Python is held on 3.14, for the reason in the file's `HOLDS` list, one `<item> <pin>: <reason>`
+line a hold in its `[env]`. `mise run currency` reports a held pin as held, with its reason, and
+fails only on a pin that trails unheld; moving the pin ends its hold.
 
 ## The scenarios
 
