@@ -43,7 +43,7 @@ fraction = 0.03
 fraction_reason = "0.03: on the pooling runner the row keeps no KV pool; e5 started within it, its weights taking 1.08 GiB, and at cap 32 its GTT peaked at 2,554 MiB under the sweep, within the 3,441 MiB it reserves; idle, the host's rows left 89.94 GiB of GTT free (docs/findings/embedding.md#e5-update, #e5-sweep-32, #e5-memory)."
 dims = 1024
 flags = ["--runner", "pooling", "--max-num-batched-tokens", "65536"]
-flags_reason = "The pooling runner, which serves embeddings, and 65,536 batched tokens a step, since vLLM's default of 8,192 batches only 16 of the embedding cells' 512-token inputs (spike-model-layout docs/findings/capability-vllm.md, G)."
+flags_reason = "The pooling runner, which serves embeddings, and 65,536 batched tokens a step, since vLLM's default of 8,192 batches only 16 of the embedding cells' 512-token inputs (spike-model-layout docs/findings/capability-vllm.md, G). e5 ran on both flags in its sweeps with no error or preemption: at cap 128 its 128 inputs of 512 tokens fill the 65,536 a step, and at cap 32 they take 16,384 of it (docs/findings/embedding.md#e5-sweep-128, #e5-sweep-32)."
 measured_vllm = "v0.34.0"
 
 [rows.load]

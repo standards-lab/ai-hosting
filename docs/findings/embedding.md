@@ -80,6 +80,28 @@ tokens counted with e5's tokenizer. The long inputs are a repeated English sente
 At cap 32, 2026-11-23T16:16:10Z to 16:16:16Z, the probes answered the same: the vectors 1,024
 components with norms 0.99999999 and 1.00000001, and 511 tokens refused with 400.
 
+At cap 32, 2026-11-23T18:15:39Z to 18:15:40Z, the commands below ran the probes again, their long
+inputs `passage: ` and `word ` repeated 508 and 509 times: 512 and 513 tokens with the special
+tokens, by the row's `/tokenize` and by e5's tokenizer alike. They answered as the table does:
+1,024 components with norms 0.99999999 at 12 tokens and 1.00000001 at 512, and 513 tokens refused
+with 400.
+
+```sh
+curl -s http://framework:8003/v1/models | jq -c '.data[]|{id,root,max_model_len}'
+for n in 508 509; do
+  jq -n --argjson n "$n" '{model:"embedding",prompt:("passage: "+("word "*$n))}' |
+    curl -s http://framework:8003/tokenize -H 'content-type: application/json' -d @- | jq .count
+done
+e5norm='{components: (.data[0].embedding|length), norm: ([.data[0].embedding[]|.*.]|add|sqrt), prompt_tokens: .usage.prompt_tokens}'
+curl -s http://framework:8003/v1/embeddings -H 'content-type: application/json' \
+  -d '{"model":"embedding","input":"query: how much protein should a female eat"}' | jq -c "$e5norm"
+for n in 508 509; do
+  jq -n --argjson n "$n" '{model:"embedding",input:("passage: "+("word "*$n))}' |
+    curl -s http://framework:8003/v1/embeddings -H 'content-type: application/json' -d @- |
+    jq -c "if .error then .error|{code,type,message} else $e5norm end"
+done
+```
+
 The row normalizes its vectors. The long-input probe passed on the stock ROCm image, so the row
 takes no MIOpen setting.
 
@@ -174,6 +196,11 @@ Of the pool's 112.00 GiB, the fraction 0.03 is 3,441 MiB. e5 starts and serves w
   remove `ibm-granite/granite-embedding-english-r2` (599.7M); `--yes` removed it; `hosting model
   prune` then printed "nothing to prune: every model in /srv/models is served by a row recorded
   on this host".
+- 18:13:54Z, at cap 32, the clone at `811ace7`, whose rendered command is HEAD's but for the
+  publish address: `hosting engine update` with no alias printed "embedding already runs
+  vllm/vllm-openai-rocm:v0.34.0 as its row; nothing changed" and "audio already runs
+  ai-hosting/vllm-openai-rocm-audio:v0.34.0 as its row; nothing changed", the audio image's build
+  fully cached, and exited 0; `hosting engine status` then showed both rows running and healthy.
 
 ## e5-retrieval
 
