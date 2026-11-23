@@ -73,9 +73,8 @@ laptop deploy and `gateway/compose.sh` did.
 | `gateway reset` | Stops the stack and drops its volumes |
 | `gateway status` | The stack's state, and `hosts`' stranded-container check for agentgateway and the Collector, the two containers bound to gb10-2's tailnet address |
 
-**Handover.** gb10-2's old `gateway` project comes down before the new stack binds the same
-ports, and the new stack starts on a fresh Postgres volume; the old one held only the spike's
-benchmark traffic. [Cleanup](cleanup.md) removes what the old project leaves.
+**Handover.** None: gb10-2 runs no gateway, so the new stack binds its ports and starts on a
+fresh Postgres volume, with nothing to stop or carry over.
 
 ## The `key` group
 

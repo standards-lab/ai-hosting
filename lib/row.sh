@@ -37,10 +37,11 @@ hosting_tailnet_address() {
 
 # Reads the row with the alias given from the loaded profile (hosting_profile_load, then
 # hosting_profile_alias), published on the address given: hosting_row <alias> <address>. Sets
-# HOSTING_ROW_CONTAINER, the container's name; HOSTING_ROW_IMAGE, the row's image, or else the
-# class's, at the pinned release; HOSTING_ROW_COMMAND, what the image's entrypoint, vllm serve, is
-# given; and HOSTING_ROW_ARGS, docker run's whole argument list: its options, the image, and the
-# command. Runs as the invoking user, with ~/.cache/vllm as the container's home.
+# HOSTING_ROW_CONTAINER, the container's name; HOSTING_ROW_PORT, the port it publishes on the
+# address; HOSTING_ROW_IMAGE, the row's image, or else the class's, at the pinned release;
+# HOSTING_ROW_COMMAND, what the image's entrypoint, vllm serve, is given; and HOSTING_ROW_ARGS,
+# docker run's whole argument list: its options, the image, and the command. Runs as the invoking
+# user, with ~/.cache/vllm as the container's home.
 hosting_row() {
   local fields
   hosting_per_class hosting_row_platform || return
@@ -48,6 +49,7 @@ hosting_row() {
     '.store as $store | .rows[] | select(.alias == $alias) | .container, .port, .image // "", $store' \
     <<<"$HOSTING_PROFILE_JSON")
   HOSTING_ROW_CONTAINER=${fields[0]}
+  HOSTING_ROW_PORT=${fields[1]}
   HOSTING_ROW_IMAGE=${fields[2]:-$HOSTING_ROW_REPOSITORY}:$VLLM_RELEASE
   mapfile -t HOSTING_ROW_COMMAND < <(jq -r --arg alias "$1" '.rows[] | select(.alias == $alias)
     | [.model, "--host", "0.0.0.0", "--port", .port, "--served-model-name", .alias,
@@ -63,7 +65,7 @@ hosting_row() {
     --detach --name "$HOSTING_ROW_CONTAINER" --label "$HOSTING_ROW_LABEL=$1"
     --restart unless-stopped "${HOSTING_ROW_DEVICES[@]}"
     --ipc host --user "$(id -u):$(id -g)"
-    --publish "$2:${fields[1]}:${fields[1]}"
+    --publish "$2:$HOSTING_ROW_PORT:$HOSTING_ROW_PORT"
     --volume "${fields[3]}:${fields[3]}" --env "HF_HUB_CACHE=${fields[3]}"
     --volume "$HOME/.cache/vllm:$HOSTING_ROW_HOME" --env "HOME=$HOSTING_ROW_HOME"
     --env "USER=$(id -un)"

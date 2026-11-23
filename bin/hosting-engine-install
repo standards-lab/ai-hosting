@@ -2,10 +2,12 @@
 # hosting:summary=Starts each row named from this host's class profile and records it
 # `hosting engine install <alias>...`: validates the host's class profile, then refuses before it
 # touches Docker an alias the profile has no row for, rows whose fractions with the recorded rows'
-# sum over 1, and a host failing the preflight (hosting_engine_check in lib/engine.sh). Then, for
-# each alias, pulls the row's model, builds the row's own image or pulls the class's, starts the
-# row's labeled container on the tailnet address, and appends the alias to the install record. A
-# row whose labeled container exists is left as it is, and recorded. See context/hosting-suite.md.
+# sum over 1, and a host failing the preflight; and, before it changes anything, an alias whose
+# container name or port is held by a container without the row label (hosting_engine_check in
+# lib/engine.sh). Then, for each alias, pulls the row's model, builds the row's own image or pulls
+# the class's, starts the row's labeled container on the tailnet address, and appends the alias to
+# the install record. A row whose labeled container exists is left as it is, and recorded. See
+# context/hosting-suite.md.
 set -euo pipefail
 
 # shellcheck source=lib/hosting.sh

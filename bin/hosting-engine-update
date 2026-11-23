@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # hosting:summary=Moves a row, or every recorded row, to this host's class profile
 # `hosting engine update [<alias>]`: acts on the alias given, or with none on every alias in the
-# install record. Validates the host's class profile and refuses as engine install does before it
-# touches Docker (hosting_engine_check in lib/engine.sh). Then, for each alias, pulls the row's
-# model and pulls or builds its image first; replaces the row's labeled container when the image ID
-# or the command it runs differs from the row's, then removes the image it ran when no container
-# uses it; starts the row when it has no container; and records the alias. A row whose container
-# already runs it is left as it is. See context/hosting-suite.md.
+# install record. Validates the host's class profile and refuses each alias as engine install does
+# before it changes anything (hosting_engine_check in lib/engine.sh). Then, for each alias, pulls
+# the row's model and pulls or builds its image first; replaces the row's labeled container when the
+# image ID or the command it runs differs from the row's, then removes the image it ran when no
+# container uses it; starts the row when it has no container; and records the alias. A row whose
+# container already runs it is left as it is. See context/hosting-suite.md.
 set -euo pipefail
 
 # shellcheck source=lib/hosting.sh

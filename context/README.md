@@ -3,10 +3,11 @@
 ai-hosting specifies how the organization's local model hosts serve models: the settings the
 Framework desktop and the two GB10 workstations use, stated generally enough that another host of
 the same class follows them. Its secrets, the `hosting` suite, and each class's profile and
-runbook are built; the hosts don't run them yet, which is the `migrate` task's. It will serve Pi
-sessions, Claude Code subagents, go-ai, and the capstone's services through one gateway, with
-overflow to Azure AI Foundry. It is low-level infrastructure outside the five tiers, beside the
-harness repositories, and will be the one hosting repository on each workstation.
+runbook are built, and each host serves its rows from its clone. It will serve Pi sessions, Claude
+Code subagents, go-ai, and the capstone's services through one gateway, with overflow to Azure AI
+Foundry; until then, callers use the rows directly. It is low-level infrastructure outside the
+five tiers, beside the harness repositories, and is the one hosting repository on each
+workstation.
 
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.
@@ -43,5 +44,7 @@ record holds the tasks and their order.
   ([host-classes.md](host-classes.md), [engines.md](engines.md)).
 - **Admin tooling** (planned): experiment.admin's Go CLI, which implements the profile schema
   ([classes/README.md](../classes/README.md)), built after experiment.admin's intake.
-- **One hosting repository per workstation** (planned): the `cleanup` task removes what the
-  spikes left on each host ([cleanup.md](cleanup.md)).
+- **One hosting repository per workstation** (built): each host runs the suite from one clone,
+  `~/ai-hosting`, and `engine install` and `update` refuse a container outside the rows that holds
+  a row's name or port ([gb10](../classes/gb10/runbook.md#install-the-suite),
+  [strix-halo](../classes/strix-halo/runbook.md#install-the-suite)).

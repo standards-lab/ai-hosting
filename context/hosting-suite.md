@@ -27,8 +27,8 @@ the first three; the `gateway` task builds the other two.
 
 | Command | What it does |
 | --- | --- |
-| `engine install <alias>...` | Checks the aliases, the fraction sum, and the preflight before touching Docker; runs `model pull` for each row's model, builds or pulls its image, starts its labeled container on the host's tailnet address, and records the alias |
-| `engine update [<alias>]` | Pulls or builds first, then replaces a row whose image ID or command differs from its running container, installs a row that is absent, and removes the superseded build; with nothing changed, does nothing. With no alias, acts on the recorded aliases |
+| `engine install <alias>...` | Checks the aliases, the fraction sum, and the preflight before touching Docker. Before changing anything, refuses an alias whose container name a container without the row label holds, running or stopped, or whose port a running one publishes, alone or inside a range, naming the container and the `docker rm -f` that removes it. Then runs `model pull` for each row's model, builds or pulls its image, starts its labeled container on the host's tailnet address, and records the alias |
+| `engine update [<alias>]` | Checks and refuses each alias as install does, then pulls or builds, then replaces a row whose image ID or command differs from its running container, installs a row that is absent, and removes the superseded build if the host still has it; with nothing changed, does nothing. With no alias, acts on the recorded aliases |
 | `engine uninstall [<alias>]` | Removes the row's labeled container, then its image if no other container uses it, and drops the alias from the record. With no alias, acts on the recorded aliases |
 | `engine status` | Each labeled row's container state and health, and each recorded alias with no container. Flags a stranded row, a running container that is reachable at no address, with the command that recovers it: `docker network connect bridge <container>` for one on no network, and `docker restart <container>` for one on a network that publishes no port |
 | `engine models` | The model each running row serves, from its `/v1/models` |
