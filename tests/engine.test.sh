@@ -21,6 +21,11 @@ case "$1 $2" in
   "container ls") cat "$HOSTING_TEST_DOCKER/ls/$key" 2>/dev/null || true ;;
   "container inspect") cat "$HOSTING_TEST_DOCKER/container/$key" ;;
   "image inspect") cat "$HOSTING_TEST_DOCKER/image/$key" ;;
+  "rm --force")
+    for users in "$HOSTING_TEST_DOCKER"/ls/ancestor=*; do
+      [[ ! -e $users ]] || sed -i "/^$3\$/d" "$users"
+    done
+    ;;
 esac
 EOF
   )"
@@ -46,7 +51,7 @@ nonlocal_bind() {
 container_of() {
   echo "$2" >"$HOSTING_TEST_DOCKER/ls/label=ai-hosting.row=$1"
   echo "$2" >>"$HOSTING_TEST_DOCKER/ls/ancestor=$3"
-  printf '%s\n%s\n' "$3" "$4" >"$HOSTING_TEST_DOCKER/container/$2"
+  echo "$3 $4" >"$HOSTING_TEST_DOCKER/container/$2"
 }
 
 # Gives the fake Docker state an image: image_of <reference> <image id>.
@@ -200,6 +205,152 @@ test_install_takes_at_least_one_alias() {
   assert_equal status "$status" 2
   assert_equal stderr "$err" "hosting: engine install takes at least one alias
 usage: hosting engine install <alias>..."
+}
+
+# Prints the vllm serve command hosting profile render prints for the row given, after its image,
+# as compact JSON, the form docker's {{json .Config.Cmd}} takes: command_of <class> <alias>.
+command_of() {
+  HOSTING_CLASS=$1 run_hosting profile render "$2"
+  sed -n "/^\(vllm\|ai-hosting\)\/.*:v[0-9]/,\$p" <<<"$out" | tail -n +2 | jq -Rnc '[inputs]'
+}
+
+# Gives the fake Docker state the gb10 agent row running exactly as the profile has it, with
+# vllm/vllm-openai:v0.34.0 at sha256:pinned.
+agent_as_profiled() {
+  image_of vllm/vllm-openai:v0.34.0 sha256:pinned
+  container_of agent c1 sha256:pinned "$(command_of gb10 agent)"
+}
+
+test_update_with_nothing_changed_does_nothing() {
+  ready_host
+  record agent
+  agent_as_profiled
+  : >"$tmp/calls"
+  engine gb10 update agent
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "agent already runs vllm/vllm-openai:v0.34.0 as its row; nothing changed"
+  assert_equal "docker calls" "$(docker_calls)" "docker pull vllm/vllm-openai:v0.34.0
+docker image inspect --format {{.Id}} vllm/vllm-openai:v0.34.0
+docker container ls --all --quiet --filter label=ai-hosting.row=agent
+docker container inspect --format {{.Image}} {{json .Config.Cmd}} c1"
+  assert_equal record "$(recorded)" agent
+}
+
+test_update_replaces_a_row_whose_image_differs_and_removes_the_superseded_image() {
+  ready_host
+  record agent
+  agent_as_profiled
+  image_of vllm/vllm-openai:v0.34.0 sha256:newer
+  : >"$tmp/calls"
+  engine gb10 update agent
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "agent was replaced; it runs vllm/vllm-openai:v0.34.0 in vllm-agent
+removed image sha256:pinned"
+  assert_contains "docker calls" "$(docker_calls)" "docker rm --force c1
+$(rendered gb10 agent)"
+  assert_contains "docker calls" "$(docker_calls)" "docker image rm sha256:pinned"
+}
+
+test_update_rebuilds_a_rows_own_image_and_removes_the_superseded_build() {
+  ready_host
+  record audio
+  image_of ai-hosting/vllm-openai-rocm-audio:v0.34.0 sha256:rebuilt
+  container_of audio c1 sha256:built "$(command_of strix-halo audio)"
+  : >"$tmp/calls"
+  engine strix-halo update
+  assert_equal status "$status" 0
+  assert_contains "docker calls" "$(docker_calls)" \
+    "docker build --tag ai-hosting/vllm-openai-rocm-audio:v0.34.0 $clone/images/vllm-openai-rocm-audio"
+  assert_contains "docker calls" "$(docker_calls)" "docker rm --force c1"
+  assert_contains "docker calls" "$(docker_calls)" "docker image rm sha256:built"
+}
+
+test_update_keeps_a_superseded_image_another_container_uses() {
+  ready_host
+  record agent
+  agent_as_profiled
+  echo c9 >>"$HOSTING_TEST_DOCKER/ls/ancestor=sha256:pinned"
+  image_of vllm/vllm-openai:v0.34.0 sha256:newer
+  engine gb10 update agent
+  assert_equal status "$status" 0
+  assert_contains "docker calls" "$(docker_calls)" "docker rm --force c1"
+  [[ $(docker_calls) != *"image rm"* ]] || fail "removed an image a container uses: $(docker_calls)"
+}
+
+test_update_replaces_a_row_whose_command_differs_and_keeps_its_image() {
+  ready_host
+  record agent
+  agent_as_profiled
+  hosting_yq_in_clone '(.rows[] | select(.alias == "agent")).fraction = 0.75' gb10
+  : >"$tmp/calls"
+  engine gb10 update agent
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "agent was replaced; it runs vllm/vllm-openai:v0.34.0 in vllm-agent"
+  assert_contains "docker calls" "$(docker_calls)" "docker rm --force c1
+$(rendered gb10 agent)"
+  [[ $(docker_calls) != *"image rm"* ]] || fail "removed the image it runs: $(docker_calls)"
+}
+
+test_update_installs_an_absent_recorded_row() {
+  ready_host
+  record agent
+  image_of vllm/vllm-openai:v0.34.0 sha256:pinned
+  engine gb10 update
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "agent was not installed; it runs vllm/vllm-openai:v0.34.0 in vllm-agent"
+  assert_contains "docker calls" "$(docker_calls)" "$(rendered gb10 agent)"
+  [[ $(docker_calls) != *"docker rm"* ]] || fail "removed a container: $(docker_calls)"
+}
+
+test_update_with_no_alias_acts_on_the_record_alone() {
+  ready_host
+  record agent
+  agent_as_profiled
+  : >"$tmp/calls"
+  engine gb10 update
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "agent already runs vllm/vllm-openai:v0.34.0 as its row; nothing changed"
+  [[ $(calls) != *vision* && $(calls) != *Gemma* ]] || fail "touched the unrecorded vision row"
+}
+
+test_update_given_an_alias_records_it() {
+  ready_host
+  image_of vllm/vllm-openai:v0.34.0 sha256:pinned
+  engine gb10 update agent
+  assert_equal status "$status" 0
+  assert_equal record "$(recorded)" agent
+}
+
+test_update_with_an_empty_record_does_nothing() {
+  ready_host
+  engine gb10 update
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "the install record $XDG_STATE_HOME/hosting/aliases holds no alias; nothing to update"
+  assert_equal calls "$(calls)" ""
+}
+
+test_update_refuses_before_docker_as_install_does() {
+  ready_host
+  record agent
+  agent_as_profiled
+  nonlocal_bind 0
+  : >"$tmp/calls"
+  engine gb10 update
+  assert_equal status "$status" 1
+  assert_contains stderr "$err" "net.ipv4.ip_nonlocal_bind is 0, not 1"
+  assert_equal calls "$(calls)" ""
+  engine gb10 update audio
+  assert_equal status "$status" 1
+  assert_contains stderr "$err" "has no row audio"
+  assert_equal calls "$(calls)" ""
+}
+
+test_update_takes_at_most_one_alias() {
+  ready_host
+  engine gb10 update agent vision
+  assert_equal status "$status" 2
+  assert_equal stderr "$err" "hosting: engine update takes at most one alias
+usage: hosting engine update [<alias>]"
 }
 
 # Edits the clone's profile of the class given with the yq expression given:

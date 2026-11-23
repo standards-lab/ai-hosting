@@ -181,3 +181,19 @@ hosting_engine_check() {
   hosting_engine_preflight || return
   hosting_tailnet_address
 }
+
+# Prints what the container with the ID given runs, "<image ID> <command as compact JSON>", the
+# form a row's (hosting_engine_wanted) takes. Fails when Docker does.
+hosting_engine_running() {
+  local running
+  running=$(docker container inspect --format '{{.Image}} {{json .Config.Cmd}}' "$1") || return
+  echo "${running%% *} $(jq -c . <<<"${running#* }")"
+}
+
+# Prints what the row's container runs, after hosting_row and hosting_engine_fetch, in
+# hosting_engine_running's form: the ID of the row's image and its command.
+hosting_engine_wanted() {
+  local image
+  image=$(docker image inspect --format '{{.Id}}' "$HOSTING_ROW_IMAGE") || return
+  echo "$image $(printf '%s\n' "${HOSTING_ROW_COMMAND[@]}" | jq -Rnc '[inputs]')"
+}
