@@ -352,9 +352,8 @@ latency medians were 45.31 to 45.62 ms.
 
 On the laptop, 2026-11-23T17:50:30Z to 17:51:29Z, with e5's tokenizer (`XLMRobertaTokenizer`, from
 the checkpoint above) through transformers 5.20.2, in GuideLLM's Python 3.14.10 in the bench
-environment. For docinfer, whose chunks are counted in
-runes: the tokens per rune e5 gives each language in `~/docs`, and the runes that fit the row's
-512 tokens.
+environment. For docinfer, whose chunks are counted in runes: the tokens per rune e5 gives each
+language in `~/docs`, and the runes that fit the row's 512 tokens.
 
 The method, a one-off script not kept:
 

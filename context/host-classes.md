@@ -65,7 +65,7 @@ gpt-oss-120b, Gemma 4 26B-A4B, and Gemma 4 E4B, with each card's context moved t
 of the spike's profile package is not carried: its Go code, llama.cpp's fields and templates, model
 sets, the decode-ceiling fields, and the evaluation tooling. Two tasks take parts of it:
 
-- **embedding**, done: the strix-halo runbook's embedding section states e5's `query: ` and
+- **embedding**: the strix-halo runbook's embedding section states e5's `query: ` and
   `passage: ` prefixes (`hosting/profile/profile.go:340-343`).
 - **architecture**: its "sizing a vLLM row" page takes the decode-ceiling method
   (`memory_bandwidth_gb_s`, `active_params_b`, `bits_per_weight`); its "reading a model card" page

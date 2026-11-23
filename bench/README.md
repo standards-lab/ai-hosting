@@ -17,9 +17,9 @@ repository root:
 MISE_ENV=bench mise install
 ```
 
-Python is held on 3.14, for the reason in the file's `HOLDS` list, one `<item> <pin>: <reason>`
-line a hold in its `[env]`. `mise run currency` reports a held pin as held, with its reason, and
-fails only on a pin that trails unheld; moving the pin ends its hold.
+Python is held on 3.14. The file's `HOLDS` list, in its `[env]`, gives the reason, one
+`<item> <pin>: <reason>` line for each hold. `mise run currency` reports a held pin as held, with
+its reason, and fails only on a pin that trails unheld; moving the pin ends its hold.
 
 ## The scenarios
 
@@ -60,9 +60,10 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://framework:<port> \
   --output kind=json,path=.state/bench/<cell>.json
 ```
 
-The rate scenario takes its rate from the environment too, `GUIDELLM__SPEC__PROFILE__RATE=<requests
-a second>`; with none set, GuideLLM refuses to start. A pair cell is two runs started together, `audio.yaml` against the
-audio row and `embedding-rate.yaml` against the embedding row, each writing its own JSON.
+The rate scenario takes its rate from the environment too,
+`GUIDELLM__SPEC__PROFILE__RATE=<requests a second>`; with none set, GuideLLM refuses to start. A
+pair cell is two runs started together, `audio.yaml` against the audio row and
+`embedding-rate.yaml` against the embedding row, each writing its own JSON.
 
 ## Reading the results
 
