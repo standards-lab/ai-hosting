@@ -38,10 +38,9 @@ hosting_tailnet_address() {
 # Reads the row with the alias given from the loaded profile (hosting_profile_load, then
 # hosting_profile_alias), published on the address given: hosting_row <alias> <address>. Sets
 # HOSTING_ROW_CONTAINER, the container's name; HOSTING_ROW_PORT, the port it publishes on the
-# address; HOSTING_ROW_IMAGE, the row's image, or else the
-# class's, at the pinned release; HOSTING_ROW_COMMAND, what the image's entrypoint, vllm serve, is
-# given; and HOSTING_ROW_ARGS, docker run's whole argument list: its options, the image, and the
-# command. Runs as the invoking user, with ~/.cache/vllm as the container's home.
+# address; HOSTING_ROW_IMAGE, the row's image, or else the class's, at the pinned release;
+# HOSTING_ROW_COMMAND, what the image's entrypoint, vllm serve, is given; and HOSTING_ROW_ARGS,
+# docker run's whole argument list: its options, the image, and the command. Runs as the invoking user, with ~/.cache/vllm as the container's home.
 hosting_row() {
   local fields
   hosting_per_class hosting_row_platform || return

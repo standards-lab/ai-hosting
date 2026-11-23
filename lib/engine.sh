@@ -170,9 +170,9 @@ hosting_engine_remove_unused_image() {
   echo "removed image $1"
 }
 
-# Refuses each alias given whose row (hosting_row, after hosting_tailnet_address) a container
-# without the row label stands in the way of: one, running or stopped, named as the row's
-# container, or a running one publishing the row's port. Prints each such container with the
+# Refuses each alias given whose row (hosting_row, after hosting_tailnet_address) is blocked by a
+# container without the row label: one, running or stopped, named as the row's container, or a
+# running one publishing the row's port. Prints each such container with the
 # command that removes it. Reads Docker once, and fails when Docker does.
 hosting_engine_occupied() {
   local containers alias kind holder fail=0
