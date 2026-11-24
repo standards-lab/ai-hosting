@@ -53,8 +53,21 @@ re-measures, is planned for `upgrades`; that task's plan names its verb.
 
 ## go-ai profiles
 
-Planned for the `gateway` task: ai-hosting will publish each alias's go-ai profile as a JSON file
-in go-ai's own field names, declaring the reasoning efforts the row refuses. Acceptance will run
+Each alias's go-ai profile is `go-ai/<alias>.json`, the JSON object `AI_<ROLE>_PROFILE` and
+infer's `--profile` take, keyed by format in go-ai's own field names. It declares only the gaps the
+row's vLLM serves with, never its Azure overflow deployment's, and only those a recording or a run
+backs:
+
+- [`agent`](../go-ai/agent.json): gpt-oss-120b on vLLM 0.34.0, each field backed by go-ai's
+  recordings in `format/<format>/testdata/vllm-0.34.0` (go-ai's `integration/doc.go` names each);
+  spike-model-gateway's rows-up tiers ran with it through the gateway
+  (`docs/findings/answer.md`, "Step 2", at `2f2e8c1`).
+- [`vision`](../go-ai/vision.json), [`audio`](../go-ai/audio.json), and
+  [`embedding`](../go-ai/embedding.json): `{}`, the spec. vision passed efforts `none` and `low` in
+  every format in those tiers with no profile; no other gap of theirs is recorded.
+
+`scripts/lint-go-ai-profiles.sh`, in the check, refuses a file that isn't an object of go-ai's
+formats, a file naming no class profile's alias, and an alias with no file. Acceptance runs
 go-ai's integration tier with them through `AI_<ROLE>_PROFILE`.
 
 ## What later tasks take from spike-model-hosting

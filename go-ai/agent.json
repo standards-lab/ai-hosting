@@ -1,0 +1,26 @@
+{
+  "completions": {
+    "refused_efforts": [
+      "none",
+      "minimal",
+      "xhigh",
+      "max"
+    ],
+    "no_allowed_tools": true
+  },
+  "responses": {
+    "refused_efforts": [
+      "none",
+      "xhigh"
+    ],
+    "no_allowed_tools": true,
+    "resend_reasoning_text": true
+  },
+  "messages": {
+    "refused_efforts": [
+      "none",
+      "xhigh",
+      "max"
+    ]
+  }
+}
