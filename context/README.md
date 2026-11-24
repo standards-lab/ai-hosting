@@ -5,10 +5,9 @@ Framework desktops and the two GB10 workstations use, stated generally enough th
 the same class follows them. Its secrets, the `hosting` suite, and each class's profile and
 runbook are built, and each host serves its rows from its clone. It will serve Pi sessions, Claude
 Code subagents, go-ai, and the capstone's services through one gateway, with overflow to Azure AI
-Foundry; until then, callers use the rows directly, and a caller of `embedding` moves its
-`AI_EMBEDDING_BASE_URL` from the host `framework` to framework-2. It is low-level
-infrastructure outside the five tiers, beside the harness repositories, and is the one hosting
-repository on each workstation.
+Foundry; until then, callers use the rows directly, and a caller of `embedding` points its
+`AI_EMBEDDING_BASE_URL` at framework-2. It is low-level infrastructure outside the five tiers,
+beside the harness repositories, and is the one hosting repository on each workstation.
 
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.

@@ -179,7 +179,9 @@ The root filesystem is LUKS-encrypted, so a reboot waits at the console's passph
 unlock puts an SSH server, dropbear, in the initramfs, which serves the same prompt over the LAN.
 The initramfs has no Tailscale, so a client reaches it through another tailnet host on the same LAN
 that is up, which Tailscale SSH forwards for `ssh -J` ([Reboots](#reboots)). The console prompt
-still works.
+still works. TPM2 auto-unlock was rejected, since it would unlock a stolen host by itself and
+needs systemd's initramfs hooks, which Omarchy doesn't use; so was Tailscale in the initramfs,
+whose auth key would sit unencrypted on `/boot`.
 
 Three packages provide the initramfs's network, its SSH server, and the hook that asks for the
 passphrase over SSH:
@@ -293,7 +295,7 @@ cat /sys/class/drm/card*/device/mem_info_gtt_total
 `hosting profile render <alias>` prints the `docker run` command a row runs, without running it.
 `hosting engine install` pulls the row's model into the store, builds or pulls its image, starts
 its container, and records the alias on the host; `hosting engine update` and `uninstall` with no
-alias act on every recorded row. Each host stands one row; `engine install` refuses rows on one
+alias act on every recorded row. Each host serves one row; `engine install` refuses rows on one
 host whose fractions sum over 1.
 
 ### audio

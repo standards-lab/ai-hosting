@@ -41,12 +41,12 @@ Replacing a model runs `profile set`, `model pull`, and `engine update`, then co
 (each runbook gives the commands). It is a kind of upgrade:
 the `upgrades` task's convention and its `hosting-upgrades` skill will cover evaluating the
 candidate (its card, its origin, a probe against the row's floors) before `profile set`. The
-`embedding` task's replacement of the embedding model with `intfloat/multilingual-e5-large`, then
+`embedding` task's replacement of the embedding model with `intfloat/multilingual-e5-large`, made
 on the Framework beside audio, is the pattern: the card read, the pull and update, probes at the
 context's edge, the sweep that sets the cap, the memory read, retrieval against the published
 scores, a cell beside any row sharing the host, then pruning the old model, each a cell in
-[its findings](../docs/findings/embedding.md). The `framework-2` task moved the row to framework-2
-alone and re-measured it there on the LAN.
+[its findings](../docs/findings/embedding.md). The same findings hold the row's re-measurement
+alone on framework-2, on the LAN.
 
 A read-only listing of the rows whose `measured_vllm` is older than the pin, the rows an upgrade
 re-measures, is planned for `upgrades`; that task's plan names its verb.

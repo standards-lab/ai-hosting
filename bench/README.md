@@ -1,7 +1,7 @@
 # The bench
 
-The bench measures a host's rows from a client on the hosts' LAN, the laptop at home: GuideLLM drives load against a row, and MTEB
-scores an embedding row's retrieval. It is not part of the suite, and no host installs it. The
+The bench measures a host's rows from a client on the hosts' LAN, the laptop at home: GuideLLM
+drives load against a row, and MTEB scores an embedding row's retrieval. It is not part of the suite, and no host installs it. The
 `embedding` task's measurements run on it; the repeatable measuring convention is the `upgrades`
 task's ([host-classes.md](../context/host-classes.md)).
 
@@ -74,6 +74,7 @@ A cell runs from a client on the LAN, its `tailscale ping` to the host answering
 over a DERP relay: a relayed path limits the uploads and times out GuideLLM's fixed 5 s writes,
 so it measures the path, not the row ([audio-8](../docs/findings/audio.md#audio-8)). Clients off
 the LAN reach the rows through the gateway, whose task owns that path.
+
 The embedding stream sweep on framework-2:
 
 ```sh

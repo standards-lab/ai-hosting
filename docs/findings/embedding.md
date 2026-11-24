@@ -570,8 +570,8 @@ the target rate in the result JSON. The levels ran from 19:37:51Z to 20:03:32Z.
 | rate 78.76 | 7016/0/16 | 77.956 | 98.98% | 0.05 | 0.20 | 39,835 | meets |
 
 The row's `/metrics` after the run, counting since the row started: 184,220 requests finished, 0
-preemptions. `hosting engine
-memory` then read the row's GTT at 2,176 MiB, and the pool's GTT used at 2.46 GiB of 112.00 GiB.
+preemptions. `hosting engine memory` then read the row's GTT at 2,176 MiB, and the pool's GTT used
+at 2.46 GiB of 112.00 GiB.
 
 - **The limit is 78 requests a second.** The limit is the highest rate the row keeps with no
   errors and at least 98% of the target achieved, with no margin. Every constant rate from 57.25
