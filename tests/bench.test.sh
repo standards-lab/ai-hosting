@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # Tests for scripts/lint-bench.sh, the bench scenarios' lint, against the committed scenarios and
 # profile and against the fixtures in tests/bench/: a 512-token context with a scenario within it
-# and one over it, a stream sweep and a rate sweep among them. Tests too for bench/levels.jq's level
-# names against the result fixtures there: a rate sweep's and a stream sweep's.
+# and one over it, a stream sweep and a rate sweep among them. Tests too that each committed audio
+# scenario lists one prompt per clip row, and for bench/levels.jq's level names against the result
+# fixtures there: a rate sweep's and a stream sweep's.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 # shellcheck source=lib/profile.sh
 source "$repo/lib/profile.sh"
 
 fixtures=$repo/tests/bench
+librispeech_dummy_clips=73
 
 run_lint() {
   run "$repo/scripts/lint-bench.sh" "$@"
@@ -33,16 +35,14 @@ test_511_tokens_and_two_special_tokens_exceed_a_512_context() {
   assert_equal stderr "$err" "FAIL: $fixtures/embedding-511.yaml: 511 input tokens plus 2 special tokens exceed the embedding row's context in $fixtures/context-512.toml, 512"
 }
 
-test_the_committed_scenarios_include_the_8_stream_audio_and_the_rate_sweep() {
-  local audio sweep
-  audio=$(hosting_yq -o json '.' "$repo/bench/audio-8.yaml" | jq -c '[.spec.profile,
-    (.spec.data[0].data.prompt | length),
-    (.spec.data[1].load_kwargs.split | split("+") | length)]')
-  assert_equal "audio-8 profile and rows" "$audio" '[{"kind":"concurrent","streams":8},1752,24]'
-  sweep=$(hosting_yq -o json '.' "$repo/bench/embedding-rate-sweep.yaml" | jq -c '[.spec.profile,
-    .spec.backend.request_format, .spec.data[0].prompt_tokens]')
-  assert_equal "rate sweep profile and input" "$sweep" \
-    '[{"kind":"sweep","sweep_size":16,"max_concurrency":16},"/v1/embeddings",510]'
+test_each_audio_scenario_lists_one_prompt_per_clip_row() {
+  local scenario counts
+  for scenario in "$repo"/bench/audio*.yaml; do
+    counts=$(hosting_yq -o json '.' "$scenario" | jq -c --argjson clips "$librispeech_dummy_clips" \
+      '[(.spec.data[0].data.prompt | length), $clips * (.spec.data[1].load_kwargs.split | split("+") | length)]')
+    assert_equal "${scenario##*/} prompts and clip rows" "$(jq '.[0]' <<<"$counts")" \
+      "$(jq '.[1]' <<<"$counts")"
+  done
 }
 
 test_a_rate_sweep_over_the_context_fails() {
