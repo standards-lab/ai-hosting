@@ -403,3 +403,50 @@ The method, a one-off script not kept:
 - The smallest bound is ZH's, 740 runes, then JA's, 831. Every sample but the EU acts and the
   subtitles is a few hundred runes or fewer, ZH's 105, so those rates are a sample's, not a
   language's.
+
+## candidates
+
+Read 2026-11-24: the published BelebeleRetrieval scores of the multilingual embedding models with
+a permissive licence, to reopen the choice of model. Embeddings have no cloud fallback, so serving
+on Foundry no longer constrains the model: the choice is open to any model a host can serve.
+
+The scores are each model's `BelebeleRetrieval.json` in embeddings-benchmark/results at commit
+`5b6addf6421f1d7c111bb6050ea0211c97f486bf`, main's head when read at 16:28Z, under
+`results/<org>__<model>/<revision>/`. Each figure is nDCG@10 over the 37 subsets of
+[e5-retrieval](#e5-retrieval), the languages of `~/docs`: the mean of the 37, and the lowest
+subset. The runs are the publishers', on MTEB 1.12.75 to 2.26.10; EmbeddingGemma 2 and
+nomic-embed-text-v2-moe ran against `mteb/belebele` at `979a211`, the rest against
+`facebook/belebele` at `75b3993`, the same data ([e5-retrieval](#e5-retrieval)). Origin is the
+publisher's country, or the base model's for a fine-tune.
+
+| Model | Revision | Mean | Lowest | Lowest subset | Origin and notes |
+| --- | --- | --- | --- | --- | --- |
+| `Qwen/Qwen3-Embedding-8B` | `4e42393` | 0.984 | 0.960 | `eng_Latn-heb_Hebr` | Chinese |
+| `microsoft/harrier-oss-v1-27b` | `0c0fc62` | 0.953 | 0.917 | `eng_Latn-hin_Deva` | Microsoft; 27B, a Gemma 3 config, MIT |
+| `Qwen/Qwen3-Embedding-4B` | `636cd9b` | 0.945 | 0.872 | `eng_Latn-heb_Hebr` | Chinese |
+| `intfloat/multilingual-e5-large` | `ab10c1a` | 0.925 | 0.838 | `eng_Latn-heb_Hebr` | Microsoft; served ([e5-card](#e5-card)) |
+| `intfloat/multilingual-e5-large-instruct` | `baa7be4` | 0.918 | 0.817 | `eng_Latn-hin_Deva` | Microsoft |
+| `google/embeddinggemma-300m` | `64614b0` | 0.915 | 0.624 | `eng_Latn-heb_Hebr` | Google |
+| `BAAI/bge-m3` | `5617a9f` | 0.913 | 0.859 | `eng_Latn-heb_Hebr` | Chinese |
+| `google/embeddinggemma-2` | `914f7f8` | 0.908 | 0.752 | `eng_Latn-heb_Hebr` | Google; 740M by its card, 768 dimensions, 8,192 tokens |
+| `Snowflake/snowflake-arctic-embed-l-v2.0` | `edc2df7` | 0.901 | 0.820 | `eng_Latn-arb_Arab` | Chinese: a fine-tune of BAAI's bge-m3 lineage |
+| `microsoft/harrier-oss-v1-0.6b` | `f9b9dc8` | 0.900 | 0.726 | `eng_Latn-heb_Hebr` | Chinese by inference: its config is Qwen3-0.6B-Base's |
+| `Qwen/Qwen3-Embedding-0.6B` | `b22da49` | 0.889 | 0.677 | `eng_Latn-heb_Hebr` | Chinese |
+| `nomic-ai/nomic-embed-text-v2-moe` | `1066b65` | 0.887 | 0.748 | `eng_Latn-heb_Hebr` | United States |
+| `ibm-granite/granite-embedding-311m-multilingual-r2` | `dba7b0e` | 0.859 | 0.581 | `eng_Latn-heb_Hebr` | IBM |
+| `microsoft/harrier-oss-v1-270m` | `31de22b` | 0.855 | 0.678 | `eng_Latn-heb_Hebr` | Microsoft |
+| `ibm-granite/granite-embedding-278m-multilingual` | `84e3546` | 0.809 | 0.549 | `eng_Latn-heb_Hebr` | IBM |
+
+jina-embeddings-v3 and NV-Embed-v2 are left out on their licence, CC-BY-NC-4.0.
+`Alibaba-NLP/gte-multilingual-base` and `nvidia/Nemotron-3-Embed-1B-BF16` publish BelebeleRetrieval
+scores, but on none of the 37 subsets.
+
+- **The origin rule**, decided 2026-11-24: no Chinese-origin model is admitted, and a fine-tune
+  takes its base's origin. That excludes the Qwen3 models, bge-m3, snowflake-arctic-embed-l-v2.0
+  and harrier-oss-v1-0.6b.
+- **e5 stays.** Of the admitted models under 1B, it has both the highest mean, 0.925, and the
+  highest lowest subset, 0.838; the next, multilingual-e5-large-instruct, has 0.918 and 0.817.
+- harrier-oss-v1-27b scores higher, 0.953 and 0.917, but at 27B dense parameters, about 54 GFLOP a
+  token, embedding's floor of 4,300 prompt tok/s needs about 232 TFLOP/s sustained, which a Strix
+  Halo very likely can't reach: an estimate, not measured. Its licence chain is unclear too, MIT
+  on a Gemma 3 config.
