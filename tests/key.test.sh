@@ -2,7 +2,7 @@
 # Tests for the hosting key group (bin/hosting-key-*, lib/key.sh), run on a copy of the clone's
 # compose project and a temporary consumer repository, with fnox stubbed to log its arguments and
 # keep what it reads on stdin: issue writes the hash of the key fnox received, with its class, and
-# the key reaches no command line, output, or file but fnox's stdin; each refusal comes before any
+# the key reaches no fnox argument, output, or file but fnox's stdin; each refusal comes before any
 # effect; rotate replaces the hash; revoke deletes exactly its consumer's entry; list names the
 # consumers; and the render carries an issued key's hash.
 # shellcheck source=tests/lib.sh
@@ -71,7 +71,7 @@ test_issue_writes_the_hash_of_the_key_fnox_received_and_its_class() {
   assert_contains "key list header" "$(head -n 1 "$keys")" "# The gateway's consumer keys"
 }
 
-test_issue_keeps_the_key_off_every_command_line_output_and_file() {
+test_issue_keeps_the_key_off_fnox_arguments_the_output_and_every_file() {
   local key file
   ready
   run_hosting key issue cerebro bulk "$consumer"
@@ -89,7 +89,7 @@ test_issue_keeps_the_key_off_every_command_line_output_and_file() {
   done < <(grep -rlF -- "$key" "$tmp")
 }
 
-test_issue_keeps_an_existing_description() {
+test_issue_gives_no_description_when_the_variable_has_one() {
   ready
   echo '[secrets]' >>"$consumer/fnox.toml"
   echo 'AI_GATEWAY_TOKEN = { provider = "age", value = "x", description = "Its own." }' \

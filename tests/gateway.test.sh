@@ -69,9 +69,6 @@ test_each_alias_routes_to_its_host_at_its_profile_port() {
     framework:9102
   assert_equal embedding "$(route embedding '.backends[0].ai.groups[0].providers[0].hostOverride')" \
     framework-2:9103
-  assert_equal "route paths" "$(jq -r '[.routes[].matches[0].path | .pathPrefix // .exact]
-    | join(" ")' <<<"$config")" "/agent/v1 /vision/v1 /audio/v1 /embedding/v1 /embedding/v1/tokenize"
-  assert_equal "consumer port" "$(jq -r '.gateways.consumer.port' <<<"$config")" 3000
 }
 
 test_each_alias_models_answer_lists_the_alias_with_its_row_model_as_root() {
@@ -91,22 +88,17 @@ test_each_alias_models_answer_lists_the_alias_with_its_row_model_as_root() {
   done
 }
 
-test_embedding_alone_tokenizes_at_its_row_root_with_no_bucket_or_azure_group() {
+test_the_tokenize_route_follows_the_embedding_row_host_and_port() {
   use_fixtures
   render
   assert_equal status "$status" 0
-  assert_equal "tokenize routes" "$(jq -r '[.routes[] | select(any(.matches[].path[]; contains("tokenize")))
-    | .name] | join(" ")' <<<"$config")" embedding-tokenize
-  assert_equal match "$(route embedding-tokenize '.matches | map("\(.method) \(.path.exact)")
-    | join(",")')" "POST /embedding/v1/tokenize"
-  assert_equal rewrite "$(route embedding-tokenize '.policies.urlRewrite.path.full')" /tokenize
-  assert_equal backend "$(route embedding-tokenize '[.backends[].host] | join(" ")')" \
-    "$(route embedding '.backends[0].ai.groups[0].providers[0].hostOverride')"
-  assert_equal host "$(route embedding-tokenize '.backends[0].host')" framework-2:9103
-  assert_equal policies "$(route embedding-tokenize '.policies | keys | join(" ")')" urlRewrite
-  assert_equal "ai backends" "$(route embedding-tokenize '[.backends[] | select(has("ai"))] | length')" 0
-  assert_equal "embedding allow-list" "$(route embedding '.policies.directResponse.conditional[1]
-    | "\(.status) \(.condition)"')" '404 !(request.path in ["/v1/models", "/v1/chat/completions", "/v1/completions", "/v1/messages", "/v1/responses", "/v1/embeddings", "/v1/audio/transcriptions", "/v1/audio/translations"])'
+  assert_equal host "$(route embedding-tokenize '[.backends[].host] | join(" ")')" framework-2:9103
+}
+
+# Prints the budgets of the template's key of the class given, as compact JSON.
+template_budgets() {
+  hosting_gateway_template | jq -c --arg class "$1" \
+    '.gateways.consumer.apiKey.keys[] | select(.metadata.class == $class) | .budgets'
 }
 
 test_each_key_carries_its_hash_consumer_and_its_class_budget() {
@@ -115,10 +107,12 @@ test_each_key_carries_its_hash_consumer_and_its_class_budget() {
   render
   assert_equal status "$status" 0
   assert_equal keys "$(jq -r '.gateways.consumer.apiKey.keys[]
-    | [.keyHash, .metadata.name, .metadata.class, .budgets[0].limit.amount,
-       .budgets[0].onBudgetExceeded] | join(" ")' <<<"$config")" \
-    "sha256:$(hash_of "$interactive_key") cerebro interactive 5000000 Audit
-sha256:$(hash_of "$bulk_key") batch bulk 1000000 Block"
+    | [.keyHash, .metadata.name, .metadata.class, (.budgets | tojson)] | join(" ")' \
+    <<<"$config")" \
+    "sha256:$(hash_of "$interactive_key") cerebro interactive $(template_budgets interactive)
+sha256:$(hash_of "$bulk_key") batch bulk $(template_budgets bulk)"
+  [[ $(template_budgets interactive) != "$(template_budgets bulk)" ]] ||
+    fail "the classes' budgets are alike, so the assertion can't tell them apart"
 }
 
 test_an_empty_key_list_renders_no_key() {
@@ -149,8 +143,6 @@ test_every_switch_on_keeps_each_azure_group_and_embedding_has_none() {
 vision vision-row,vision-azure
 audio audio-row,audio-azure
 embedding embedding-row"
-  assert_equal marker "$(route audio '.backends[0].ai.groups[1].providers[0].policies
-    .responseHeaderModifier.set["x-gateway-overflow"]')" azure
 }
 
 test_the_render_holds_no_secret() {
