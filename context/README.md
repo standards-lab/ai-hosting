@@ -3,9 +3,10 @@
 ai-hosting specifies how the organization's local model hosts serve models: the settings the two
 Framework desktops and the two GB10 workstations use, stated generally enough that another host of
 the same class follows them. Its secrets, the `hosting` suite, and each class's profile and
-runbook are built, and each host serves its rows from its clone. It will serve Pi sessions, Claude
-Code subagents, go-ai, and the capstone's services through one gateway, with overflow to Azure AI
-Foundry; until then, callers use the rows directly, and a caller of `embedding` points its
+runbook are built, and each host serves its rows from its clone. Pi sessions, Claude Code
+subagents, go-ai, and the capstone's services are to reach the rows through one gateway, with
+overflow to Azure AI Foundry; the gateway is specified and runs on gb10-2 once started. Until it
+runs, callers use the rows directly, and a caller of `embedding` points its
 `AI_EMBEDDING_BASE_URL` at framework-2. It is low-level infrastructure outside the five tiers,
 beside the harness repositories, and is the one hosting repository on each workstation.
 
@@ -27,8 +28,8 @@ record holds the tasks and their order.
 ## Capability map
 
 - **The `hosting` suite** (built): one command, `hosting <group> <verb>`, linked into
-  `~/.local/bin` by `mise run install`, with the groups `engine`, `model`, and `profile` built and
-  `gateway` and `key` planned (`bin/`, `lib/`; [hosting-suite.md](hosting-suite.md)).
+  `~/.local/bin` by `mise run install`, with the groups `engine`, `model`, `profile`, `gateway`,
+  and `key` (`bin/`, `lib/`; [hosting-suite.md](hosting-suite.md)).
 - **Host-class profiles** (built): one TOML profile per class, the one home of each row, with the
   `profile` group's validator, renderer, and `set` ([classes/README.md](../classes/README.md),
   [host-classes.md](host-classes.md)).
@@ -37,9 +38,10 @@ record holds the tasks and their order.
   memory, read-only ([engines.md](engines.md)).
 - **Model files** (built): the `model` group lists, pulls, and prunes the host's model store
   ([hosting-suite.md](hosting-suite.md)).
-- **The gateway** (planned): agentgateway's compose stack, with keys, priority, budgets,
+- **The gateway** (built): agentgateway's compose stack on gb10-2, with keys, priority, budgets,
   overflow, and telemetry; the `gateway` group runs it and the `key` group issues consumers' keys
-  ([gateway.md](gateway.md)). The embedding route has no cloud fallback.
+  ([docs/gateway.md](../docs/gateway.md), [gateway.md](gateway.md)). The embedding route has no
+  cloud fallback.
 - **Secrets** (built): the Foundry key and account, age-encrypted in ai-hosting's committed
   `fnox.toml`, each described, and checked by `scripts/lint-secrets.sh` ([secrets.md](secrets.md)).
 - **Runbooks** (built): one per host class, `classes/<class>/runbook.md`: the root steps, the

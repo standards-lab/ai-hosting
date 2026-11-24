@@ -26,6 +26,11 @@ description = "Report every mise tool and action pin, the bench environment's am
 run = "scripts/currency.sh"
 quiet = true
 
+[tasks.watch]
+description = "Report each docs/watch.md entry's upstream issue and pull request states and watched release fields beside the recorded values, exiting nonzero if any differ; reads the network through gh, writes nothing"
+run = "scripts/watch.sh"
+quiet = true
+
 [tasks.install]
 description = "Link ~/.local/bin/hosting to this clone's hosting command, refusing when that path holds anything else; writes only the link"
 run = "scripts/install.sh"
