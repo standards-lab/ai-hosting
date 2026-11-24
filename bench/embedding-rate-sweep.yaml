@@ -1,0 +1,16 @@
+# The embedding row on GuideLLM's sweep: synchronous, then throughput, then 14 constant rates
+# between their two request rates, 90 s a level, each request 510 synthetic tokens. See
+# bench/README.md.
+spec:
+  backend:
+    kind: openai_http
+    request_format: /v1/embeddings
+  profile:
+    kind: sweep
+    sweep_size: 16
+  data:
+    - kind: synthetic_text
+      prompt_tokens: 510
+  constraints:
+    - kind: max_duration
+      seconds: 90

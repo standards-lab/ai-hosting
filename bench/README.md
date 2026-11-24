@@ -30,13 +30,26 @@ them on the command line.
 | --- | --- | --- |
 | [`embedding-sweep.yaml`](embedding-sweep.yaml) | 1, 4, 16, 32, 64 and 128 concurrent streams, 30 s a level, six levels in one run | The embedding row's knee and plateau, and the cap |
 | [`embedding-rate.yaml`](embedding-rate.yaml) | A constant rate, given per run, for 240 s | The embedding row at the rate the gateway admits, beside audio |
+| [`embedding-rate-sweep.yaml`](embedding-rate-sweep.yaml) | GuideLLM's sweep: synchronous, throughput, then 14 constant rates between them, 90 s a level, sixteen levels in one run | The highest rate the embedding row keeps |
 | [`audio.yaml`](audio.yaml) | 4 concurrent streams for 240 s | The audio row, alone or beside embedding |
+| [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at a cap of 8 |
 
 Each embedding request is 510 synthetic tokens to `/v1/embeddings`: with the 2 special tokens an
 XLM-R tokenizer adds, 512, the embedding row's context. `scripts/lint-bench.sh`, which the check
 runs, fails when a scenario doesn't parse, or when an embedding scenario's input tokens plus those 2
-exceed the context of the strix-halo profile's embedding row. Its tests are
-[`tests/bench.test.sh`](../tests/bench.test.sh).
+exceed the context of the strix-halo profile's embedding row. Its tests, and those of
+`levels.jq`'s level names, are [`tests/bench.test.sh`](../tests/bench.test.sh).
+
+The rate sweep runs GuideLLM 0.8.1's built-in `sweep` profile: a synchronous level, then a
+throughput level, then constant rates spaced evenly from the synchronous level's request rate to
+the throughput level's, the last at the throughput rate. Its `sweep_size` of 16 counts every level,
+so 14 are constant. At the request rates of the cap-32 stream sweep, 9.3 a second at one stream
+and 70.7 at 32 ([e5-sweep-32](../docs/findings/embedding.md#e5-sweep-32)), that spaces the rates
+about 4.4 requests a second apart, fine enough to place the row's limit. Each level runs 90 s,
+not the constant-rate cell's 240 s: at the lowest constant rate, near 14 a second, a level still
+holds over 1,200 requests, and the run takes about 24 minutes. GuideLLM holds at most 512
+requests in flight, its default, so a rate past the row's limit queues at the row rather than
+being held back at the client.
 
 Each audio request is one LibriSpeech clip (`hf-internal-testing/librispeech_asr_dummy`, clean
 validation split) sent as 16 kHz WAV to `/v1/chat/completions` with the transcription prompt of
@@ -44,19 +57,43 @@ the model's card, each reply at most 256 tokens. GuideLLM reads its two sources 
 row of each a request, and stops when either runs out, never cycling one. So the split is read 12
 times over, 876 rows, and the prompt is listed 876 times: room for 3.65 requests a second over
 240 s. A run whose streams send faster ends when the rows do, before 240 s, and its result's
-duration says so.
+duration says so. At 8 streams those rows ran out at 146 s (spike-model-layout
+docs/findings/vllm-layout.md, F.5), so `audio-8.yaml` reads the same split 24 times over, 1,752
+rows, with the prompt listed 1,752 times: room for 7.3 requests a second over 240 s. Its requests
+are the same clips and prompt as `audio.yaml`'s, so its cells compare with the 4-stream ones.
 
 ## Running a cell
 
 From the repository root, each run gives the row's address (a host by its short name, as the
-class runbook gives it, and the row's port from the profile), the model the row serves, and its
-tokenizer, and writes GuideLLM's JSON into the untracked `.state/bench/`. The embedding sweep on
-the Framework:
+class runbook gives it, and the row's port from the profile), the name the row serves under (its
+alias), and its model's tokenizer, and writes GuideLLM's JSON into the untracked `.state/bench/`.
+The embedding stream sweep on framework-2:
+
+```sh
+GUIDELLM__SPEC__BACKEND__TARGET=http://framework-2:<port> \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/embedding-sweep.yaml \
+  --backend kind=openai_http,model=embedding \
+  --tokenizer kind=huggingface_auto,model=intfloat/multilingual-e5-large \
+  --output kind=json,path=.state/bench/<cell>.json
+```
+
+The embedding rate sweep on framework-2, which takes no rate:
+
+```sh
+GUIDELLM__SPEC__BACKEND__TARGET=http://framework-2:<port> \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/embedding-rate-sweep.yaml \
+  --backend kind=openai_http,model=embedding \
+  --tokenizer kind=huggingface_auto,model=intfloat/multilingual-e5-large \
+  --output kind=json,path=.state/bench/<cell>.json
+```
+
+The audio row alone at 8 streams on `framework`:
 
 ```sh
 GUIDELLM__SPEC__BACKEND__TARGET=http://framework:<port> \
-  MISE_ENV=bench mise exec -- guidellm run -c bench/embedding-sweep.yaml \
-  --backend kind=openai_http,model=<model> --tokenizer kind=huggingface_auto,model=<model> \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/audio-8.yaml \
+  --backend kind=openai_http,model=audio \
+  --tokenizer kind=huggingface_auto,model=google/gemma-4-E4B-it \
   --output kind=json,path=.state/bench/<cell>.json
 ```
 
@@ -68,7 +105,8 @@ pair cell is two runs started together, `audio.yaml` against the audio row and
 ## Reading the results
 
 [`levels.jq`](levels.jq) turns a result JSON into one table a file, one row a level: its streams,
-or `rate <r>` on a constant-rate level; requests ok, errored, and incomplete; requests a second;
+`rate <r>` on a constant-rate level, its rate to two places, or `synchronous` or `throughput` on a
+sweep's first two levels; requests ok, errored, and incomplete; requests a second;
 the request latency's median, p90, and minimum; prompt tok/s; for audio, the RTFx median and
 minimum and the count of requests at RTFx 5 or more (each request's clip seconds over its request
 time); and the level's floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's an
