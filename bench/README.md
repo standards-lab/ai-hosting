@@ -29,9 +29,9 @@ them on the command line.
 | Scenario | Load | For |
 | --- | --- | --- |
 | [`embedding-sweep.yaml`](embedding-sweep.yaml) | 1, 4, 16, 32, 64 and 128 concurrent streams, 30 s a level, six levels in one run | The embedding row's knee and plateau, and the cap |
-| [`embedding-rate.yaml`](embedding-rate.yaml) | A constant rate, given per run, for 240 s | The embedding row at the rate the gateway admits, beside audio |
+| [`embedding-rate.yaml`](embedding-rate.yaml) | A constant rate, given per run, for 240 s | The embedding row at one rate; [e5-pair](../docs/findings/embedding.md#e5-pair) ran it beside audio, when the two shared `framework` |
 | [`embedding-rate-sweep.yaml`](embedding-rate-sweep.yaml) | GuideLLM's sweep: synchronous, throughput, then 14 constant rates between them, 90 s a level, sixteen levels in one run | The highest rate the embedding row keeps |
-| [`audio.yaml`](audio.yaml) | 4 concurrent streams for 240 s | The audio row, alone or beside embedding |
+| [`audio.yaml`](audio.yaml) | 4 concurrent streams for 240 s | The audio row at 4 streams |
 | [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at a cap of 8 |
 
 Each embedding request is 510 synthetic tokens to `/v1/embeddings`: with the 2 special tokens an
@@ -101,8 +101,8 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://framework:<port> \
 ```
 
 The rate scenario takes its rate from the environment too,
-`GUIDELLM__SPEC__PROFILE__RATE=<requests a second>`; with none set, GuideLLM refuses to start. A
-pair cell is two runs started together, `audio.yaml` against the audio row and
+`GUIDELLM__SPEC__PROFILE__RATE=<requests a second>`; with none set, GuideLLM refuses to start. The
+earlier pair cell was two runs started together, `audio.yaml` against the audio row and
 `embedding-rate.yaml` against the embedding row, each writing its own JSON.
 
 ## Reading the results
@@ -129,7 +129,7 @@ MTEB. From the repository root, giving the row's address and both prefixes, each
 empty:
 
 ```sh
-MISE_ENV=bench mise exec -- bench/retrieval.sh --endpoint framework:<port> \
+MISE_ENV=bench mise exec -- bench/retrieval.sh --endpoint framework-2:<port> \
   --query-prefix 'query: ' --passage-prefix 'passage: ' [--output <dir>] [<subset>...]
 ```
 

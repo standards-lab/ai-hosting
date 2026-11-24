@@ -1,16 +1,22 @@
 # ai-hosting context
 
-ai-hosting specifies how the organization's local model hosts serve models: the settings the
-Framework desktop and the two GB10 workstations use, stated generally enough that another host of
+ai-hosting specifies how the organization's local model hosts serve models: the settings the two
+Framework desktops and the two GB10 workstations use, stated generally enough that another host of
 the same class follows them. Its secrets, the `hosting` suite, and each class's profile and
 runbook are built, and each host serves its rows from its clone. It will serve Pi sessions, Claude
 Code subagents, go-ai, and the capstone's services through one gateway, with overflow to Azure AI
-Foundry; until then, callers use the rows directly. It is low-level infrastructure outside the
-five tiers, beside the harness repositories, and is the one hosting repository on each
-workstation.
+Foundry; until then, callers use the rows directly, and a caller of `embedding` moves its
+`AI_EMBEDDING_BASE_URL` from `framework:8003` to `framework-2:8003`. It is low-level
+infrastructure outside the five tiers, beside the harness repositories, and is the one hosting
+repository on each workstation.
 
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.
+
+Each host serves one row: `agent` on gb10-1 (8000), `vision` on gb10-2 (8001), `audio` alone on
+`framework` (8002), and `embedding` alone on framework-2 (8003). Each Strix Halo host keeps its
+model store on its second NVMe at `/srv/models`, and both unlock remotely
+([strix-halo runbook](../classes/strix-halo/runbook.md#remote-unlock)).
 
 Its goals live in the coordinator's roadmap (`standards-lab/roadmap/index.toml`, v1.ai.hosting).
 It is built from experiment.hosting's spikes. Each capability's note cites the spike files it

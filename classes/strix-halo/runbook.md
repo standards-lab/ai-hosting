@@ -2,7 +2,9 @@
 
 How a Strix Halo host, Omarchy on an AMD Strix Halo whose GPU is gfx1151, comes to serve its rows:
 the suite's install, the root steps, and each row's commands. The Framework, `framework`, serves
-`audio` and `embedding` beside each other. Each row's settings live in the class's
+`audio` alone, and framework-2 serves `embedding` alone. Each keeps its model store on its second
+NVMe ([The model store](#the-model-store)), and each unlocks remotely
+([Remote unlock](#remote-unlock)). Each row's settings live in the class's
 [profile](profile.toml), whose keys [the schema](../README.md) defines; this runbook names them and
 restates no value.
 
@@ -291,8 +293,8 @@ cat /sys/class/drm/card*/device/mem_info_gtt_total
 `hosting profile render <alias>` prints the `docker run` command a row runs, without running it.
 `hosting engine install` pulls the row's model into the store, builds or pulls its image, starts
 its container, and records the alias on the host; `hosting engine update` and `uninstall` with no
-alias act on every recorded row. The two rows stand together: `engine install` refuses rows whose
-fractions sum over 1.
+alias act on every recorded row. Each host stands one row; `engine install` refuses rows on one
+host whose fractions sum over 1.
 
 ### audio
 

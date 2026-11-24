@@ -34,9 +34,9 @@ agentgateway's config changes on the way in:
 - the agent, vision, and audio aliases' Azure groups each get a switch; the embedding route gets
   no Azure group;
 - `..`, `%2e%2e`, and `%2f` are refused before routing, proven with the three requests;
-- embedding's rate buckets keep their form and take the `embedding` task's figure, at most 14
-  requests a second, measured on the Framework beside the audio model
-  ([findings](../docs/findings/embedding.md#e5-pair));
+- embedding's rate buckets keep their form and take the `framework-2` task's figure, at most 78
+  requests a second, measured on framework-2 with the row alone
+  ([findings](../docs/findings/embedding.md#e5-rate-sweep));
 - priority on Messages carries as is, and `acceptance` proves it;
 - tracing stays at 100%.
 

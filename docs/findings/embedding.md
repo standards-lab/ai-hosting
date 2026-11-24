@@ -1,7 +1,9 @@
 # Embedding findings
 
 The measurements behind the strix-halo profile's embedding row, which serves
-`intfloat/multilingual-e5-large` on the Framework. Each section is one cell: its command, its time
+`intfloat/multilingual-e5-large` alone on framework-2. The cells up to [candidates](#candidates)
+ran on the Framework, `framework`, when the row stood there beside the audio row; the cells from
+[e5-lan-sweep](#e5-lan-sweep) on ran on framework-2. Each section is one cell: its command, its time
 in UTC, its figures, and the tool versions it ran on. The profile's reasons cite the cells by their
 section; the row's settings live in [the profile](../../classes/strix-halo/profile.toml).
 
@@ -18,7 +20,7 @@ Every cell ran on the tools below unless it names others.
 
 The row ran as the profile renders it: `--max-model-len 512`, `--gpu-memory-utilization 0.03`,
 `--runner pooling`, `--max-num-batched-tokens 65536`, and the `--max-num-seqs` each cell names.
-The audio row stood beside it, idle, in every cell but the audio cells,
+On the Framework, the audio row stood beside it, idle, in every cell but the audio cells,
 [e5-audio-alone](#e5-audio-alone) and [e5-pair](#e5-pair). Those load the audio row as the
 profile renders it, on `ai-hosting/vllm-openai-rocm-audio:v0.34.0` at
 `sha256:da0499371911becb1d50c0d96a5cae18cd607b3bdebf02b155cbe44225c319f7`, built on the image
@@ -26,14 +28,15 @@ above, with Gemma 4 E4B's own tokenizer in GuideLLM.
 
 ## Path
 
-Every cell ran from the laptop, and its figures are client-side over Tailscale's DERP relay
-(`iad`), not the LAN: the laptop has no direct path to the Framework. `tailscale ping -c 3
-framework`, run right before each audio cell, answered via `DERP(iad)` every time, in 47 to 68 ms,
-with "direct connection not established"; the first, at 16:36Z, came after
+Every cell on the Framework ran from the laptop, and its figures are client-side over Tailscale's
+DERP relay (`iad`), not the LAN: the laptop then had no direct path to the Framework. `tailscale
+ping -c 3 framework`, run right before each audio cell, answered via `DERP(iad)` every time, in 47
+to 68 ms, with "direct connection not established"; the first, at 16:36Z, came after
 [e5-audio-alone](#e5-audio-alone). No ping preceded the earlier cells, [e5-probes](#e5-probes),
 [e5-sweep-128](#e5-sweep-128), [e5-sweep-32](#e5-sweep-32) and [e5-retrieval](#e5-retrieval);
 they ran from the laptop on the same network, so the sweeps and the cap they set were measured
-over the same relay. Retrieval's scores don't depend on the path.
+over the same relay. Retrieval's scores don't depend on the path. The framework-2 cells ran from
+the laptop on the LAN, direct, 0 to 1 ms by `tailscale ping`.
 
 Over the relay, audio's RTFx median alone is about 4.4 to 4.6, against 6.54 on the LAN in
 spike-model-layout (`docs/findings/vllm-layout.md`, F.4): its inter-token latency median is the
@@ -169,6 +172,10 @@ The row's `/metrics` after the run: 9,272 requests finished with `stop`, none wi
   level's end, 2,330 MiB in the 32-stream level, and 2,554 MiB from the 64-stream level's start
   to the run's end: within the 3,441 MiB that fraction 0.03 reserves.
 
+These figures measured the relay as much as the row: the same row at cap 32 on the LAN,
+[e5-lan-sweep](#e5-lan-sweep), served 55.7 requests a second at 1 stream against about 9 here, and
+peaked at 4 streams, not 32 (70.7 requests a second here).
+
 ## e5-memory
 
 `hosting engine memory` on the Framework, the embedding row at fraction 0.03, both rows idle.
@@ -297,6 +304,10 @@ requests finished, no preemption. This cell is the record of audio alone; each p
 [e5-pair](#e5-pair) is judged against the alone run right before it.
 
 ## e5-pair
+
+Superseded: embedding no longer shares a host with audio, so the 14 requests a second this cell
+set no longer limits it; the row's limit is [e5-rate-sweep](#e5-rate-sweep)'s. The cell stays as
+the record of the pair.
 
 From the laptop, 2026-11-23T16:50:37Z to 17:42:09Z: at each rate, `tailscale ping`, audio alone
 for 240 s, `tailscale ping`, then the pair: audio at 4 streams and embedding at the rate, two
@@ -450,3 +461,93 @@ scores, but on none of the 37 subsets.
   token, embedding's floor of 4,300 prompt tok/s needs about 232 TFLOP/s sustained, which a Strix
   Halo very likely can't reach: an estimate, not measured. Its licence chain is unclear too, MIT
   on a Gemma 3 config.
+
+## e5-lan-sweep
+
+The row alone on framework-2, as the profile renders it: cap 32 (`--max-num-seqs 32`), fraction
+0.03, context 512, on vLLM v0.34.0 in the image `vllm/vllm-openai-rocm:v0.34.0` ([Tools](#tools)).
+The client is the laptop on the LAN, running GuideLLM 0.8.1 in the bench environment with e5's
+own tokenizer; `tailscale ping framework-2`, right before the run, answered direct, 0 ms. From
+2026-11-24T19:09:12Z, with [`bench/embedding-sweep.yaml`](../../bench/embedding-sweep.yaml):
+
+```sh
+GUIDELLM__SPEC__BACKEND__TARGET=http://framework-2:8003 \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/embedding-sweep.yaml \
+  --backend kind=openai_http,model=embedding \
+  --tokenizer kind=huggingface_auto,model=intfloat/multilingual-e5-large \
+  --output kind=json,path=.state/bench/embed-sweep-32-framework-2-lan.json
+```
+
+`levels.jq` with `--arg purpose embed`; each request 510 tokens, 512 with the special tokens.
+
+| Streams | Level, UTC | ok/err/inc | req/s | Latency median s | Latency p90 s | Prompt tok/s | Floor |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 19:09:22 to 19:09:52 | 1671/0/0 | 55.667 | 0.02 | 0.02 | 28,446 | meets |
+| 4 | 19:09:57 to 19:10:27 | 2468/0/1 | 82.167 | 0.05 | 0.05 | 41,987 | meets |
+| 16 | 19:10:33 to 19:11:03 | 2360/0/9 | 78.433 | 0.20 | 0.20 | 40,079 | meets |
+| 32 | 19:11:10 to 19:11:40 | 2049/0/32 | 68.300 | 0.46 | 0.47 | 34,901 | meets |
+| 64 | 19:11:46 to 19:12:16 | 1868/0/64 | 62.267 | 1.02 | 1.02 | 31,818 | meets |
+| 128 | 19:12:22 to 19:12:52 | 1878/0/128 | 62.600 | 2.04 | 2.04 | 31,988 | meets |
+
+- **Throughput peaks at 4 streams**, 82.2 requests a second and 41,987 prompt tok/s, and holds
+  near 80 at 16 streams, 78.4, 4.5% under the peak, with a latency median of 0.20 s.
+- Past that, more requests in flight lower it: 68.3 at 32 streams, the cap, and 62.3 and 62.6 at
+  64 and 128, where the cap queues the rest.
+- No level errs, and every level meets embedding's floor, the lowest 28,446 at 1 stream.
+- On the LAN the row serves 55.7 requests a second at 1 stream, with a latency median of 0.02 s,
+  against about 9 over the relay in [e5-sweep-32](#e5-sweep-32): the earlier cells' low streams
+  measured the path.
+
+## e5-rate-sweep
+
+The row and client of [e5-lan-sweep](#e5-lan-sweep); `tailscale ping framework-2`, right before
+the run, answered direct, 1 ms. From 2026-11-24T19:37:41Z, with
+[`bench/embedding-rate-sweep.yaml`](../../bench/embedding-rate-sweep.yaml): GuideLLM's sweep of 16
+levels, at most 16 requests in flight, 90 s a level ([bench/README.md](../../bench/README.md)):
+
+```sh
+GUIDELLM__SPEC__BACKEND__TARGET=http://framework-2:8003 \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/embedding-rate-sweep.yaml \
+  --backend kind=openai_http,model=embedding \
+  --tokenizer kind=huggingface_auto,model=intfloat/multilingual-e5-large \
+  --output kind=json,path=.state/bench/embed-rate-sweep-16-framework-2-lan.json
+```
+
+`levels.jq` with `--arg purpose embed`; achieved is the level's request rate over its target, from
+the target rate in the result JSON. The levels ran from 19:37:51Z to 20:03:32Z.
+
+| Level | ok/err/inc | req/s | Achieved | Latency median s | Latency p90 s | Prompt tok/s | Floor |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| synchronous | 5005/0/0 | 55.600 | | 0.02 | 0.02 | 28,411 | meets |
+| throughput | 7088/0/16 | 78.756 | | 0.20 | 0.20 | 40,244 | meets |
+| rate 57.25 | 5153/0/0 | 57.244 | 99.98% | 0.02 | 0.02 | 29,252 | meets |
+| rate 58.91 | 5302/0/0 | 58.900 | 99.99% | 0.02 | 0.02 | 30,098 | meets |
+| rate 60.56 | 5451/0/0 | 60.556 | 99.99% | 0.02 | 0.02 | 30,944 | meets |
+| rate 62.22 | 5599/0/1 | 62.211 | 99.99% | 0.02 | 0.02 | 31,790 | meets |
+| rate 63.87 | 5747/0/2 | 63.856 | 99.98% | 0.02 | 0.04 | 32,630 | meets |
+| rate 65.52 | 5896/0/2 | 65.500 | 99.96% | 0.03 | 0.05 | 33,470 | meets |
+| rate 67.18 | 6045/0/2 | 67.156 | 99.97% | 0.04 | 0.05 | 34,316 | meets |
+| rate 68.83 | 6192/0/3 | 68.800 | 99.95% | 0.04 | 0.05 | 35,157 | meets |
+| rate 70.49 | 6342/0/2 | 70.467 | 99.97% | 0.04 | 0.05 | 36,008 | meets |
+| rate 72.14 | 6491/0/2 | 72.111 | 99.96% | 0.04 | 0.05 | 36,849 | meets |
+| rate 73.79 | 6639/0/3 | 73.767 | 99.96% | 0.04 | 0.20 | 37,695 | meets |
+| rate 75.45 | 6788/0/3 | 75.422 | 99.97% | 0.04 | 0.05 | 38,541 | meets |
+| rate 77.10 | 6938/0/2 | 77.078 | 99.97% | 0.04 | 0.05 | 39,387 | meets |
+| rate 78.76 | 7016/0/16 | 77.956 | 98.98% | 0.05 | 0.20 | 39,835 | meets |
+
+The row's `/metrics` after the run, counting since the row started: 184,220 requests finished, 0
+preemptions. `hosting engine
+memory` then read the row's GTT at 2,176 MiB, and the pool's GTT used at 2.46 GiB of 112.00 GiB.
+
+- **The limit is 78 requests a second.** The limit is the highest rate the row keeps with no
+  errors and at least 98% of the target achieved, with no margin. Every constant rate from 57.25
+  to 77.10 achieved at least 99.9% with no error, its latency p90 at most 0.05 s but at 73.79,
+  where it was 0.20 s; at 78.76, the throughput level's rate, the row achieved 77.96, 99.0%, with
+  no error and a latency p90 of 0.20 s, as requests queued at the client behind the 16 in flight.
+- The throughput level, 16 in flight, held 78.76 requests a second, within 0.5% of
+  [e5-lan-sweep](#e5-lan-sweep)'s 78.4 at 16 streams.
+
+A first, uncapped run from 2026-11-24T19:12:55Z (`.state/bench/embed-rate-sweep-framework-2-lan.log`)
+held GuideLLM's default of 512 requests in flight: its throughput level reached 62.4 requests a
+second, under the row's ceiling, which squeezed the constant rates into a band under it. The
+scenario now caps the sweep at 16 in flight.
