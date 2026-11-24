@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 # Tests for scripts/lint-bench.sh, the bench scenarios' lint, against the committed scenarios and
 # profile and against the fixtures in tests/bench/: a 512-token context with a scenario within it
-# and one over it.
+# and one over it, a stream sweep and a rate sweep among them. Tests too that each committed audio
+# scenario lists one prompt per clip row, and for bench/levels.jq's level names against the result
+# fixtures there: a rate sweep's and a stream sweep's.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
+# shellcheck source=lib/profile.sh
+source "$repo/lib/profile.sh"
 
 fixtures=$repo/tests/bench
+librispeech_dummy_clips=73
 
 run_lint() {
   run "$repo/scripts/lint-bench.sh" "$@"
@@ -28,6 +33,22 @@ test_511_tokens_and_two_special_tokens_exceed_a_512_context() {
     "$fixtures/embedding-511.yaml"
   assert_equal status "$status" 1
   assert_equal stderr "$err" "FAIL: $fixtures/embedding-511.yaml: 511 input tokens plus 2 special tokens exceed the embedding row's context in $fixtures/context-512.toml, 512"
+}
+
+test_each_audio_scenario_lists_one_prompt_per_clip_row() {
+  local scenario counts
+  for scenario in "$repo"/bench/audio*.yaml; do
+    counts=$(hosting_yq -o json '.' "$scenario" | jq -c --argjson clips "$librispeech_dummy_clips" \
+      '[(.spec.data[0].data.prompt | length), $clips * (.spec.data[1].load_kwargs.split | split("+") | length)]')
+    assert_equal "${scenario##*/} prompts and clip rows" "$(jq '.[0]' <<<"$counts")" \
+      "$(jq '.[1]' <<<"$counts")"
+  done
+}
+
+test_a_rate_sweep_over_the_context_fails() {
+  run_lint "$fixtures/context-512.toml" "$fixtures/rate-sweep-511.yaml"
+  assert_equal status "$status" 1
+  assert_equal stderr "$err" "FAIL: $fixtures/rate-sweep-511.yaml: 511 input tokens plus 2 special tokens exceed the embedding row's context in $fixtures/context-512.toml, 512"
 }
 
 test_a_scenario_that_is_not_embedding_is_not_bounded() {
@@ -58,6 +79,26 @@ test_a_profile_without_scenarios_is_a_usage_error() {
   run_lint "$fixtures/context-512.toml"
   assert_equal status "$status" 2
   assert_contains stderr "$err" "usage: scripts/lint-bench.sh"
+}
+
+run_levels() {
+  run jq -r --arg purpose embed -f "$repo/bench/levels.jq" "$@"
+}
+
+test_levels_names_a_rate_sweeps_synchronous_throughput_and_constant_levels() {
+  run_levels "$fixtures/sweep-result.json"
+  assert_equal status "$status" 0
+  assert_equal levels "$(cut -d '|' -f 1-3,13 <<<"$out")" "## sweep-result.json
+level | ok/err/inc | req/s | floor
+synchronous | 2/0/1 | 9.250 | meets
+throughput | 2/1/0 | 70.500 | meets
+rate 13.66 | 1/0/0 | 13.600 | MISSES"
+}
+
+test_levels_names_a_stream_sweeps_level_by_its_streams() {
+  run_levels "$fixtures/streams-result.json"
+  assert_equal status "$status" 0
+  assert_equal levels "$(sed -n 3p <<<"$out" | cut -d '|' -f 1)" "16 "
 }
 
 run_tests

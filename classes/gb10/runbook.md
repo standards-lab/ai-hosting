@@ -1,17 +1,46 @@
 # The gb10 runbook
 
-How a GB10 host, DGX OS on an NVIDIA GB10, comes to serve its rows: the root steps, the suite's
-install, and each row's commands. gb10-1 serves `agent` and gb10-2 serves `vision`. Each row's
+How a GB10 host, DGX OS on an NVIDIA GB10, comes to serve its rows: the suite's install, the root
+steps, and each row's commands. gb10-1 serves `agent` and gb10-2 serves `vision`. Each row's
 settings live in the class's [profile](profile.toml), whose keys [the schema](../README.md)
 defines; this runbook names them and restates no value.
 
 The architect runs the root steps, the commands with `sudo`. The rest run as the account that
 serves the rows, which the suite runs as; no `hosting` command needs `sudo`.
 
+## Install the suite
+
+Clone ai-hosting into the serving account's home as `~/ai-hosting`. In the clone, with mise's
+tools on PATH (`mise activate`), install the pinned tools, then link the suite's one command,
+`~/.local/bin/hosting`, into the clone:
+
+```sh
+git clone https://github.com/standards-lab/ai-hosting.git ~/ai-hosting
+cd ~/ai-hosting
+mise trust
+mise install
+mise run install
+hosting
+```
+
+`hosting` with no arguments lists every command. `mise run uninstall` removes the link.
+
+Over non-interactive ssh, run the suite from the clone, where mise puts its tools on PATH:
+`ssh <host> 'cd ~/ai-hosting && hosting engine status'`. On a host whose non-interactive shell
+doesn't activate mise or put `~/.local/bin` on PATH, run it through mise instead:
+`ssh <host> 'cd ~/ai-hosting && mise exec -- bin/hosting engine status'`.
+
+A row whose model is gated needs a Hugging Face token on the host, which hf keeps in
+`~/.cache/huggingface`; the suite downloads every other model without one:
+
+```sh
+mise exec -- hf auth login
+```
+
 ## Root steps
 
-Run them once on each host, before its first `hosting engine install`, from the clone
-([Install the suite](#install-the-suite)). `hosting engine install` and `update` refuse a host
+Run them once on each host, from the clone, after [Install the suite](#install-the-suite) and
+before its first `hosting engine install`. `hosting engine install` and `update` refuse a host
 without the nonlocal bind, or whose CDI spec names a missing driver file, pointing here.
 
 ### Docker without sudo
@@ -61,35 +90,6 @@ sudo nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.yaml
 ```
 
 A reboot regenerates it too.
-
-## Install the suite
-
-Clone ai-hosting into the serving account's home as `~/ai-hosting`. In the clone, with mise's
-tools on PATH (`mise activate`), install the pinned tools, then link the suite's one command,
-`~/.local/bin/hosting`, into the clone:
-
-```sh
-git clone https://github.com/standards-lab/ai-hosting.git ~/ai-hosting
-cd ~/ai-hosting
-mise trust
-mise install
-mise run install
-hosting
-```
-
-`hosting` with no arguments lists every command. `mise run uninstall` removes the link.
-
-Over non-interactive ssh, run the suite from the clone, where mise puts its tools on PATH:
-`ssh <host> 'cd ~/ai-hosting && hosting engine status'`. On a host whose non-interactive shell
-doesn't activate mise or put `~/.local/bin` on PATH, run it through mise instead:
-`ssh <host> 'cd ~/ai-hosting && mise exec -- bin/hosting engine status'`.
-
-A row whose model is gated needs a Hugging Face token on the host, which hf keeps in
-`~/.cache/huggingface`; the suite downloads every other model without one:
-
-```sh
-mise exec -- hf auth login
-```
 
 ## The rows
 

@@ -28,7 +28,11 @@ def fixed($d):
 
 def name: input_filename | split("/") | last;
 
-def level_name: .config.strategy | .streams // "rate \(.rate)" | tostring;
+def level_name:
+  .config.strategy
+  | if .type_ == "concurrent" then .streams | tostring
+    elif .type_ == "constant" or .type_ == "poisson" then "rate \(.rate | fixed(2))"
+    else .type_ end;
 
 def knee:
   (.conclusions // [])[] | (.initial.throughput // {})
@@ -61,7 +65,7 @@ def level($purpose):
 def table($purpose):
   "## \(name)",
   knee,
-  "streams | ok/err/inc | req/s | TTFT med ms | lat med s | lat p90 s | lat min s | prompt tok/s | RTFx med | RTFx min | RTFx>=5 | dur s | floor",
+  "level | ok/err/inc | req/s | TTFT med ms | lat med s | lat p90 s | lat min s | prompt tok/s | RTFx med | RTFx min | RTFx>=5 | dur s | floor",
   (.benchmarks[] | level($purpose));
 
 $ARGS.named.purpose as $purpose

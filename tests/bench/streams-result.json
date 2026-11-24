@@ -1,0 +1,19 @@
+{
+  "benchmarks": [
+    {
+      "config": { "strategy": { "type_": "concurrent", "rate": null, "streams": 16 } },
+      "duration": 30,
+      "metrics": {
+        "request_totals": { "successful": 1, "errored": 0, "incomplete": 0 },
+        "requests_per_second": { "successful": { "mean": 66 } },
+        "time_to_first_token_ms": { "successful": { "median": 0 } },
+        "prompt_tokens_per_second": { "successful": { "mean": 33709 } }
+      },
+      "requests": {
+        "successful": [
+          { "request_start_time": 1.0, "request_end_time": 1.25, "input_metrics": {} }
+        ]
+      }
+    }
+  ]
+}

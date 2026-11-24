@@ -1,16 +1,22 @@
 # ai-hosting context
 
-ai-hosting specifies how the organization's local model hosts serve models: the settings the
-Framework desktop and the two GB10 workstations use, stated generally enough that another host of
+ai-hosting specifies how the organization's local model hosts serve models: the settings the two
+Framework desktops and the two GB10 workstations use, stated generally enough that another host of
 the same class follows them. Its secrets, the `hosting` suite, and each class's profile and
 runbook are built, and each host serves its rows from its clone. It will serve Pi sessions, Claude
 Code subagents, go-ai, and the capstone's services through one gateway, with overflow to Azure AI
-Foundry; until then, callers use the rows directly. It is low-level infrastructure outside the
-five tiers, beside the harness repositories, and is the one hosting repository on each
-workstation.
+Foundry; until then, callers use the rows directly, and a caller of `embedding` points its
+`AI_EMBEDDING_BASE_URL` at framework-2. It is low-level infrastructure outside the five tiers,
+beside the harness repositories, and is the one hosting repository on each workstation.
 
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.
+
+Each host serves one row: `agent` on gb10-1, `vision` on gb10-2, `audio` alone on `framework`,
+and `embedding` alone on framework-2; each row's port is in its class's profile. Each Strix Halo
+host keeps its model store on its second NVMe
+([strix-halo runbook](../classes/strix-halo/runbook.md#the-model-store)), and both unlock remotely
+([strix-halo runbook](../classes/strix-halo/runbook.md#remote-unlock)).
 
 Its goals live in the coordinator's roadmap (`standards-lab/roadmap/index.toml`, v1.ai.hosting).
 It is built from experiment.hosting's spikes. Each capability's note cites the spike files it
@@ -45,7 +51,8 @@ record holds the tasks and their order.
   spike-model-layout's `bench/` at `e64d9c4`.
 - **Findings** (built): the measurements behind a row's settings, each cell with its command,
   time, figures, and tool versions, which the profile's reasons cite: the embedding row's in
-  [docs/findings/embedding.md](../docs/findings/embedding.md).
+  [docs/findings/embedding.md](../docs/findings/embedding.md) and the audio row's in
+  [docs/findings/audio.md](../docs/findings/audio.md).
 - **Upgrade evaluation** (planned): the convention and its `hosting-upgrades` skill
   ([host-classes.md](host-classes.md), [engines.md](engines.md)).
 - **Admin tooling** (planned): experiment.admin's Go CLI, which implements the profile schema

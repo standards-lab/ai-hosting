@@ -10,19 +10,19 @@ port = 8002
 image = "ai-hosting/vllm-openai-rocm-audio"
 context = 8192
 card_context = 131072
-context_reason = "8,192 tokens a request, the length every capability row was measured at (spike-model-layout docs/findings/capability-vllm.md); the row held audio at 4 requests of 8,192 beside the embedding row at 14 requests a second, an RTFx median of 4.09 against 4.37 alone (docs/findings/embedding.md#e5-pair)."
-cap = 4
-cap_reason = "4 requests at once: beside the embedding row at 14 requests a second it kept 0.937 of its RTFx median alone at 4 streams, 4.09 against 4.37, over the 0.89 the pair holds to (docs/findings/embedding.md#path, #e5-pair); on the LAN beside the earlier embedding row it missed audio's floor, an RTFx median of at least 5, at 8 streams, 4.94 in cell vllm-layout-fw-stress-a8r34 (spike-model-layout docs/findings/vllm-layout.md, F.5; standards-lab context/ai-hosting.md, \"The layout\")."
-queue_limit = 8
+context_reason = "8,192 tokens a request, the length every capability row was measured at (spike-model-layout docs/findings/capability-vllm.md); the row runs alone on its host and was measured at this context with 8 streams of short LibriSpeech clips, about 200 prompt tokens each (docs/findings/audio.md#audio-8)."
+cap = 8
+cap_reason = "8 requests at once: the row runs alone on its host, with no embedding row beside it to share the GPU, and is measured at 8 streams (docs/findings/audio.md#audio-8); on the LAN beside the earlier embedding row at 34 requests a second it held an RTFx median of 4.94 at 8 streams, just under audio's floor of 5, in cell vllm-layout-fw-stress-a8r34 (spike-model-layout docs/findings/vllm-layout.md, F.5; standards-lab context/ai-hosting.md, \"The layout\")."
+queue_limit = 16
 fraction = 0.18
-fraction_reason = "0.18: its KV cache held 106,065 tokens, 12.95 requests of 8,192, over the cap of 4, and with the embedding row at 0.03 the host's rows left 89.50 GiB of GTT free when idle (spike-model-layout docs/findings/vllm-layout.md, F.6; standards-lab context/ai-hosting.md, \"The layout\")."
+fraction_reason = "0.18: its KV cache held 106,065 tokens, 12.95 requests of 8,192, over the cap of 8; the row runs alone on its host (spike-model-layout docs/findings/vllm-layout.md, F.6; standards-lab context/ai-hosting.md, \"The layout\")."
 flags = ["--kv-cache-dtype", "bfloat16", "--reasoning-parser", "gemma4", "--enable-auto-tool-choice", "--tool-call-parser", "gemma4"]
 flags_reason = "A BF16 KV cache, which every Gemma 4 row keeps (spike-model-engines host/vllm-rows), and Gemma 4's own reasoning and tool-call parsers."
 measured_vllm = "v0.33.0"
 
 [rows.load]
-target = "4 requests"
-source = "docs/findings/embedding.md#e5-pair: an RTFx median of 4.09 at 4 requests beside the embedding row at 14 requests a second, against 4.37 alone; spike-model-layout docs/findings/vllm-layout.md, J: 5.78 with every host at its target, beside the earlier embedding row; standards-lab context/ai-hosting.md, \"The layout\""
+target = "8 streams"
+source = "docs/findings/audio.md#audio-8: the row alone on its host at 8 streams; spike-model-layout docs/findings/vllm-layout.md, F.5: an RTFx median of 4.94 at 8 streams beside the earlier embedding row at 34 requests a second; standards-lab context/ai-hosting.md, \"The layout\""
 
 [rows.source]
 publisher = "Google"
@@ -37,18 +37,18 @@ port = 8003
 context = 512
 card_context = 512
 context_reason = "512 tokens, the card's limit, past which it truncates: a 510-token input, 512 with its 2 special tokens, embedded, and a 511-token one was refused (docs/findings/embedding.md#e5-card, #e5-probes)."
-cap = 32
-cap_reason = "32 requests at once: throughput peaks at 16 streams, 37,882 prompt tok/s, holds within 5% of the peak at 32, 36,332, with no error or preemption, and falls past it, 31,137 at 64; at cap 32 the sweep holds 36,145 at 32 streams, and 32 inputs of 512 tokens fit the 65,536 batched (docs/findings/embedding.md#e5-sweep-128, #e5-sweep-32)."
+cap = 16
+cap_reason = "16 requests at once, the load target: alone on framework-2 on the LAN the row peaks at 4 streams, 82 requests a second, and holds 77 at 16; at cap 16 it holds 73 at 32, 64, and 128 streams, queueing what it does not run, where cap 32 fell to 68 and then 62 (docs/findings/embedding.md#e5-lan-sweep, #e5-lan-sweep-16)."
 fraction = 0.03
-fraction_reason = "0.03: on the pooling runner the row keeps no KV pool; e5 started within it, its weights taking 1.08 GiB, and at cap 32 its GTT peaked at 2,554 MiB under the sweep, within the 3,441 MiB it reserves; idle, the host's rows left 89.94 GiB of GTT free (docs/findings/embedding.md#e5-update, #e5-sweep-32, #e5-memory)."
+fraction_reason = "0.03: on the pooling runner the row keeps no KV pool; e5 started within it, its weights taking 1.08 GiB, and at cap 32 its GTT peaked at 2,554 MiB under the sweep, within the 3,441 MiB it reserves; alone on framework-2 after its rate sweep it held 2,176 MiB, and the host's pool used 2.46 of 112 GiB (docs/findings/embedding.md#e5-update, #e5-sweep-32, #e5-memory, #e5-rate-sweep)."
 dims = 1024
 flags = ["--runner", "pooling", "--max-num-batched-tokens", "65536"]
 flags_reason = "The pooling runner, which serves embeddings, and 65,536 batched tokens a step, since vLLM's default of 8,192 batches only 16 of the embedding cells' 512-token inputs (spike-model-layout docs/findings/capability-vllm.md, G). e5 ran on both flags in its sweeps with no error or preemption: at cap 128 its 128 inputs of 512 tokens fill the 65,536 a step, and at cap 32 they take 16,384 of it (docs/findings/embedding.md#e5-sweep-128, #e5-sweep-32)."
 measured_vllm = "v0.34.0"
 
 [rows.load]
-target = "16 streams, at most 14 requests a second"
-source = "docs/findings/embedding.md#e5-sweep-128, #e5-sweep-32, and #e5-pair: the knee at 16 streams; at 14 requests a second beside the audio row, 7,150 prompt tok/s with no error, and audio kept 0.937 of its RTFx median alone, where 18 to 34 requests a second kept 0.769 to 0.872, under 0.89"
+target = "16 streams, at most 78 requests a second"
+source = "docs/findings/embedding.md#e5-lan-sweep and #e5-rate-sweep: alone on its host on the LAN, 78.4 requests a second at 16 streams, within 5% of the peak of 82.2 at 4, with no error; at 16 in flight, every constant rate up to 77.10 achieved at least 99.9% with no error, and 78.76 achieved 77.96, 99.0%, so the highest rate the row keeps with no error and at least 98% achieved is 78"
 
 [rows.source]
 publisher = "Microsoft"

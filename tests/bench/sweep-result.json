@@ -1,0 +1,51 @@
+{
+  "benchmarks": [
+    {
+      "config": { "strategy": { "type_": "synchronous", "rate": null, "streams": null } },
+      "duration": 90.2,
+      "metrics": {
+        "request_totals": { "successful": 2, "errored": 0, "incomplete": 1 },
+        "requests_per_second": { "successful": { "mean": 9.25 } },
+        "time_to_first_token_ms": { "successful": { "median": 0 } },
+        "prompt_tokens_per_second": { "successful": { "mean": 4735.4 } }
+      },
+      "requests": {
+        "successful": [
+          { "request_start_time": 10.0, "request_end_time": 10.1, "input_metrics": {} },
+          { "request_start_time": 11.0, "request_end_time": 11.3, "input_metrics": {} }
+        ]
+      }
+    },
+    {
+      "config": { "strategy": { "type_": "throughput", "max_concurrency": 512 } },
+      "duration": 90,
+      "metrics": {
+        "request_totals": { "successful": 2, "errored": 1, "incomplete": 0 },
+        "requests_per_second": { "successful": { "mean": 70.5 } },
+        "time_to_first_token_ms": { "successful": { "median": 0 } },
+        "prompt_tokens_per_second": { "successful": { "mean": 36000 } }
+      },
+      "requests": {
+        "successful": [
+          { "request_start_time": 20.0, "request_end_time": 20.4, "input_metrics": {} },
+          { "request_start_time": 20.0, "request_end_time": 20.6, "input_metrics": {} }
+        ]
+      }
+    },
+    {
+      "config": { "strategy": { "type_": "constant", "rate": 13.664285714285715, "streams": null } },
+      "duration": 90,
+      "metrics": {
+        "request_totals": { "successful": 1, "errored": 0, "incomplete": 0 },
+        "requests_per_second": { "successful": { "mean": 13.6 } },
+        "time_to_first_token_ms": { "successful": { "median": 0 } },
+        "prompt_tokens_per_second": { "successful": { "mean": 4000 } }
+      },
+      "requests": {
+        "successful": [
+          { "request_start_time": 30.0, "request_end_time": 30.2, "input_metrics": {} }
+        ]
+      }
+    }
+  ]
+}
