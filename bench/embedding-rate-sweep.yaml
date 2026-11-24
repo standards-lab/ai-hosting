@@ -1,6 +1,6 @@
 # The embedding row on GuideLLM's sweep: synchronous, then throughput, then 14 constant rates
-# between their two request rates, 90 s a level, at most 16 requests in flight (the row's load
-# target), each request 510 synthetic tokens. See bench/README.md.
+# between their two request rates, 90 s a level, at most 16 requests in flight, each request 510
+# synthetic tokens. See bench/README.md.
 spec:
   backend:
     kind: openai_http

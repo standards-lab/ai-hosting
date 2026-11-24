@@ -6,16 +6,17 @@ the same class follows them. Its secrets, the `hosting` suite, and each class's 
 runbook are built, and each host serves its rows from its clone. It will serve Pi sessions, Claude
 Code subagents, go-ai, and the capstone's services through one gateway, with overflow to Azure AI
 Foundry; until then, callers use the rows directly, and a caller of `embedding` moves its
-`AI_EMBEDDING_BASE_URL` from `framework:8003` to `framework-2:8003`. It is low-level
+`AI_EMBEDDING_BASE_URL` from the host `framework` to framework-2. It is low-level
 infrastructure outside the five tiers, beside the harness repositories, and is the one hosting
 repository on each workstation.
 
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.
 
-Each host serves one row: `agent` on gb10-1 (8000), `vision` on gb10-2 (8001), `audio` alone on
-`framework` (8002), and `embedding` alone on framework-2 (8003). Each Strix Halo host keeps its
-model store on its second NVMe at `/srv/models`, and both unlock remotely
+Each host serves one row: `agent` on gb10-1, `vision` on gb10-2, `audio` alone on `framework`,
+and `embedding` alone on framework-2; each row's port is in its class's profile. Each Strix Halo
+host keeps its model store on its second NVMe
+([strix-halo runbook](../classes/strix-halo/runbook.md#the-model-store)), and both unlock remotely
 ([strix-halo runbook](../classes/strix-halo/runbook.md#remote-unlock)).
 
 Its goals live in the coordinator's roadmap (`standards-lab/roadmap/index.toml`, v1.ai.hosting).
