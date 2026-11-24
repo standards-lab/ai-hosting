@@ -148,29 +148,6 @@ findmnt "$store"
 On a host with no rows yet, the two `docker` commands and the copy have nothing to move; skip
 them.
 
-### The GTT limit
-
-The GPU shares the host's RAM: the firmware carves out 512 MiB as its own, and the GPU reaches the
-rest as GTT, system memory it maps on demand. The kernel's TTM limit caps the GTT, and defaults to
-half of RAM. Set it to 112 GiB, which leaves about 13 GiB of the 125 GiB for the host; `amd-ttm`
-writes `options ttm pages_limit=29360128` to `/etc/modprobe.d/ttm.conf`. Answer `n` when it offers
-to reboot, since the boot images carry the option only once rebuilt:
-
-```sh
-sudo amd-ttm --set 112
-sudo limine-mkinitcpio
-omarchy system reboot
-```
-
-amdgpu's own `gttsize` option is deprecated and unset: `/etc/modprobe.d/amdgpu.conf` holds none.
-After the reboot, TTM's limit, in 4 KiB pages, prints `29360128`, and the GTT the GPU reports, in
-bytes, prints `120259084288`:
-
-```sh
-cat /sys/module/ttm/parameters/pages_limit
-cat /sys/class/drm/card*/device/mem_info_gtt_total
-```
-
 ### The ufw rules
 
 Omarchy runs ufw with ufw-docker, which drops routed traffic to a container's published port: a
@@ -189,6 +166,106 @@ rules name a port, not a container, so they hold through every update. The loop 
 port in the profile, so a host that serves one row opens the other's too; with nothing listening
 there, the open port answers nothing. A row whose port changes in the profile needs its new
 port's rule.
+
+### Remote unlock
+
+The root filesystem is LUKS-encrypted, so a reboot waits at the console's passphrase prompt. Remote
+unlock puts an SSH server, dropbear, in the initramfs, which serves the same prompt over the LAN.
+The initramfs has no Tailscale, so a client reaches it through another tailnet host on the same LAN
+that is up, which Tailscale SSH forwards for `ssh -J` ([Reboots](#reboots)). The console prompt
+still works.
+
+Three packages provide the initramfs's network, its SSH server, and the hook that asks for the
+passphrase over SSH:
+
+```sh
+omarchy pkg add mkinitcpio-netconf mkinitcpio-dropbear mkinitcpio-utils
+```
+
+Each client that unlocks holds a dedicated ed25519 key, made on the client and never committed:
+
+```sh
+ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519_unlock
+```
+
+The key reaches only the unlock prompt; the passphrase is still required. Install its public key,
+`~/.ssh/id_ed25519_unlock.pub` on the client, as the initramfs's root key, one line per client:
+
+```sh
+echo '<public key>' | sudo install -D -m 600 /dev/stdin /etc/dropbear/root_key
+```
+
+Omarchy's `/etc/mkinitcpio.conf.d/omarchy_hooks.conf` sets the hook list with busybox's `encrypt`
+hook. A drop-in that sorts after it replaces `encrypt` with the network, the SSH server, and
+`encryptssh`, which unlocks at the console or over SSH:
+
+```sh
+sudo tee /etc/mkinitcpio.conf.d/zz-remote-unlock.conf >/dev/null <<'EOF'
+_hooks=()
+for _hook in "${HOOKS[@]}"; do
+  if [[ $_hook == encrypt ]]; then _hooks+=(netconf dropbear encryptssh); else _hooks+=("$_hook"); fi
+done
+HOOKS=("${_hooks[@]}")
+unset _hooks _hook
+EOF
+```
+
+If a later Omarchy release drops the `encrypt` hook, the drop-in changes nothing and only the
+console unlock remains.
+
+The initramfs takes its address by DHCP on the wired NIC, named in a kernel parameter with the
+host's short name in `<host>`:
+
+```sh
+echo 'KERNEL_CMDLINE[default]+=" ip=::::<host>:eth0:dhcp netconf_timeout=30"' |
+  sudo tee /etc/limine-entry-tool.d/remote-unlock.conf
+```
+
+The NIC is `eth0` there, not its booted name, such as `enp191s0`: the initramfs's udev loads no
+`80-net-setup-link.rules`, and a parameter that names the booted name leaves the initramfs without
+a network. `netconf_timeout=30` keeps the console prompt from waiting on DHCP. The host's lease is
+reserved on the router, so its LAN address is stable; no address is committed.
+
+[The GTT limit](#the-gtt-limit)'s rebuild and reboot build the unlock into the boot image.
+`limine-mkinitcpio`, which Omarchy's own scripts use, rebuilds the unified kernel image of every
+installed kernel and the boot entries; `mkinitcpio -P` builds nothing useful, with no active
+preset. It exits 0 even when a kernel fails, so before rebooting, check its output: it holds no
+`mkinitcpio failed for kernel`, and each kernel's build runs the hooks `[netconf]`, `[dropbear]`,
+and `[encryptssh]`. Dropbear generates rsa and ecdsa host keys and prints their fingerprints;
+record the ecdsa fingerprint to check on the first connect. Its error about a dss key is noise,
+since current dropbear dropped dss. The parameter is in the boot entries once this prints `1`:
+
+```sh
+sudo grep -c 'ip=::::<host>:eth0:dhcp' /boot/limine.conf
+```
+
+Make the first reboot after the rebuild with someone at the console, so a failed remote unlock
+costs nothing, and unlock it remotely as [Reboots](#reboots) says.
+
+### The GTT limit
+
+The GPU shares the host's RAM: the firmware carves out 512 MiB as its own, and the GPU reaches the
+rest as GTT, system memory it maps on demand. The kernel's TTM limit caps the GTT, and defaults to
+half of RAM. Set it to 112 GiB, which leaves about 13 GiB of the 125 GiB for the host; `amd-ttm`
+writes `options ttm pages_limit=29360128` to `/etc/modprobe.d/ttm.conf`. Answer `n` when it offers
+to reboot, since the boot images carry the option only once rebuilt. The rebuild also builds
+[remote unlock](#remote-unlock) into the boot images; check its output as that step says before
+rebooting:
+
+```sh
+sudo amd-ttm --set 112
+sudo limine-mkinitcpio
+omarchy system reboot
+```
+
+amdgpu's own `gttsize` option is deprecated and unset: `/etc/modprobe.d/amdgpu.conf` holds none.
+After the reboot, TTM's limit, in 4 KiB pages, prints `29360128`, and the GTT the GPU reports, in
+bytes, prints `120259084288`:
+
+```sh
+cat /sys/module/ttm/parameters/pages_limit
+cat /sys/class/drm/card*/device/mem_info_gtt_total
+```
 
 ## The rows
 
@@ -251,9 +328,30 @@ profile ([host-classes.md](../../context/host-classes.md), "Replacing a model").
 
 ## Reboots
 
-The Framework's root filesystem is LUKS-encrypted. A reboot waits at the disk-unlock prompt until
-a person enters the passphrase at its console, so the Framework neither returns unattended nor can
-be rebooted remotely, as the GB10s can. Reboot it only with someone at its console. Once it is
-unlocked, each row's container restarts by itself with `--restart unless-stopped`, and the
-nonlocal bind lets it publish before Tailscale is up; a row is serving again once
+The root filesystem is LUKS-encrypted, so a reboot waits at the disk-unlock prompt; with
+[remote unlock](#remote-unlock), the host reboots remotely too. About a minute after
+`omarchy system reboot`, once it waits at the prompt, unlock it from a client that holds the unlock
+key, jumping through a tailnet host on the same LAN that is up: each Strix Halo host jumps through
+the other.
+
+```sh
+ssh -J <a host that is up> -i ~/.ssh/id_ed25519_unlock root@<LAN address>
+```
+
+The login runs `cryptsetup_shell`, which asks for the passphrase, opens the root, and stops the
+console's Plymouth prompt, so boot continues. The console prompt still works. A client keeps the
+connection in its own `~/.ssh/config`, never committed, such as:
+
+```sshconfig
+Host <host>-unlock
+  HostName <LAN address>
+  User root
+  ProxyJump <other host>
+  IdentityFile ~/.ssh/id_ed25519_unlock
+  IdentitiesOnly yes
+  RequestTTY yes
+```
+
+Once the host is unlocked, each row's container restarts by itself with `--restart unless-stopped`,
+and the nonlocal bind lets it publish before Tailscale is up; a row is serving again once
 `hosting engine status` shows it healthy.
