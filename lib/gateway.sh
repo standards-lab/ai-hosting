@@ -136,9 +136,9 @@ hosting_gateway_validate() {
   while IFS= read -r variable; do
     options+=(--env "$variable=validate")
   done < <(grep -oP '\$\{\K[A-Za-z_][A-Za-z0-9_]*(?=\})' "$1" | sort -u)
+  status=0
   docker run --rm --network none --volume "$dir:/config:ro" "${options[@]}" \
-    "$(hosting_gateway_image)" -f "/config/$file" --validate-only
-  status=$?
+    "$(hosting_gateway_image)" -f "/config/$file" --validate-only || status=$?
   rm -f "$stand_in"
   return "$status"
 }
