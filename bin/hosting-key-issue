@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# hosting:summary=Issues a consumer's gateway key into its fnox.toml, its hash into the key list
+# `hosting key issue <consumer> <class> <repository> [--rotate]`: validates the consumer's name,
+# the class, one the gateway's config template defines (interactive or bulk), the consumer
+# repository's fnox.toml, and the key list, refusing a consumer the list already holds unless
+# --rotate is given; then generates a 256-bit key, writes it with fnox, by stdin, into the
+# repository's fnox.toml as AI_GATEWAY_TOKEN, encrypted to that file's own age recipients, and
+# writes only its SHA-256 hash and class into compose/agentgateway/keys.toml (hosting_key_issue in
+# lib/key.sh). Runs on any host, the architect's laptop among them. Prints no key, and commits
+# nothing. See context/gateway.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+usage="key issue <consumer> <class> <repository> [--rotate]"
+rotate=
+arguments=()
+for argument in "$@"; do
+  case $argument in
+    --rotate) rotate=1 ;;
+    -*) hosting_usage_error "key issue takes no option $argument" "$usage" ;;
+    *) arguments+=("$argument") ;;
+  esac
+done
+if ((${#arguments[@]} != 3)); then
+  hosting_usage_error "key issue takes a consumer, a class, and the consumer's repository" "$usage"
+fi
+
+hosting_key_issue "${arguments[@]}" "$rotate"
+echo "issued ${arguments[0]} its ${arguments[1]} key in ${arguments[2]}/fnox.toml and its hash in" \
+  "$HOSTING_GATEWAY/keys.toml; commit both, then hosting gateway render on gb10-2"

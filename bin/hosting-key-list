@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# hosting:summary=Lists the consumers holding a gateway key, with their class
+# `hosting key list`: validates compose/agentgateway/keys.toml, then lists each consumer it holds a
+# hash for, with its class (hosting_key_list in lib/key.sh). Runs on any host, and changes
+# nothing. See context/gateway.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "key list takes no argument" "key list"
+fi
+
+hosting_key_list

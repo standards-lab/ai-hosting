@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# hosting:summary=Deletes a consumer's entry from the gateway's key list
+# `hosting key revoke <consumer>`: validates the consumer's name and the key list, refusing a
+# consumer the list doesn't hold, then deletes its entry from compose/agentgateway/keys.toml
+# (hosting_key_revoke in lib/key.sh); the gateway drops its key at the next hosting gateway render
+# on gb10-2. Runs on any host, and commits nothing. See context/gateway.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# != 1)) || [[ $1 == -* ]]; then
+  hosting_usage_error "key revoke takes a consumer" "key revoke <consumer>"
+fi
+
+hosting_key_revoke "$1"
+echo "revoked $1's key in $HOSTING_GATEWAY/keys.toml; commit it, then hosting gateway render on" \
+  "gb10-2"

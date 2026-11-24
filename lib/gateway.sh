@@ -50,6 +50,27 @@ hosting_gateway_toml() {
   echo "$json"
 }
 
+# Prints agentgateway's config template, compose/agentgateway/config.template.yaml, decoded to
+# JSON with its anchors expanded.
+hosting_gateway_template() {
+  hosting_yq -o json 'explode(.)' "$HOSTING_GATEWAY/config.template.yaml"
+}
+
+# Prints the key list at the path given, compose/agentgateway/keys.toml when none is, decoded to
+# JSON, once it validates against the key classes of the template given, decoded to JSON
+# (hosting_gateway_template): each [[keys]] entry a consumer, lowercase letters, digits, and
+# hyphens; its class, one the template defines; and its key's SHA-256 hash in sha256, 64
+# lowercase hex digits; no consumer or hash listed twice. Prints each error as the key list's and
+# fails, printing nothing, when it is invalid: hosting_gateway_keys <template> [path].
+hosting_gateway_keys() {
+  local name=compose/agentgateway/keys.toml keys
+  keys=$(hosting_gateway_toml "${2:-$HOSTING_GATEWAY/keys.toml}" "$name") || return
+  # shellcheck disable=SC2016 # $template is jq's, bound by --argjson.
+  hosting_gateway_report "$name" "$keys" 'key_errors($template | key_classes)' \
+    --argjson template "$1" || return
+  echo "$keys"
+}
+
 # Prints agentgateway's config rendered from the template, the class profiles, the key list, and
 # the overflow switches, holding each key's hash and no secret. Validates every input first,
 # printing each error at once: each class profile (hosting_profile_validate); the key list, each
@@ -59,7 +80,7 @@ hosting_gateway_toml() {
 hosting_gateway_render() {
   local fail=0 template rows='[]' class profile name keys overflow
   hosting_yq --version >/dev/null || return
-  template=$(hosting_yq -o json 'explode(.)' "$HOSTING_GATEWAY/config.template.yaml") || return
+  template=$(hosting_gateway_template) || return
   for class in "${HOSTING_CLASSES[@]}"; do
     profile=$(hosting_profile_path "$class")
     name=classes/$class/profile.toml
@@ -70,14 +91,7 @@ hosting_gateway_render() {
     rows=$(hosting_yq -p toml -o json '.' "$profile" |
       jq --argjson rows "$rows" '$rows + [.rows[] | {alias, port, model}]') || return
   done
-  name=compose/agentgateway/keys.toml
-  if keys=$(hosting_gateway_toml "$HOSTING_GATEWAY/keys.toml" "$name"); then
-    # shellcheck disable=SC2016 # $template is jq's, bound by --argjson.
-    hosting_gateway_report "$name" "$keys" 'key_errors($template | key_classes)' \
-      --argjson template "$template" || fail=1
-  else
-    fail=1
-  fi
+  keys=$(hosting_gateway_keys "$template") || fail=1
   name=compose/agentgateway/overflow.toml
   if overflow=$(hosting_gateway_toml "$HOSTING_GATEWAY/overflow.toml" "$name"); then
     # shellcheck disable=SC2016 # $template is jq's, bound by --argjson.
