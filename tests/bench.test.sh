@@ -42,7 +42,7 @@ test_the_committed_scenarios_include_the_8_stream_audio_and_the_rate_sweep() {
   sweep=$(hosting_yq -o json '.' "$repo/bench/embedding-rate-sweep.yaml" | jq -c '[.spec.profile,
     .spec.backend.request_format, .spec.data[0].prompt_tokens]')
   assert_equal "rate sweep profile and input" "$sweep" \
-    '[{"kind":"sweep","sweep_size":16},"/v1/embeddings",510]'
+    '[{"kind":"sweep","sweep_size":16,"max_concurrency":16},"/v1/embeddings",510]'
 }
 
 test_a_rate_sweep_over_the_context_fails() {

@@ -43,13 +43,16 @@ exceed the context of the strix-halo profile's embedding row. Its tests, and tho
 The rate sweep runs GuideLLM 0.8.1's built-in `sweep` profile: a synchronous level, then a
 throughput level, then constant rates spaced evenly from the synchronous level's request rate to
 the throughput level's, the last at the throughput rate. Its `sweep_size` of 16 counts every level,
-so 14 are constant. At the request rates of the cap-32 stream sweep, 9.3 a second at one stream
-and 70.7 at 32 ([e5-sweep-32](../docs/findings/embedding.md#e5-sweep-32)), that spaces the rates
-about 4.4 requests a second apart, fine enough to place the row's limit. Each level runs 90 s,
-not the constant-rate cell's 240 s: at the lowest constant rate, near 14 a second, a level still
-holds over 1,200 requests, and the run takes about 24 minutes. GuideLLM holds at most 512
-requests in flight, its default, so a rate past the row's limit queues at the row rather than
-being held back at the client.
+so 14 are constant. It holds at most 16 requests in flight, the row's load target, at every
+level: past the row's cap, more requests in flight lower its throughput (62 requests a second at
+GuideLLM's default of 512 against 78 at 16, on the LAN), so an uncapped throughput level sits
+below the row's ceiling and squeezes the constant rates into a band under it. Capped, the levels
+run from the synchronous rate, about 56 a second on the LAN, to the throughput rate at 16
+streams, about 78, so the constant rates fall about 1.6 apart
+([e5-lan-sweep](../docs/findings/embedding.md#e5-lan-sweep)). Each level runs 90 s, not the
+constant-rate cell's 240 s: a level still holds over 5,000 requests, and the run takes about 26
+minutes. A rate past the row's limit queues at the client once 16 are in flight, so the level
+reports the rate achieved, which falls short of the target.
 
 Each audio request is one LibriSpeech clip (`hf-internal-testing/librispeech_asr_dummy`, clean
 validation split) sent as 16 kHz WAV to `/v1/chat/completions` with the transcription prompt of
