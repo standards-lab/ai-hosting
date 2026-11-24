@@ -5,6 +5,9 @@
 
 include "profile";
 
+# Whether the route is an alias's: its backend is an `ai` backend whose first group is the row.
+def alias_route: .backends[0].ai != null;
+
 # The key classes the template defines, one template key each.
 def key_classes: [.gateways.consumer.apiKey.keys[].metadata.class];
 
@@ -53,18 +56,19 @@ def overflow_errors($aliases):
        else empty end);
 
 # The errors of the rows (each class profile's rows, as {alias, port, model}) for the template's
-# routes: each route's alias is one row's.
+# alias routes: each route's alias is one row's.
 def row_errors($rows):
-  .routes[].name as $alias
+  .routes[] | select(alias_route) | .name as $alias
   | [$rows[] | select(.alias == $alias)] as $matches
   | if ($matches | length) == 0 then problem([$alias]; "no class profile has a row with this alias")
     elif ($matches | length) > 1 then problem([$alias]; "more than one class profile has this alias")
     else empty end;
 
-# The rendered config: the template, each route's row provider at its host and its row's port,
-# its /v1/models answer listing the alias with its row's model as root, and its Azure group
-# dropped when the alias's switch is off; and one key a [[keys]] entry, its class's template key
-# with the entry's hash and consumer.
+# The rendered config: the template, each alias route's row provider at its host and its row's
+# port, its /v1/models answer listing the alias with its row's model as root, and its Azure group
+# dropped when the alias's switch is off; each host backend that names an alias, at that alias's
+# row host and port; and one key a [[keys]] entry, its class's template key with the entry's hash
+# and consumer.
 def render($rows; $keys; $overflow):
   .gateways.consumer.apiKey.keys as $templates
   | .gateways.consumer.apiKey.keys = [
@@ -73,11 +77,18 @@ def render($rows; $keys; $overflow):
       | .keyHash = "sha256:\($key.sha256)" | .metadata.name = $key.consumer
     ]
   | .routes |= map(
-      .name as $alias
-      | ($rows[] | select(.alias == $alias)) as $row
-      | (.policies.directResponse.conditional[] | select(.condition == "request.path == \"/v1/models\"")
-         | .body) = ({object: "list",
-                      data: [{id: $alias, object: "model", owned_by: "gateway", root: $row.model}]}
-                     | tojson)
-      | .backends[0].ai.groups[0].providers[0].hostOverride += ":\($row.port)"
-      | if ($overflow // {})[$alias] == false then .backends[0].ai.groups |= .[:1] else . end);
+      if alias_route then
+        .name as $alias
+        | ($rows[] | select(.alias == $alias)) as $row
+        | (.policies.directResponse.conditional[]
+           | select(.condition == "request.path == \"/v1/models\"") | .body)
+          = ({object: "list",
+              data: [{id: $alias, object: "model", owned_by: "gateway", root: $row.model}]}
+             | tojson)
+        | .backends[0].ai.groups[0].providers[0].hostOverride += ":\($row.port)"
+        | if ($overflow // {})[$alias] == false then .backends[0].ai.groups |= .[:1] else . end
+      else . end)
+  | ([.routes[] | select(alias_route)
+      | {key: .name, value: .backends[0].ai.groups[0].providers[0].hostOverride}]
+     | from_entries) as $hosts
+  | .routes[].backends[] |= if has("host") then .host = $hosts[.host] else . end;

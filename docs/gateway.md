@@ -82,7 +82,8 @@ no key or route is created outside git.
 
 ## Routes
 
-One route per alias on the `consumer` gateway. Each matches `/<alias>/v1` and below, rewrites the
+One route per alias on the `consumer` gateway, and embedding's tokenize route
+([Tokenize](#tokenize)). Each alias's route matches `/<alias>/v1` and below, rewrites the
 prefix to `/v1`, and sends the request to one `ai` backend whose first priority group is the
 alias's row: a custom provider at the row's host and port, over plain HTTP on the tailnet, listing
 Chat Completions, Messages, Responses, and embeddings. The provider keeps the client's model, the
@@ -91,7 +92,8 @@ backend holds its row and at most its own Azure deployment.
 
 The map from alias to host has one home, the template's `hostOverride` on each row provider
 (`gb10-1`, `gb10-2`, `framework`, `framework-2`); the render appends each row's port from the class
-profiles, which name no host.
+profiles, which name no host. A plain host backend names its alias instead of a host (`host:
+embedding`), and the render gives it that alias's rendered row host and port.
 
 ### Route `ai`, not the `llm` section
 
@@ -119,8 +121,9 @@ allow-list sees `/v1/...`. The first conditional direct response whose condition
 - **Any path off the allow-list** gets 404. The allow-list is the eight serving paths:
   `/v1/models`, `chat/completions`, `completions`, `messages`, `responses`, `embeddings`,
   `audio/transcriptions`, and `audio/translations`. vLLM's root routes (`/metrics`, `/health`,
-  `/tokenize`, `/docs`) are among those refused, so no consumer key manages a model. A path under
-  no alias is unrouted, and gets 404 too.
+  `/tokenize`, `/docs`) are among those refused, so no consumer key manages a model; embedding's
+  tokenize route alone reaches one, `POST /tokenize` ([Tokenize](#tokenize)). A path under no
+  alias is unrouted, and gets 404 too.
 
 Chat Completions, embeddings, Messages, and Responses are typed request formats (`ai.routes`), so
 the gateway sets each provider's model in the body and its path, which `detect` does for neither
@@ -140,6 +143,30 @@ refuses any `%2e` or `%2f`, a superset of the encoded dot segment, since no serv
 either. A network rule can't do this, since the requests come from the gateway itself.
 agentgateway's path normalization (#4253) merged after v1.7.0
 ([watch register](watch.md#agentgateway-path-normalization)).
+
+### Tokenize
+
+`POST /embedding/v1/tokenize` reaches the embedding row's `/tokenize`, which vLLM serves at the
+row's root, not under `/v1`. docinfer chunks documents by e5 token counts through go-ai's
+`Tokenize`, which appends `tokenize` to the alias's base URL. The request is
+`{"model":"embedding","prompt":"…","add_special_tokens":true}`, and the row's reply,
+`{"count":N,"max_model_len":512,"tokens":[…]}`, passes through unchanged.
+
+- **Its own route.** `embedding-tokenize` matches the exact path and POST alone, and rewrites the
+  whole path to `/tokenize`. agentgateway ranks an exact path above any prefix, so the request never
+  reaches the embedding route's allow-list; a GET, `/embedding/v1/detokenize`, and every other path
+  still fall to the embedding route and its 404. No other alias has one.
+- **A plain host backend,** the embedding row's host and port, with no `ai` backend: the reply is
+  vLLM's own shape, not a model format, and there is no Azure group to fall back on.
+- **The same key check.** The key and the dot-segment rule sit on the `consumer` gateway, so a
+  missing or unknown key gets 401 here as on every route.
+- **No bucket.** It is outside embedding's two buckets and has none of its own: a tokenize call is
+  cheap, and a chunking run makes far more of them than it makes embeddings, so drawing on
+  embedding's buckets would spend them on counting. A bulk consumer bounds its own concurrency, and
+  acceptance may set a bucket if it measures a need.
+- **No charge.** A key's budget is charged only from an LLM reply's usage, which a plain host
+  backend's reply has none of, so a tokenize call charges nothing and raises no error. The check
+  before each request still holds: a key whose Block budget is spent is refused here too.
 
 ## Keys
 
@@ -231,7 +258,8 @@ survives a restart, and a reload that changes only a limit keeps it ([priority.m
   limit: 78 requests a second of 512 tokens for 90 s is about 3,600,000. Audit records an
   interactive key's overspend without refusing a person's work.
 
-The window is a fixed UTC hour ([The fixed budget window](#the-fixed-budget-window)).
+The window is a fixed UTC hour ([The fixed budget window](#the-fixed-budget-window)). A tokenize
+call is checked against the budget and charged nothing ([Tokenize](#tokenize)).
 
 ### Request buckets
 
@@ -251,7 +279,8 @@ framework-2, measured with the row alone, with no margin
 ([e5-rate-sweep](findings/embedding.md#e5-rate-sweep)). The per-key bucket is twice the global, so
 the global binds first for any one key; a request either rule refuses counts against neither.
 Embedding's clients send many small requests a second, so its buckets refill each second, where
-the chat routes' refill each minute.
+the chat routes' refill each minute. Embedding's tokenize route draws on neither bucket
+([Tokenize](#tokenize)).
 
 A bucket counts each client request once, before the retry. Past it the gateway answers 429 with
 `Retry-After` and `x-ratelimit-*` itself: the row never sees the request, so a bucket's 429 evicts

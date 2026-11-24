@@ -1,5 +1,6 @@
 # agentgateway's config template: lib/gateway.sh renders it into config.yaml with each row's port
-# and model from the class profiles, each key from keys.toml, and the switches in overflow.toml.
+# and model from the class profiles, each host backend that names an alias with that alias's row
+# host and port, each key from keys.toml, and the switches in overflow.toml.
 # See context/gateway.md
 config:
   adminAddr: localhost:15000
@@ -273,3 +274,15 @@ routes:
               formats: *row-formats
           policies:
             health: *row-health
+- name: embedding-tokenize
+  gateways: consumer
+  matches:
+  - path:
+      exact: /embedding/v1/tokenize
+    method: POST
+  policies:
+    urlRewrite:
+      path:
+        full: /tokenize
+  backends:
+  - host: embedding

@@ -69,8 +69,8 @@ test_each_alias_routes_to_its_host_at_its_profile_port() {
     framework:9102
   assert_equal embedding "$(route embedding '.backends[0].ai.groups[0].providers[0].hostOverride')" \
     framework-2:9103
-  assert_equal "route paths" "$(jq -r '[.routes[].matches[0].path.pathPrefix] | join(" ")' \
-    <<<"$config")" "/agent/v1 /vision/v1 /audio/v1 /embedding/v1"
+  assert_equal "route paths" "$(jq -r '[.routes[].matches[0].path | .pathPrefix // .exact]
+    | join(" ")' <<<"$config")" "/agent/v1 /vision/v1 /audio/v1 /embedding/v1 /embedding/v1/tokenize"
   assert_equal "consumer port" "$(jq -r '.gateways.consumer.port' <<<"$config")" 3000
 }
 
@@ -89,6 +89,24 @@ test_each_alias_models_answer_lists_the_alias_with_its_row_model_as_root() {
       | select(.condition == "request.path == \"/v1/models\"") | .body | fromjson
       | [.data[] | "\(.id) \(.root)"] | join(",")')" "$alias $model"
   done
+}
+
+test_embedding_alone_tokenizes_at_its_row_root_with_no_bucket_or_azure_group() {
+  use_fixtures
+  render
+  assert_equal status "$status" 0
+  assert_equal "tokenize routes" "$(jq -r '[.routes[] | select(any(.matches[].path[]; contains("tokenize")))
+    | .name] | join(" ")' <<<"$config")" embedding-tokenize
+  assert_equal match "$(route embedding-tokenize '.matches | map("\(.method) \(.path.exact)")
+    | join(",")')" "POST /embedding/v1/tokenize"
+  assert_equal rewrite "$(route embedding-tokenize '.policies.urlRewrite.path.full')" /tokenize
+  assert_equal backend "$(route embedding-tokenize '[.backends[].host] | join(" ")')" \
+    "$(route embedding '.backends[0].ai.groups[0].providers[0].hostOverride')"
+  assert_equal host "$(route embedding-tokenize '.backends[0].host')" framework-2:9103
+  assert_equal policies "$(route embedding-tokenize '.policies | keys | join(" ")')" urlRewrite
+  assert_equal "ai backends" "$(route embedding-tokenize '[.backends[] | select(has("ai"))] | length')" 0
+  assert_equal "embedding allow-list" "$(route embedding '.policies.directResponse.conditional[1]
+    | "\(.status) \(.condition)"')" '404 !(request.path in ["/v1/models", "/v1/chat/completions", "/v1/completions", "/v1/messages", "/v1/responses", "/v1/embeddings", "/v1/audio/transcriptions", "/v1/audio/translations"])'
 }
 
 test_each_key_carries_its_hash_consumer_and_its_class_budget() {
@@ -126,7 +144,7 @@ test_a_switch_off_drops_only_its_alias_azure_group() {
 test_every_switch_on_keeps_each_azure_group_and_embedding_has_none() {
   use_fixtures
   render
-  assert_equal groups "$(jq -r '.routes[] | "\(.name) \([.backends[0].ai.groups[].providers[].name]
+  assert_equal groups "$(jq -r '.routes[] | select(.backends[0].ai) | "\(.name) \([.backends[0].ai.groups[].providers[].name]
     | join(","))"' <<<"$config")" "agent agent-row,agent-azure
 vision vision-row,vision-azure
 audio audio-row,audio-azure
