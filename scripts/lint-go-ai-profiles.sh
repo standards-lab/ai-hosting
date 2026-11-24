@@ -18,8 +18,7 @@ fail=0
 shopt -s nullglob
 for file in "$root"/go-ai/*.json; do
   name=go-ai/${file##*/}
-  alias=${name#go-ai/}
-  alias=${alias%.json}
+  alias=$(basename "$file" .json)
   if ! grep -qxF -- "$alias" <<<"$aliases"; then
     echo "FAIL: $name names no alias of a class profile" >&2
     fail=1
@@ -27,7 +26,8 @@ for file in "$root"/go-ai/*.json; do
   if ! jq -e 'type == "object"
       and all(to_entries[]; (.key | IN("completions", "messages", "responses"))
         and (.value | type == "object"))' "$file" >/dev/null 2>&1; then
-    echo "FAIL: $name is not a JSON object of go-ai formats, completions, messages, and responses, each an object" >&2
+    echo "FAIL: $name is not a JSON object of go-ai formats, completions, messages, and" \
+      "responses, each an object" >&2
     fail=1
   fi
 done
