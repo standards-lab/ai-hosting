@@ -1,7 +1,7 @@
 # The strix-halo runbook
 
 How a Strix Halo host, Omarchy on an AMD Strix Halo whose GPU is gfx1151, comes to serve its rows:
-the root steps, the suite's install, and each row's commands. The Framework, `framework`, serves
+the suite's install, the root steps, and each row's commands. The Framework, `framework`, serves
 `audio` and `embedding` beside each other. Each row's settings live in the class's
 [profile](profile.toml), whose keys [the schema](../README.md) defines; this runbook names them and
 restates no value.
@@ -9,11 +9,49 @@ restates no value.
 The architect runs the root steps, the commands with `sudo`. The rest run as the account that
 serves the rows, which the suite runs as; no `hosting` command needs `sudo`.
 
+## Install the suite
+
+Clone ai-hosting into the serving account's home as `~/ai-hosting`. In the clone, with mise's
+tools on PATH (`mise activate`), install the pinned tools, then link the suite's one command,
+`~/.local/bin/hosting`, into the clone:
+
+```sh
+git clone https://github.com/standards-lab/ai-hosting.git ~/ai-hosting
+cd ~/ai-hosting
+mise trust
+mise install
+mise run install
+hosting
+```
+
+`hosting` with no arguments lists every command. `mise run uninstall` removes the link.
+
+Over non-interactive ssh, run the suite from the clone, where mise puts its tools on PATH:
+`ssh <host> 'cd ~/ai-hosting && hosting engine status'`. On a host whose non-interactive shell
+doesn't activate mise or put `~/.local/bin` on PATH, run it through mise instead:
+`ssh <host> 'cd ~/ai-hosting && mise exec -- bin/hosting engine status'`.
+
+A row whose model is gated needs a Hugging Face token on the host, which hf keeps in
+`~/.cache/huggingface`; the suite downloads every other model without one:
+
+```sh
+mise exec -- hf auth login
+```
+
 ## Root steps
 
-Run them once on each host, before its first `hosting engine install`, from the clone
-([Install the suite](#install-the-suite)). `hosting engine install` and `update` refuse a host
-that lacks the nonlocal bind, pointing here.
+Run them once on each host, in order, from the clone, after
+[Install the suite](#install-the-suite) and before its first `hosting engine install`.
+`hosting engine install` and `update` refuse a host that lacks the nonlocal bind, pointing here.
+
+### The AMD tools
+
+Two packages from Arch's `extra` repository: `amd-debug-tools` provides `amd-ttm`, which
+[the GTT limit](#the-gtt-limit) runs, and `amdgpu_top` is what `hosting engine memory` reads:
+
+```sh
+sudo pacman -S --needed amd-debug-tools amdgpu_top
+```
 
 ### Docker without sudo
 
@@ -46,16 +84,66 @@ file under `/etc/sysctl.d` needs no second one.
 ### The model store
 
 Every row's container mounts the class's model store, the profile's `store`, as its Hugging Face
-cache. Create it, owned by the account, since the containers write it as that account, not as
-root:
+cache. The store is the host's second NVMe, the disk that doesn't hold the LUKS-encrypted root,
+formatted as plain ext4 and mounted at the store. It is not encrypted because it holds only public
+model weights (`architecture/principles/development-secrets.md`, "What is not a secret"). Off the
+root, it is outside the snapshots Omarchy takes before every update, so a model deleted from the
+store frees its space at once.
+
+Find the second disk: `lsblk` lists each NVMe as a `disk`, and the root's is the one with a `crypt`
+device under it, mounted at `/`. The other is the store's:
 
 ```sh
-store=$(mise exec -- yq -p toml -oy '.store' classes/strix-halo/profile.toml)
-sudo install -d -o "$(id -un)" -g "$(id -gn)" "$store"
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
 ```
 
-The root filesystem is the subvolume Omarchy snapshots before every update, so a model deleted
-from the store frees its space only once the last snapshot holding it ages out.
+A second disk that already holds an ext4 filesystem mounted elsewhere keeps it: skip to
+[A second disk already formatted](#a-second-disk-already-formatted). Otherwise format it, which
+erases it, naming it in `disk` (`/dev/` and the name `lsblk` printed); then mount it at the store
+by UUID with `noatime`, at once and at every boot, and own the store as the account, since the
+containers write it as that account, not as root:
+
+```sh
+disk=/dev/<second disk>
+store=$(mise exec -- yq -p toml -oy '.store' classes/strix-halo/profile.toml)
+sudo mkfs.ext4 "$disk"
+echo "UUID=$(sudo blkid -s UUID -o value "$disk") $store ext4 defaults,noatime 0 2" |
+  sudo tee -a /etc/fstab
+sudo install -d "$store"
+sudo systemctl daemon-reload
+sudo mount "$store"
+sudo install -d -o "$(id -un)" -g "$(id -gn)" "$store"
+findmnt "$store"
+```
+
+`findmnt` prints the store with the disk as its source and `noatime` among its options.
+
+#### A second disk already formatted
+
+The disk's ext4 filesystem moves to the store: in its `/etc/fstab` line (`sudoedit /etc/fstab`),
+change the mountpoint to the store and add `noatime` to the options, and name the disk by its
+`UUID=` (`sudo blkid`) if the line names it otherwise. If the store on the root
+already holds models, stop the rows first, copy the store onto the disk at its old mountpoint, and
+clear the root's copy; then mount the disk at the store, own it, and start the rows again, with
+`old` the mountpoint the fstab line named:
+
+```sh
+old=<old mountpoint>
+store=$(mise exec -- yq -p toml -oy '.store' classes/strix-halo/profile.toml)
+docker stop $(docker ps -q --filter label=ai-hosting.row)
+sudo cp -a "$store"/. "$old"/
+sudo find "$store" -mindepth 1 -delete
+sudo umount "$old"
+sudo install -d "$store"
+sudo systemctl daemon-reload
+sudo mount "$store"
+sudo install -d -o "$(id -un)" -g "$(id -gn)" "$store"
+docker start $(docker ps -aq --filter label=ai-hosting.row)
+findmnt "$store"
+```
+
+On a host with no rows yet, the two `docker` commands and the copy have nothing to move; skip
+them.
 
 ### The GTT limit
 
@@ -94,37 +182,10 @@ sudo ufw status verbose
 ```
 
 Each port is listed as `<port>/tcp ALLOW FWD Anywhere on tailscale0`, and again with `(v6)`. The
-rules name a port, not a container, so they hold through every update. A row whose port changes in
-the profile needs its new port's rule.
-
-## Install the suite
-
-Clone ai-hosting into the serving account's home as `~/ai-hosting`. In the clone, with mise's
-tools on PATH (`mise activate`), install the pinned tools, then link the suite's one command,
-`~/.local/bin/hosting`, into the clone:
-
-```sh
-git clone https://github.com/standards-lab/ai-hosting.git ~/ai-hosting
-cd ~/ai-hosting
-mise trust
-mise install
-mise run install
-hosting
-```
-
-`hosting` with no arguments lists every command. `mise run uninstall` removes the link.
-
-Over non-interactive ssh, run the suite from the clone, where mise puts its tools on PATH:
-`ssh <host> 'cd ~/ai-hosting && hosting engine status'`. On a host whose non-interactive shell
-doesn't activate mise or put `~/.local/bin` on PATH, run it through mise instead:
-`ssh <host> 'cd ~/ai-hosting && mise exec -- bin/hosting engine status'`.
-
-A row whose model is gated needs a Hugging Face token on the host, which hf keeps in
-`~/.cache/huggingface`; the suite downloads every other model without one:
-
-```sh
-mise exec -- hf auth login
-```
+rules name a port, not a container, so they hold through every update. The loop opens every row's
+port in the profile, so a host that serves one row opens the other's too; with nothing listening
+there, the open port answers nothing. A row whose port changes in the profile needs its new
+port's rule.
 
 ## The rows
 
