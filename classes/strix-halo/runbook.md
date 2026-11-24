@@ -121,6 +121,10 @@ findmnt "$store"
 
 `findmnt` prints the store with the disk as its source and `noatime` among its options.
 
+The kernel may number the two NVMe drives differently after a reboot: on framework-2 the store's
+disk came up under the other `nvme` name. So the fstab line names the disk by UUID, and no step
+names a device after the first `lsblk`.
+
 #### A second disk already formatted
 
 The disk's ext4 filesystem moves to the store: in its `/etc/fstab` line (`sudoedit /etc/fstab`),
@@ -239,16 +243,31 @@ since current dropbear dropped dss. The parameter is in the boot entries once th
 sudo grep -c 'ip=::::<host>:eth0:dhcp' /boot/limine.conf
 ```
 
+A host may carry a stale stock `linux` kernel beside `linux-omarchy`, as `framework` did, and every
+`limine-mkinitcpio` then builds and patches both; once `omarchy kernel` confirms `linux-omarchy`
+boots, remove it with `omarchy pkg drop linux`.
+
 Make the first reboot after the rebuild with someone at the console, so a failed remote unlock
 costs nothing, and unlock it remotely as [Reboots](#reboots) says.
 
+### The frame buffer
+
+In the BIOS, set the GPU's dedicated frame buffer (UMA) to 0.5 GB. Auto gave the same 512 MiB on
+both hosts' current firmware, but a firmware update may change what Auto gives. The frame buffer,
+in bytes, prints `536870912`:
+
+```sh
+cat /sys/class/drm/card*/device/mem_info_vram_total
+```
+
 ### The GTT limit
 
-The GPU shares the host's RAM: the firmware carves out 512 MiB as its own, and the GPU reaches the
-rest as GTT, system memory it maps on demand. The kernel's TTM limit caps the GTT, and defaults to
-half of RAM. Set it to 112 GiB, which leaves about 13 GiB of the 125 GiB for the host; `amd-ttm`
-writes `options ttm pages_limit=29360128` to `/etc/modprobe.d/ttm.conf`. Answer `n` when it offers
-to reboot, since the boot images carry the option only once rebuilt. The rebuild also builds
+The GPU shares the host's RAM: the firmware carves out 512 MiB as its own
+([the frame buffer](#the-frame-buffer)), and the GPU reaches the rest as GTT, system memory it maps
+on demand. The kernel's TTM limit caps the GTT, and defaults to half of RAM. Set it to 112 GiB,
+which leaves about 13 GiB of the 125 GiB for the host; `amd-ttm` writes
+`options ttm pages_limit=29360128` to `/etc/modprobe.d/ttm.conf`. Answer `n` when it offers to
+reboot, since the boot images carry the option only once rebuilt. The rebuild also builds
 [remote unlock](#remote-unlock) into the boot images; check its output as that step says before
 rebooting:
 
@@ -339,7 +358,9 @@ ssh -J <a host that is up> -i ~/.ssh/id_ed25519_unlock root@<LAN address>
 ```
 
 The login runs `cryptsetup_shell`, which asks for the passphrase, opens the root, and stops the
-console's Plymouth prompt, so boot continues. The console prompt still works. A client keeps the
+console's Plymouth prompt, so boot continues. Once the root opens, it prints `cryptsetup: no
+process found`, which is expected under Omarchy's Plymouth splash: the console prompt is
+Plymouth's, not a waiting `cryptsetup`'s. The console prompt still works. A client keeps the
 connection in its own `~/.ssh/config`, never committed, such as:
 
 ```sshconfig
