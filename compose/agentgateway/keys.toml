@@ -1,3 +1,13 @@
 # The gateway's consumer keys, each a [[keys]] entry: consumer, its name; class, interactive or
 # bulk; and sha256, its key's SHA-256 hash in lowercase hex. No key itself is held here.
 # See context/gateway.md
+
+[[keys]]
+consumer = "go-ai"
+class = "interactive"
+sha256 = "372aa947020e2b2e730a3b7ee717757842984371aaea3f87a8c4001586a50214"
+
+[[keys]]
+consumer = "docinfer"
+class = "interactive"
+sha256 = "77a78b67f579cdbf1bfe2930c4be60899d94c58f580a3b3320ee3ff28763ac2a"
