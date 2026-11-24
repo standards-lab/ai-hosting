@@ -578,6 +578,8 @@ memory` then read the row's GTT at 2,176 MiB, and the pool's GTT used at 2.46 Gi
   to 77.10 achieved at least 99.9% with no error, its latency p90 at most 0.05 s but at 73.79,
   where it was 0.20 s; at 78.76, the throughput level's rate, the row achieved 77.96, 99.0%, with
   no error and a latency p90 of 0.20 s, as requests queued at the client behind the 16 in flight.
+  The limit is that level's achieved rate, 77.96, stated as 78: the rounding is under 0.1%, not a
+  margin.
 - The throughput level, 16 in flight, held 78.76 requests a second, within 0.5% of
   [e5-lan-sweep](#e5-lan-sweep)'s 78.4 at 16 streams.
 
