@@ -1,0 +1,3 @@
+# The gateway's consumer keys, each a [[keys]] entry: consumer, its name; class, interactive or
+# bulk; and sha256, its key's SHA-256 hash in lowercase hex. No key itself is held here.
+# See context/gateway.md

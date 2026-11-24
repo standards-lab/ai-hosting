@@ -4,7 +4,8 @@
 # command reports the same way and the host-class detection the commands that differ by class
 # share, and sources the rest: lib/profile.sh, the host-class profiles' validator and editor;
 # lib/row.sh, the container a row runs; lib/model.sh, the model store; lib/engine.sh, the rows a
-# host stands on; and lib/observe.sh, what those rows are doing. See context/hosting-suite.md.
+# host stands on; lib/observe.sh, what those rows are doing; and lib/gateway.sh, agentgateway's
+# config. See context/hosting-suite.md.
 
 # shellcheck source=lib/profile.sh
 source "$(dirname "${BASH_SOURCE[0]}")/profile.sh"
@@ -16,6 +17,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/model.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/engine.sh"
 # shellcheck source=lib/observe.sh
 source "$(dirname "${BASH_SOURCE[0]}")/observe.sh"
+# shellcheck source=lib/gateway.sh
+source "$(dirname "${BASH_SOURCE[0]}")/gateway.sh"
 
 # The closed list of host classes, which the profiles, the detection, and HOSTING_CLASS share.
 HOSTING_CLASSES=(gb10 strix-halo)
