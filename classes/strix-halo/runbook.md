@@ -364,7 +364,15 @@ ssh -J <a host that is up> -i ~/.ssh/id_ed25519_unlock root@<LAN address>
 The login runs `cryptsetup_shell`, which asks for the passphrase, opens the root, and stops the
 console's Plymouth prompt, so boot continues. Once the root opens, it prints `cryptsetup: no
 process found`, which is expected under Omarchy's Plymouth splash: the console prompt is
-Plymouth's, not a waiting `cryptsetup`'s. The console prompt still works. A client keeps the
+Plymouth's, not a waiting `cryptsetup`'s. The console prompt still works.
+
+Never interrupt the passphrase prompt with Ctrl+C. Interrupted, `cryptsetup` can leave a half-open
+`root` mapping, after which every unlock, remote or at the console, fails with `Device root already
+exists`, and the login offers no shell to close it. The host then waits for someone at its
+console to restart it: Ctrl+Alt+Del, or holding the power button, is safe, since the root was never
+mounted. Mistype the passphrase instead and `cryptsetup` asks again.
+
+A client keeps the
 connection in its own `~/.ssh/config`, never committed, such as:
 
 ```sshconfig
