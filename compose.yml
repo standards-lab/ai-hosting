@@ -1,0 +1,8 @@
+# The gateway's compose stack on gb10-2: agentgateway and the Postgres that holds its budgets and
+# request log, one included file per service.
+# See context/gateway.md
+name: gateway
+
+include:
+  - compose/postgres.yml
+  - compose/agentgateway.yml

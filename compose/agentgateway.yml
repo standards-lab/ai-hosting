@@ -1,0 +1,14 @@
+# agentgateway, the gateway in front of the hosted rows, reading its config from
+# compose/agentgateway/ read-only.
+# See context/gateway.md
+services:
+  agentgateway:
+    build:
+      context: agentgateway
+    command: ["-f", "/config/config.yaml"]
+    restart: unless-stopped
+    volumes:
+      - ./agentgateway:/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy

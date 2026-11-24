@@ -1,0 +1,7 @@
+# agentgateway's config: its Postgres and a read-only store, with no route yet.
+# See context/gateway.md
+config:
+  storage:
+    mode: readOnly
+  database:
+    url: postgres://agentgateway:agentgateway@postgres:5432/agentgateway
