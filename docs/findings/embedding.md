@@ -498,6 +498,40 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://framework-2:8003 \
   against about 9 over the relay in [e5-sweep-32](#e5-sweep-32): the earlier cells' low streams
   measured the path.
 
+## e5-lan-sweep-16
+
+The same row and client as [e5-lan-sweep](#e5-lan-sweep) with the cap at 16
+(`--max-num-seqs 16`), the profile's other settings unchanged; `tailscale ping framework-2`
+answered direct, 0 ms. From 2026-11-24T20:15:58Z, with
+[`bench/embedding-sweep.yaml`](../../bench/embedding-sweep.yaml), the target given as
+framework-2's tailnet address, since the client's name lookups had timed out a GuideLLM worker at
+startup twice that day:
+
+```sh
+GUIDELLM__SPEC__BACKEND__TARGET=http://<framework-2's tailnet address>:8003 \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/embedding-sweep.yaml \
+  --backend kind=openai_http,model=embedding \
+  --tokenizer kind=huggingface_auto,model=intfloat/multilingual-e5-large \
+  --output kind=json,path=.state/bench/embed-sweep-cap16-framework-2-lan.json
+```
+
+| Streams | Level, UTC | ok/err/inc | req/s | Latency median s | Latency p90 s | Prompt tok/s | Floor |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 20:16:08 to 20:16:38 | 1651/0/0 | 55.000 | 0.02 | 0.02 | 28,105 | meets |
+| 4 | 20:16:44 to 20:17:14 | 2458/0/3 | 81.900 | 0.05 | 0.05 | 41,851 | meets |
+| 16 | 20:17:20 to 20:17:50 | 2329/0/8 | 77.367 | 0.20 | 0.21 | 39,534 | meets |
+| 32 | 20:17:56 to 20:18:26 | 2193/0/32 | 73.100 | 0.43 | 0.44 | 37,354 | meets |
+| 64 | 20:18:33 to 20:19:03 | 2206/0/48 | 73.000 | 0.87 | 0.87 | 37,303 | meets |
+| 128 | 20:19:09 to 20:19:39 | 2193/0/128 | 73.100 | 1.75 | 1.75 | 37,354 | meets |
+
+- Up to 16 streams the row matches cap 32 within 1.5%.
+- Past the cap it holds 73 requests a second at 32, 64, and 128 streams, where cap 32 fell to 68.3
+  and then 62: the row queues what it doesn't run instead of batching it, 7% more at 32 streams
+  and 17% more at 64 and 128, with a lower latency median.
+- No level errs, and every level meets embedding's floor.
+- The cap is the load target's 16 streams; the [rate sweep](#e5-rate-sweep), which held 16 in
+  flight, sets the limit either way.
+
 ## e5-rate-sweep
 
 The row and client of [e5-lan-sweep](#e5-lan-sweep); `tailscale ping framework-2`, right before
