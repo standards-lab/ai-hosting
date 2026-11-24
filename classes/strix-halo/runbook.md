@@ -46,20 +46,23 @@ Run them once on each host, in order, from the clone, after
 
 ### The AMD tools
 
-Two packages from Arch's `extra` repository: `amd-debug-tools` provides `amd-ttm`, which
+Two packages from Arch's `extra` repository, installed through Omarchy's package helper, which
+installs only what is missing: `amd-debug-tools` provides `amd-ttm`, which
 [the GTT limit](#the-gtt-limit) runs, and `amdgpu_top` is what `hosting engine memory` reads:
 
 ```sh
-sudo pacman -S --needed amd-debug-tools amdgpu_top
+omarchy pkg add amd-debug-tools amdgpu_top
 ```
 
 ### Docker without sudo
 
-The account joins the `docker` group, so the suite runs Docker without `sudo`, and Docker starts
-now and at every boot; the group takes effect at the next login:
+Omarchy's sudoless Docker setup adds the account to the `docker` group, so the suite runs Docker
+without `sudo`; the group takes effect after a reboot, so decline its offer to reboot now, since
+[the GTT limit](#the-gtt-limit) ends in one. Omarchy enables only Docker's socket, so enable the
+service too, which starts each row's container at boot:
 
 ```sh
-sudo usermod -aG docker "$(id -un)"
+omarchy setup security sudoless docker
 sudo systemctl enable --now docker
 ```
 
@@ -156,7 +159,7 @@ to reboot, since the boot images carry the option only once rebuilt:
 ```sh
 sudo amd-ttm --set 112
 sudo limine-mkinitcpio
-sudo reboot
+omarchy system reboot
 ```
 
 amdgpu's own `gttsize` option is deprecated and unset: `/etc/modprobe.d/amdgpu.conf` holds none.
