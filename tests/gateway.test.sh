@@ -11,10 +11,12 @@ fixture_classes=$repo/tests/gateway/classes
 interactive_key=fixture-interactive-key
 bulk_key=fixture-bulk-key
 
-# Points the render at a copy of compose/agentgateway and the fixture class profiles.
+# Points the render at a copy of compose/agentgateway, with an empty key list, and the fixture class
+# profiles.
 use_fixtures() {
   cp -R "$repo/compose/agentgateway" "$tmp/agentgateway"
   rm -f "$tmp/agentgateway/config.yaml"
+  grep '^#' "$repo/compose/agentgateway/keys.toml" >"$tmp/agentgateway/keys.toml"
   HOSTING_GATEWAY=$tmp/agentgateway
   HOSTING_GATEWAY_STATE=$tmp/state
   HOSTING_PROFILES=$fixture_classes
@@ -101,7 +103,7 @@ test_each_key_carries_its_hash_consumer_and_its_class_budget() {
 sha256:$(hash_of "$bulk_key") batch bulk 1000000 Block"
 }
 
-test_the_committed_key_list_renders_no_key() {
+test_an_empty_key_list_renders_no_key() {
   use_fixtures
   render
   assert_equal status "$status" 0

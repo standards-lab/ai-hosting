@@ -10,11 +10,12 @@ source "$(dirname "$0")/lib.sh"
 # shellcheck source=lib/hosting.sh
 source "$repo/lib/hosting.sh"
 
-# Readies a copy of the compose project and a consumer repository, consumer, whose fnox.toml has
+# Readies a copy of the compose project with an empty key list and a consumer repository, consumer,
 # an age provider and no AI_GATEWAY_TOKEN, with fnox stubbed to keep its stdin in fnox-stdin.
 ready() {
   cp -R "$repo/compose.yml" "$repo/compose" "$clone/"
   keys=$clone/compose/agentgateway/keys.toml
+  grep '^#' "$repo/compose/agentgateway/keys.toml" >"$keys"
   consumer=$tmp/consumer
   mkdir -p "$consumer"
   cat >"$consumer/fnox.toml" <<'EOF'
