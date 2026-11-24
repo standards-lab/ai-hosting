@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# hosting:summary=Shows the gateway's stack and flags agentgateway when it is stranded
+# `hosting gateway status`: refuses a host whose class isn't gb10, gb10-2's, before it touches
+# Docker; then prints each of the stack's containers with its state and status, and flags
+# agentgateway, the one container bound to gb10-2's tailnet address, when it is stranded, with the
+# command that recovers it (hosting_gateway_status in lib/gateway.sh). Exits 1 when the stack has
+# no container, any is not running, or agentgateway is stranded. Changes nothing.
+# See context/gateway.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "gateway status takes no argument" "gateway status"
+fi
+
+hosting_gateway_host
+hosting_gateway_status

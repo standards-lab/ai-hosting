@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# hosting:summary=Stops the gateway's stack, keeping its volumes
+# `hosting gateway down`: refuses a host whose class isn't gb10, gb10-2's, before it touches
+# Docker; then stops and removes the stack's containers and network, keeping its volumes, so
+# Postgres's budgets and request log and the telemetry stores survive. hosting gateway reset drops
+# them. See context/gateway.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "gateway down takes no argument" "gateway down"
+fi
+
+hosting_gateway_host
+hosting_gateway_compose down

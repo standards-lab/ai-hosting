@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# hosting:summary=Stops the gateway's stack and drops its volumes
+# `hosting gateway reset`: refuses a host whose class isn't gb10, gb10-2's, before it touches
+# Docker; then stops and removes the stack's containers and network and drops its volumes:
+# Postgres's budgets and request log, and the telemetry stores. hosting gateway down keeps them.
+# See context/gateway.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "gateway reset takes no argument" "gateway reset"
+fi
+
+hosting_gateway_host
+hosting_gateway_compose down --volumes

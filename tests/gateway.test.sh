@@ -16,7 +16,9 @@ use_fixtures() {
   cp -R "$repo/compose/agentgateway" "$tmp/agentgateway"
   rm -f "$tmp/agentgateway/config.yaml"
   HOSTING_GATEWAY=$tmp/agentgateway
+  HOSTING_GATEWAY_STATE=$tmp/state
   HOSTING_PROFILES=$fixture_classes
+  HOSTING_ADDRESS=192.0.2.10
 }
 
 # Prints the SHA-256 hash of the key given, as lowercase hex.
@@ -139,6 +141,7 @@ test_the_render_holds_no_secret() {
   [[ $out != *"$interactive_key"* && $out != *"$bulk_key"* ]] || fail "a key is in the render"
   [[ $out != *fixture-account* ]] || fail "the account's name is in the render"
   config=$(hosting_yq -o json '.' <<<"$out")
+  # shellcheck disable=SC2016 # The config holds ${AZURE_FOUNDRY_ACCOUNT} unexpanded.
   assert_equal "azure hosts" "$(jq -r '[.routes[].backends[0].ai.groups[1].providers[0].hostOverride
     // empty] | unique | join(" ")' <<<"$config")" \
     '${AZURE_FOUNDRY_ACCOUNT}.services.ai.azure.com:443'
@@ -224,6 +227,7 @@ test_a_config_that_validates_is_renamed_into_place_readable_by_the_image_user() 
   use_fixtures
   write_keys
   write_stub docker
+  write_stub tailscale 'echo 192.0.2.20'
   run hosting_gateway_render_in_place
   assert_equal status "$status" 0
   assert_equal config "$(<"$HOSTING_GATEWAY/config.yaml")" "$(hosting_gateway_render)"

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# hosting:summary=Validates agentgateway's rendered config with the pinned image, changing nothing
+# `hosting gateway validate`: refuses a host whose class isn't gb10, gb10-2's, before it touches
+# Docker, and a clone with no rendered config; then validates compose/agentgateway/config.yaml
+# with the pinned agentgateway image on no network (hosting_gateway_validate in lib/gateway.sh),
+# changing nothing. See context/gateway.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "gateway validate takes no argument" "gateway validate"
+fi
+
+hosting_gateway_host
+if [[ ! -f $HOSTING_GATEWAY/config.yaml ]]; then
+  echo "hosting: $HOSTING_GATEWAY/config.yaml is missing; hosting gateway render writes it" >&2
+  exit 1
+fi
+hosting_gateway_validate "$HOSTING_GATEWAY/config.yaml"
+echo "$HOSTING_GATEWAY/config.yaml is valid"

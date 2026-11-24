@@ -5,23 +5,56 @@
 # metrics, and memory consume it. Sourced by lib/hosting.sh. See context/hosting-suite.md and
 # context/engines.md.
 
-# Prints one tab-separated line a container carrying a row label, sorted by alias: its alias, ID,
-# name, state, the address it is configured to listen on as <host>:<port> ("-" when it binds
-# none), the count of its published ports, and the count of its networks. Prints nothing when the
-# host has none, and fails when Docker does.
+# Prints one tab-separated line a container carrying a row label, sorted by alias, as
+# hosting_observe_inspect does. Prints nothing when the host has none, and fails when Docker does.
 hosting_observe_rows() {
   local ids
   ids=$(docker container ls --all --quiet --filter "label=$HOSTING_ROW_LABEL") || return
   [[ -n $ids ]] || return 0
   # shellcheck disable=SC2086 # One container ID a word.
-  docker container inspect $ids | jq -r --arg label "$HOSTING_ROW_LABEL" '.[]
+  hosting_observe_inspect "$HOSTING_ROW_LABEL" $ids | sort
+}
+
+# Prints one tab-separated line for each container ID given: the value of the label given, its ID,
+# name, state, the address it is configured to listen on as <host>:<port> ("-" when it binds
+# none), the count of its published ports, and the count of its networks:
+# hosting_observe_inspect <label> <id>... Fails when Docker does.
+hosting_observe_inspect() {
+  docker container inspect "${@:2}" | jq -r --arg label "$1" '.[]
     | ([(.HostConfig.PortBindings // {})[] | (. // [])[]] | first) as $bind
     | [.Config.Labels[$label], .Id[0:12], (.Name | ltrimstr("/")), .State.Status,
         (if $bind then "\(if ($bind.HostIp // "") == "" then "127.0.0.1" else $bind.HostIp end):\($bind.HostPort)"
          else "-" end),
         ([(.NetworkSettings.Ports // {})[] | (. // [])[]] | length),
         (.NetworkSettings.Networks // {} | length)]
-    | @tsv' | sort
+    | @tsv'
+}
+
+# Prints the flag for a running container that is stranded, with the command that recovers it,
+# and fails, printing nothing, for one that isn't: hosting_observe_stranded <name> <address>
+# <published> <networks>, as hosting_observe_inspect gives them. A container is stranded on no
+# network, or on one while publishing no port.
+hosting_observe_stranded() {
+  local bound=$2
+  [[ $2 != - ]] || bound="its address"
+  if (($4 == 0)); then
+    echo "$1 is stranded: it is on no network, so $bound is published nowhere;" \
+      "docker network connect bridge $1 reattaches it"
+  elif (($3 == 0)); then
+    echo "$1 is stranded: its start couldn't bind $bound, so it publishes no port;" \
+      "docker restart $1 binds it, once the host holds the address"
+  else
+    return 1
+  fi
+}
+
+# Prints the stranded flags given (hosting_observe_stranded) after a blank line, with the root
+# step that keeps a container from starting before the host holds its address.
+hosting_observe_flags() {
+  echo
+  printf '%s\n' "$@"
+  echo "net.ipv4.ip_nonlocal_bind = 1, the root step in the class's runbook, keeps a" \
+    "container from starting before the host holds its address"
 }
 
 # Prints the body the row at the address given answers on the path given: hosting_observe_get
@@ -167,7 +200,7 @@ hosting_observe_metrics() {
 # network or publishing no port, printing the command that recovers it.
 # Fails when any row is not running and healthy, or none could be read.
 hosting_observe_status() {
-  local rows alias id name state address published networks health bound fail=0 flags=()
+  local rows alias id name state address published networks health flag fail=0 flags=()
   rows=$(hosting_observe_rows) || return
   printf '%-12s %-20s %-10s %-10s %s\n' ROW CONTAINER STATE HEALTH ADDRESS
   while IFS=$'\t' read -r alias id name state address published networks; do
@@ -182,14 +215,8 @@ hosting_observe_status() {
     [[ $health == healthy ]] || fail=1
     printf '%-12s %-20s %-10s %-10s %s\n' "$alias" "$name" "$state" "$health" "$address"
     [[ $state == running ]] || continue
-    bound=$address
-    [[ $address != - ]] || bound="its address"
-    if ((networks == 0)); then
-      flags+=("$name is stranded: it is on no network, so $bound is published nowhere;\
- docker network connect bridge $name reattaches it")
-    elif ((published == 0)); then
-      flags+=("$name is stranded: its start couldn't bind $bound, so it publishes no port;\
- docker restart $name binds it, once the host holds the address")
+    if flag=$(hosting_observe_stranded "$name" "$address" "$published" "$networks"); then
+      flags+=("$flag")
     fi
   done <<<"$rows"
   for alias in $(hosting_record); do
@@ -199,10 +226,7 @@ hosting_observe_status() {
     fi
   done
   if ((${#flags[@]})); then
-    echo
-    printf '%s\n' "${flags[@]}"
-    echo "net.ipv4.ip_nonlocal_bind = 1, the root step in the class's runbook, keeps a" \
-      "container from starting before the host holds its address"
+    hosting_observe_flags "${flags[@]}"
   fi
   return "$fail"
 }
