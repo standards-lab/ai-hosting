@@ -1,5 +1,5 @@
 # Postgres's image pin, its development credential, and its health check.
-# See context/gateway.md
+# See docs/gateway.md
 FROM postgres:19.0-alpine
 
 ENV POSTGRES_USER=agentgateway \

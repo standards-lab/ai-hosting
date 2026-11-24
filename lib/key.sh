@@ -6,7 +6,7 @@
 # list; and the list of the consumers holding one. The key list is the gateway's one record of
 # issued keys, validated as the render validates it (hosting_gateway_keys in lib/gateway.sh), and
 # no key is printed, put on a command line, or written to disk unencrypted. Sourced by
-# lib/hosting.sh. See context/gateway.md.
+# lib/hosting.sh. See docs/gateway.md.
 
 # The variable a consumer's fnox.toml holds its key under.
 HOSTING_KEY_VARIABLE=AI_GATEWAY_TOKEN
@@ -65,16 +65,15 @@ hosting_key_generate() {
 }
 
 # Prints the SHA-256 hash of the key given as lowercase hex, agentgateway's hash of a presented
-# key: of its exact characters, no newline. printf is a builtin, so the key reaches no command's
-# arguments.
+# key: of its exact characters, no newline. The key reaches no command's arguments.
 hosting_key_hash() {
   printf %s "$1" | sha256sum | cut -d ' ' -f 1
 }
 
 # Writes the key list given, the key list's JSON, to compose/agentgateway/keys.toml in place of
-# the old one, keeping the old one's leading comment lines, once a copy validates against the template
-# given (hosting_gateway_keys). Fails, removing the copy and leaving the key list as it was, when
-# the copy is invalid: hosting_key_write <keys> <template>.
+# the old one, keeping the old one's leading comment lines, once a copy validates against the
+# template given (hosting_gateway_keys). Fails, removing the copy and leaving the key list as it
+# was, when the copy is invalid: hosting_key_write <keys> <template>.
 hosting_key_write() {
   local copy
   copy=$(mktemp "$HOSTING_GATEWAY/keys.toml.XXXXXX") || return

@@ -1,5 +1,5 @@
 # Grafana, over Tempo, Mimir, and Loki, published on the host's loopback only.
-# See context/gateway.md
+# See docs/gateway.md
 services:
   grafana:
     build:

@@ -5,7 +5,7 @@
 # into; then reads the Foundry key and account from fnox.toml, writes the key's secret file under
 # .state/gateway, and builds and starts the stack, waiting for it, with the account in compose's
 # environment and the render's addresses applied (hosting_gateway_up in lib/gateway.sh). The key
-# reaches no command line and no command's environment. See context/gateway.md.
+# reaches no command line and no command's environment. See docs/gateway.md.
 set -euo pipefail
 
 # shellcheck source=lib/hosting.sh

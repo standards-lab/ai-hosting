@@ -1,5 +1,5 @@
 # Mimir's config: a single binary on local storage.
-# See context/gateway.md
+# See docs/gateway.md
 multitenancy_enabled: false
 
 server:

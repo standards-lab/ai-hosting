@@ -7,7 +7,7 @@
 # repository's fnox.toml as AI_GATEWAY_TOKEN, encrypted to that file's own age recipients, and
 # writes only its SHA-256 hash and class into compose/agentgateway/keys.toml (hosting_key_issue in
 # lib/key.sh). Runs on any host, the architect's laptop among them. Prints no key, and commits
-# nothing. See context/gateway.md.
+# nothing. See docs/gateway.md.
 set -euo pipefail
 
 # shellcheck source=lib/hosting.sh

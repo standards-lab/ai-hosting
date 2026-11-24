@@ -1,5 +1,5 @@
 # Loki's config: a single binary on local storage.
-# See context/gateway.md
+# See docs/gateway.md
 auth_enabled: false
 
 server:

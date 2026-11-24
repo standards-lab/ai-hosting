@@ -3,7 +3,7 @@
 # `hosting gateway validate`: refuses a host whose class isn't gb10, gb10-2's, before it touches
 # Docker, and a clone with no rendered config; then validates compose/agentgateway/config.yaml
 # with the pinned agentgateway image on no network (hosting_gateway_validate in lib/gateway.sh),
-# changing nothing. See context/gateway.md.
+# changing nothing. See docs/gateway.md.
 set -euo pipefail
 
 # shellcheck source=lib/hosting.sh

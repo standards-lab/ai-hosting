@@ -1,6 +1,6 @@
 # Loki, the log store, fed by the Collector and read by Grafana on the compose network; it
 # publishes no port.
-# See context/gateway.md
+# See docs/gateway.md
 services:
   loki:
     build:

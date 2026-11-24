@@ -1,5 +1,5 @@
 # Loki's image pin and its config.
-# See context/gateway.md
+# See docs/gateway.md
 FROM grafana/loki:3.7.10
 
 COPY loki.yaml /etc/loki/loki.yaml

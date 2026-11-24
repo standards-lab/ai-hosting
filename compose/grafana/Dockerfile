@@ -1,5 +1,5 @@
 # Grafana's image pin, its anonymous admin access, its datasources, and its health check.
-# See context/gateway.md
+# See docs/gateway.md
 FROM grafana/grafana:13.3.2
 
 ENV GF_AUTH_ANONYMOUS_ENABLED=true \

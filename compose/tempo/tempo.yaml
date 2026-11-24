@@ -1,6 +1,6 @@
 # Tempo's config: a single binary on local storage, taking OTLP gRPC from the Collector and keeping
 # blocks 24 h.
-# See context/gateway.md
+# See docs/gateway.md
 server:
   http_listen_port: 3200
 

@@ -5,7 +5,7 @@
 # agentgateway, the one container bound to gb10-2's tailnet address, when it is stranded, with the
 # command that recovers it (hosting_gateway_status in lib/gateway.sh). Exits 1 when the stack has
 # no container, any is not running, or agentgateway is stranded. Changes nothing.
-# See context/gateway.md.
+# See docs/gateway.md.
 set -euo pipefail
 
 # shellcheck source=lib/hosting.sh

@@ -3,7 +3,7 @@
 # `hosting gateway down`: refuses a host whose class isn't gb10, gb10-2's, before it touches
 # Docker; then stops and removes the stack's containers and network, keeping its volumes, so
 # Postgres's budgets and request log and the telemetry stores survive. hosting gateway reset drops
-# them. See context/gateway.md.
+# them. See docs/gateway.md.
 set -euo pipefail
 
 # shellcheck source=lib/hosting.sh

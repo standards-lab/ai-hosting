@@ -7,7 +7,7 @@
 # host's tailnet address and the address the consumer port is published on, and only then renames
 # the copy to compose/agentgateway/config.yaml (hosting_gateway_render_in_place in lib/gateway.sh).
 # Leaves the config, the override, and the env file as they were when any step fails. Prints no
-# address. See context/gateway.md.
+# address. See docs/gateway.md.
 set -euo pipefail
 
 # shellcheck source=lib/hosting.sh

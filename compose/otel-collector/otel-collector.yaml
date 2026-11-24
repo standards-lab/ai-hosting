@@ -1,5 +1,5 @@
 # The Collector's pipelines: traces to Tempo, metrics to Mimir, and logs to Loki.
-# See context/gateway.md
+# See docs/gateway.md
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133

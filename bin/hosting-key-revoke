@@ -3,7 +3,7 @@
 # `hosting key revoke <consumer>`: validates the consumer's name and the key list, refusing a
 # consumer the list doesn't hold, then deletes its entry from compose/agentgateway/keys.toml
 # (hosting_key_revoke in lib/key.sh); the gateway drops its key at the next hosting gateway render
-# on gb10-2. Runs on any host, and commits nothing. See context/gateway.md.
+# on gb10-2. Runs on any host, and commits nothing. See docs/gateway.md.
 set -euo pipefail
 
 # shellcheck source=lib/hosting.sh

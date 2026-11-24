@@ -1,6 +1,6 @@
 # Grafana's datasources: Tempo, Mimir, and Loki by their compose service names, with explicit uids
 # that link them to one another.
-# See context/gateway.md
+# See docs/gateway.md
 apiVersion: 1
 
 datasources:

@@ -5,7 +5,7 @@
 # with the pinned agentgateway image; the two together, which put a config in place, with the
 # compose override holding each row host's tailnet address, only once it validates; and the
 # compose stack the gateway group runs on gb10-2, its Foundry key read from fnox. Sourced by
-# lib/hosting.sh. See context/gateway.md.
+# lib/hosting.sh. See docs/gateway.md.
 
 # The clone's root, holding the stack's compose.yml and fnox.toml.
 HOSTING_GATEWAY_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -107,7 +107,7 @@ hosting_gateway_render() {
   fi
   ((fail == 0)) || return 1
   echo "# agentgateway's config, rendered by lib/gateway.sh from config.template.yaml."
-  echo "# See context/gateway.md"
+  echo "# See docs/gateway.md"
   # shellcheck disable=SC2016 # $rows, $keys, and $overflow are jq's, bound by --argjson.
   hosting_gateway_jq 'render($rows; $keys; $overflow)' --argjson rows "$rows" \
     --argjson keys "$keys" --argjson overflow "$overflow" <<<"$template" |
@@ -186,11 +186,11 @@ hosting_gateway_hosts() {
 
 # Writes the stack's compose override and env file into HOSTING_GATEWAY_STATE from the config at
 # the path given, after hosting_tailnet_address: the override, compose.override.yml, gives
-# agentgateway an extra_hosts entry for each row host the config names (hosting_gateway_hosts),
-# since a container on gb10-2 can't resolve a tailnet short name; the env file, compose.env, sets
-# GATEWAY_ADDRESS, where the consumer port is published, to this host's tailnet address. That one
-# lookup also serves the row host this host is, by its short name; tailscale gives each other
-# host's. Prints no address, and fails, writing neither file, when a host has none.
+# agentgateway an extra_hosts entry for each row host the config names (hosting_gateway_hosts);
+# the env file, compose.env, sets GATEWAY_ADDRESS, where the consumer port is published, to this
+# host's tailnet address. That one lookup also serves the row host this host is, by its short
+# name; tailscale gives each other host's. Prints no address, and fails, writing neither file,
+# when a host has none. See docs/gateway.md, "Operating the stack on gb10-2".
 hosting_gateway_addresses() {
   local hosts host address entries=() override env
   hosts=$(hosting_gateway_hosts "$1") || return
@@ -212,7 +212,7 @@ hosting_gateway_addresses() {
   env=$(mktemp "$HOSTING_GATEWAY_STATE/compose.env.XXXXXX") || return
   {
     echo "# The gateway's compose override, written by hosting gateway render: each row host's"
-    echo "# tailnet address. See context/gateway.md"
+    echo "# tailnet address. See docs/gateway.md"
     echo "services:"
     echo "  agentgateway:"
     if ((${#entries[@]})); then
@@ -254,8 +254,8 @@ hosting_gateway_secret() {
 
 # Writes the key given to the Foundry key's secret file, azure-foundry-key in
 # HOSTING_GATEWAY_STATE, which compose/agentgateway.yml names: 0644, so agentgateway's uid 65532
-# reads it, in the 0700 directory, since Compose outside swarm ignores a secret's uid and mode.
-# The key reaches no command's arguments.
+# reads it, in the 0700 directory. The key reaches no command's arguments. See docs/gateway.md,
+# "Secrets and Postgres".
 hosting_gateway_key_file() {
   local file
   mkdir -p "$HOSTING_GATEWAY_STATE" || return
@@ -269,9 +269,8 @@ hosting_gateway_key_file() {
 # (hosting_gateway_render_in_place) has put the config, the override, and the env file in place;
 # reads the Foundry key and account from fnox (hosting_gateway_secret) and writes the key's secret
 # file (hosting_gateway_key_file); then runs compose with the account in its environment, which
-# the key never enters. Builds with buildx's default attestations off, since Compose drops a
-# service's provenance: false, and an attestation's build times would give an unchanged Dockerfile
-# a new image ID and recreate its container on every up. See context/gateway.md
+# the key never enters, and buildx's default attestations off. See docs/gateway.md, "Operating
+# the stack on gb10-2".
 hosting_gateway_up() {
   local file key account
   for file in "$HOSTING_GATEWAY/config.yaml" "$HOSTING_GATEWAY_STATE/compose.override.yml" \

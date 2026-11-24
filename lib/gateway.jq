@@ -1,7 +1,7 @@
 # agentgateway's config render, a jq module over the config template decoded to JSON (yq -o json
 # 'explode(.)'): the validators of the key list and the overflow switches, and the render that
 # fills the template with the rows, the keys, and the switches. Included by lib/gateway.sh. See
-# context/gateway.md.
+# docs/gateway.md.
 
 include "profile";
 
