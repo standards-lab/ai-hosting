@@ -1,0 +1,98 @@
+# The Collector's pipelines: traces to Tempo, metrics to Mimir, and logs to Loki.
+# See context/gateway.md
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+  prometheus/agentgateway:
+    config:
+      scrape_configs:
+        - job_name: agentgateway
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["agentgateway:15020"]
+
+  prometheus/self:
+    config:
+      scrape_configs:
+        - job_name: otel-collector
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["localhost:8888"]
+
+  tcp_log:
+    listen_address: 0.0.0.0:4319
+    resource:
+      service.name: go-web-service
+    operators:
+      - type: json_parser
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: "2006-01-02T15:04:05.999999999Z07:00"
+        severity:
+          parse_from: attributes.level
+        trace:
+          trace_id:
+            parse_from: attributes.trace_id
+          span_id:
+            parse_from: attributes.span_id
+      - type: move
+        if: 'attributes.msg != nil'
+        from: attributes.msg
+        to: body
+      - type: remove
+        if: 'attributes.time != nil'
+        field: attributes.time
+      - type: remove
+        if: 'attributes.level != nil'
+        field: attributes.level
+      - type: remove
+        if: 'attributes.trace_id != nil'
+        field: attributes.trace_id
+      - type: remove
+        if: 'attributes.span_id != nil'
+        field: attributes.span_id
+
+processors:
+  batch: {}
+
+exporters:
+  otlp_grpc/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  prometheus_remote_write/mimir:
+    endpoint: http://mimir:9009/api/v1/push
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+
+service:
+  extensions: [health_check]
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: localhost
+                port: 8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp_grpc/tempo]
+    metrics:
+      receivers: [otlp, prometheus/agentgateway, prometheus/self]
+      processors: [batch]
+      exporters: [prometheus_remote_write/mimir]
+    logs:
+      receivers: [tcp_log]
+      processors: [batch]
+      exporters: [otlp_http/loki]

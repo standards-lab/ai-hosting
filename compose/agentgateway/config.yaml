@@ -1,7 +1,12 @@
-# agentgateway's config: its Postgres and a read-only store, with no route yet.
+# agentgateway's config: its Postgres, a read-only store, and tracing to the Collector, with no
+# route yet.
 # See context/gateway.md
 config:
   storage:
     mode: readOnly
   database:
     url: postgres://agentgateway:agentgateway@postgres:5432/agentgateway
+  tracing:
+    otlpEndpoint: http://otel-collector:4317
+    otlpProtocol: grpc
+    randomSampling: "true"

@@ -1,0 +1,21 @@
+# Grafana, over Tempo, Mimir, and Loki, published on the host's loopback only.
+# See context/gateway.md
+services:
+  grafana:
+    build:
+      context: grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:3000"
+    volumes:
+      - gateway-grafana:/var/lib/grafana
+    depends_on:
+      tempo:
+        condition: service_started
+      mimir:
+        condition: service_started
+      loki:
+        condition: service_started
+
+volumes:
+  gateway-grafana:

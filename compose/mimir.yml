@@ -1,0 +1,13 @@
+# Mimir, the metrics store, fed by the Collector and read by Grafana on the compose network; it
+# publishes no port.
+# See context/gateway.md
+services:
+  mimir:
+    build:
+      context: mimir
+    restart: unless-stopped
+    volumes:
+      - gateway-mimir:/data
+
+volumes:
+  gateway-mimir:

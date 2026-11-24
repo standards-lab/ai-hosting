@@ -1,0 +1,15 @@
+# The OpenTelemetry Collector, the stack's telemetry ingress on the compose network: agentgateway's
+# spans and stats, sent on to Tempo, Mimir, and Loki. It publishes no port.
+# See context/gateway.md
+services:
+  otel-collector:
+    build:
+      context: otel-collector
+    restart: unless-stopped
+    depends_on:
+      tempo:
+        condition: service_started
+      mimir:
+        condition: service_started
+      loki:
+        condition: service_started

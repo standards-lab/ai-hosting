@@ -1,5 +1,5 @@
 # agentgateway, the gateway in front of the hosted rows, reading its config from
-# compose/agentgateway/ read-only.
+# compose/agentgateway/ read-only, with its UI published on the host's loopback only.
 # See context/gateway.md
 services:
   agentgateway:
@@ -7,8 +7,12 @@ services:
       context: agentgateway
     command: ["-f", "/config/config.yaml"]
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
     volumes:
       - ./agentgateway:/config:ro
     depends_on:
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
