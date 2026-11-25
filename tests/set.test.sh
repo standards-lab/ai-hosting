@@ -55,7 +55,7 @@ test_an_edit_that_fails_validation_writes_nothing() {
   assert_equal status "$status" 1
   assert_equal stdout "$out" ""
   assert_equal stderr "$err" \
-    "hosting: classes/gb10/profile.toml: rows[0].queue_limit: 24 is not twice the cap, 10"
+    "hosting: classes/gb10/profile.toml: rows[0].queue_limit_reason: required for a queue limit other than twice the cap, 10"
   assert_unchanged
 }
 

@@ -44,7 +44,8 @@ Each `[[rows]]` table is one vLLM container serving one model under its alias.
 | `context_reason` | yes | Why the row runs at `context`. | |
 | `cap` | yes | The sequences the row serves at once, a positive integer. | `--max-num-seqs` |
 | `cap_reason` | yes | Why the row runs at `cap`. | |
-| `queue_limit` | no | The requests the row admits in flight, running and waiting, before it answers 503: twice `cap`. Without it the row queues without bound. | `--max-num-queued-reqs` |
+| `queue_limit` | no | The requests the row admits in flight, running and waiting, before it answers 503: a whole number of at least `cap`, twice `cap` unless `queue_limit_reason` says why not. Without it the row queues without bound. | `--max-num-queued-reqs` |
+| `queue_limit_reason` | when `queue_limit` isn't twice `cap` | Why the row's queue limit isn't twice its cap. Only such a row has it. | |
 | `fraction` | yes | The share of the GPU's memory the row reserves, over 0 and at most 1. | `--gpu-memory-utilization` |
 | `fraction_reason` | yes | Why the row reserves `fraction`. | |
 | `dims` | on an embedding row | The embedding's width, as the card states it. Only an `embedding` row has it. | |
@@ -105,7 +106,8 @@ reads a profile validates it first. It reports every error at once, one line eac
 - an alias outside the four;
 - an alias, port, or container that an earlier row already has;
 - a fraction over 1;
-- a queue limit that isn't twice the cap;
+- a queue limit under the cap, one that isn't twice the cap without `queue_limit_reason`, and
+  `queue_limit_reason` on a row whose queue limit is twice the cap or that has none;
 - a context over the card's;
 - a missing reason: for the cap, context, or fraction, or for free flags;
 - a free flag that a typed field or the suite sets: `--host`, `--port`, `--served-model-name`,
