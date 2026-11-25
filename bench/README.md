@@ -2,8 +2,8 @@
 
 The bench measures a host's rows from a client on the hosts' LAN, the laptop at home: GuideLLM
 drives load against a row, and MTEB scores an embedding row's retrieval. It is not part of the
-suite, and no host installs it. The cells in `docs/findings/` run on it; a repeatable measuring
-convention is planned for the `upgrades` task ([host-classes.md](../context/host-classes.md)).
+suite, and no host installs it. The cells in `docs/findings/` run on it, and so do the measures of
+[the upgrade convention](../docs/upgrades.md).
 
 ## The environment
 
@@ -117,13 +117,14 @@ images. The requests and the 90 s level match spike-model-layout's vision cells
 level at 4. A level stops at 90 s, and the requests still in flight count as incomplete.
 
 Each agent request is 65,536 synthetic prompt tokens to `/v1/chat/completions`, each reply exactly
-256 tokens: GuideLLM sends `max_completion_tokens` with `ignore_eos` whenever `output_tokens` is set,
-so every request generates its full 256. Each of the 8 streams sends one request, all 8 at once,
-524,288 prompt tokens in all, so the level reads whether the row's KV cache holds 8 long sessions at
-once. The requests match spike-model-layout's agent capacity cell (`bench/agent-vllm-capacity.yaml`,
-B-cap and F-cap in its `docs/findings/agent-vllm.md`, H), which took 225 s on a GB10; a level stops
-at 570 s, and the requests still in flight then count as incomplete. The row must give a sequence
-more than 65,792 tokens, which the agent row's context of 131,072 does.
+256 tokens: GuideLLM sends `max_completion_tokens` with `ignore_eos` whenever `output_tokens` is
+set, so every request generates its full 256. Each of the 8 streams sends one request, all 8 at
+once, 524,288 prompt tokens in all, so the level reads whether the row's KV cache holds 8 long
+sessions at once. The requests match spike-model-layout's agent capacity cell
+(`bench/agent-vllm-capacity.yaml`, B-cap and F-cap in its `docs/findings/agent-vllm.md`, H), which
+took 225 s on a GB10. A level stops at 570 s, and the requests still in flight then count as
+incomplete. The row's context must hold the 65,792 tokens of a prompt and its reply; the agent
+row's 131,072 does.
 
 ## Running a cell
 
@@ -245,34 +246,34 @@ earlier pair cell was two runs started together, `audio.yaml` against the audio 
 
 ### The cell runner
 
-[`cell.sh`](cell.sh) runs one concurrent scenario against one row, one level at a time, each level a
-GuideLLM run of its own, from the repository root in the bench environment:
+[`cell.sh`](cell.sh) runs one concurrent scenario against one row, one level at a time, each
+level a GuideLLM run of its own. It runs from the repository root in the bench environment:
 
 ```sh
 MISE_ENV=bench mise exec -- bench/cell.sh --host <host> --alias <alias> --scenario <file> \
   --cell <cell> [--output <dir>] <streams>[:<rows>]...
 ```
 
-The row is the one its alias names in the class profiles, which give its port and its model's
-tokenizer, the base model's when the profile names one; the host goes by its short name. Each level
-is a count of streams, given in the order they run, no count twice. A level of a scenario reading a
-JSON file gives the count of rows it takes too, `<streams>:<rows>`, each level taking the rows after
-the last level's, written to `<dir>/<cell>-<streams>.jsonl`. Every level draws its synthetic text
-and images from seeds set to its streams. Each level writes GuideLLM's JSON to
-`<dir>/<cell>-<streams>.json`, `<dir>` defaulting to the untracked `.state/bench/`.
+The host goes by its short name, and the alias names the row in the class profiles, which give
+its port and its model's tokenizer, the base model's when the profile names one. Each level is a
+count of streams, given in the order the levels run, with no count twice. For a scenario that reads
+a JSON file, a level also gives the count of rows it takes, `<streams>:<rows>`: each level takes
+the rows after the previous level's, written to `<dir>/<cell>-<streams>.jsonl`. Every level draws
+its synthetic text and images from seeds set to its streams. Each level writes GuideLLM's JSON to
+`<dir>/<cell>-<streams>.json`; `<dir>` defaults to the untracked `.state/bench/`.
 
-A cell starts on a row restarted since its last cell, which empties its caches: before the first
-level, the runner reads the row's `/metrics`, and refuses to start unless
+A cell starts on a row restarted since its last cell, since a restart empties the row's caches.
+Before the first level, the runner reads the row's `/metrics` and refuses to start unless
 `vllm:mm_cache_queries_total` and `vllm:prefix_cache_queries_total`, each summed over its series,
-read 0; a counter the row doesn't expose reads 0. The runner doesn't restart the row: on the host,
+read 0; a counter the row doesn't expose reads 0. The runner doesn't restart the row; on the host,
 `hosting engine update <alias>` or `docker restart <container>` does.
 
-It refuses a missing or malformed argument, an alias that names no row or more than one in the
-class profiles, a scenario that isn't a concurrent profile or reads data other than synthetic text,
-synthetic images and one JSON file, levels taking more rows than the file holds, a level whose
-result JSON exists, and a run outside the bench environment, all before its first request, exiting
-2. It stops at the first level GuideLLM fails, with GuideLLM's status. Its tests are
-[`tests/cell.test.sh`](../tests/cell.test.sh).
+Before its first request, the runner exits 2 on any of these: a missing or malformed argument,
+an alias that names no row or more than one in the class profiles, a scenario that isn't a
+concurrent profile or reads data other than synthetic text, synthetic images, and one JSON file,
+levels taking more rows than the file holds, a level whose result JSON exists, or a run outside the
+bench environment. It stops at the first level GuideLLM fails, exiting with GuideLLM's status. Its
+tests are [`tests/cell.test.sh`](../tests/cell.test.sh).
 
 ## Reading the results
 
@@ -280,12 +281,13 @@ result JSON exists, and a run outside the bench environment, all before its firs
 `rate <r>` on a constant-rate level, its rate to two places, or `synchronous` or `throughput` on a
 sweep's first two levels; requests ok, errored, and incomplete; requests a second; the TTFT median;
 the ITL median; the request latency's median, p90, and minimum; for vision, the count of requests
-that finished in 10 s or less; prompt tok/s; output tok/s; for audio, the RTFx median and minimum
-and the count of requests at RTFx 5 or more (each request's clip seconds over its request time); and the level's
-floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's an RTFx median of 5,
-vision's a request latency median of at most 10 s, the agent's an inter-token latency median of at
-most 100 ms; a level with no successful request misses. The verdict doesn't set a cap: the vision
-and audio rows' caps follow their throughput peaks, as their profiles' `cap_reason` says. A sweep's table starts with the knee GuideLLM concluded. Medians and
+that finished in 10 s or less; prompt tok/s; output tok/s; for audio, the RTFx median and
+minimum and the count of requests at RTFx 5 or more (each request's clip seconds over its request
+time); and the level's floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's
+an RTFx median of 5, vision's a request latency median of at most 10 s, and the agent's an
+inter-token latency median of at most 100 ms; a level with no successful request misses. The
+verdict doesn't set a cap: the vision and audio rows' caps follow their throughput peaks, as their
+profiles' `cap_reason` says. A sweep's table starts with the knee GuideLLM concluded. Medians and
 percentiles interpolate linearly between the two nearest ranks.
 
 ```sh
@@ -297,9 +299,9 @@ jq -r --arg purpose vision -f bench/levels.jq .state/bench/<cell>.json
 
 ## Preliminary cells
 
-A findings cell labeled preliminary ran its row alone, before `acceptance`'s standing layout cell
-re-measures it beside the layout's other rows. Its figures are the row's alone until that cell
-runs.
+A findings cell labeled preliminary ran its row alone, not beside the layout's other rows. Its
+figures stand for the row alone until `acceptance`'s standing layout cell (planned) re-measures
+the row beside the others.
 
 ## Scoring retrieval
 

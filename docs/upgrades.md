@@ -1,10 +1,10 @@
 # Upgrade evaluation
 
-How ai-hosting evaluates an upgrade to a host's rows: a vLLM release, a row's settings, or a
-replacement model. A survey reads what has moved and gives each item a verdict; a measure takes
-the items only the host can settle to bench cells; and an adoption leaves findings cells, a moved
-`measured_vllm`, and, once every host holds, a moved pin. The `hosting-upgrades` skill runs both
-modes from the documents below.
+This convention says how ai-hosting evaluates an upgrade to a host's rows: a vLLM release, a row's
+settings, or a replacement model. A survey reads what has moved and gives each item a verdict; a
+measure takes the items only the host can settle to bench cells; and an adoption leaves findings
+cells, a moved `measured_vllm`, and, once every host holds, a moved pin. The `hosting-upgrades`
+skill runs both modes from the documents below.
 
 - [The policy](policy.md): the gates every candidate passes, how it is judged on the host, and
   the tuning rule.
@@ -46,10 +46,10 @@ cache is kept. It gives each item one verdict:
 
 A survey proposes and applies nothing. A change it would make to a descriptor, the policy, the
 watch register, or a profile is a proposal in its report, which the architect accepts or rejects
-one at a time before the host's next survey. The policy's origin section is revisited from the
-model security item's proposals: a development that could make it possible to evaluate and clear
-a model ([the policy](policy.md#clearance)). A descriptor that restates a figure the class profile
-holds, such as a load target, a cap, or a context, is flagged as stale under the report's proposed
+one at a time before the host's next survey. The model security item proposes a change to the
+policy's origin section when a development could make it possible to evaluate and clear a model
+([the policy](policy.md#clearance)). A descriptor that restates a figure the class profile holds,
+such as a load target, a cap, or a context, is flagged as stale under the report's proposed
 changes, with the profile's value beside it.
 
 ### Where survey reports go
@@ -74,15 +74,15 @@ A measure takes the host's last survey to bench cells. It runs when that survey:
 
 `hosting profile stale` lists, read-only, each row whose `measured_vllm` is older than the pin in
 `lib/vllm.env`, by class and alias, and exits 0 whether it lists any or none. A listed row's
-settings rest on measurements of an older release than the one it runs, so it is due
-re-measurement on the pin: a settings check with no profile change, in which the incumbent's cells
-its reasons cite run again, through the cell runner, and are compared with the figures their
-findings hold. Its `measured_vllm` moves when they hold.
+settings rest on measurements of an older release than the one it runs, so the row is due
+re-measurement on the pin. That is a settings check with no profile change: the cells its reasons
+cite run again through the cell runner, and each is compared with the figures its findings hold.
+The row's `measured_vllm` moves when they hold.
 
 ## Measure's three passes
 
 A measure runs up to three passes on one host, each on one state. It prints each command that
-changes the host before it runs, and records it as run.
+changes the host before running it, and records the command as it ran.
 
 1. **An engine move.** The candidate vLLM release runs off the pin, from a branch whose only change
    is `VLLM_RELEASE` in `lib/vllm.env`. The host's clone checks out that branch, then `hosting
@@ -101,15 +101,15 @@ changes the host before it runs, and records it as run.
    `hosting engine update <alias>`; the default branch and the same update return the row.
 3. **A candidate screen.** A replacement model for one alias: its card, the policy's gates, probes
    at the row's context and of its purpose, a capacity cell, and the row's accuracy measure, judged
-   as [the policy](policy.md#judged-on-the-host) says. The
-   candidate runs from a branch whose profile names it, after `hosting model pull`. An agent
+   as [the policy](policy.md#judged-on-the-host) says. The candidate runs from a branch whose
+   profile names it, after `hosting model pull`. An agent
    candidate stops after the gates and the capacity cell, at "needs `model-evaluation`'s tiers":
    its BFCL and conform tiers are that goal's, and no agent candidate is adopted before they run.
 
-The incumbent's cells run once a measure, and every pass in it compares with them. A cell its
-findings ran under settings the profile no longer holds runs at the current ones instead, and its
-figures become the row's new baseline: that row gets no drift verdict in the measure, which says
-so.
+The incumbent's cells run once a measure, and every pass in it compares with them. When the
+findings ran a cell under settings the profile no longer holds, the cell runs at the current
+settings instead, and its figures become the row's new baseline. The measure then gives that row
+no drift verdict, and says so.
 
 Every load goes through the bench cell runner, [`bench/cell.sh`](../bench/cell.sh): one scenario
 against one row, each level alone, on inputs no other level sends, from a row restarted since its
@@ -160,7 +160,7 @@ candidate against the row as it stands.
    measurements behind its reasons have run there. `hosting profile stale` then drops the row.
 3. **The pin**, `VLLM_RELEASE` in `lib/vllm.env`, moved by a pull request citing every row's
    cells, only when all four hosts hold.
-4. **The watch register**, whose entry a release clears moves to its next state, and is deleted
+4. **The watch register**: an entry a release clears moves to its next state, and is deleted
    once the project has acted on it ([watch.md](watch.md)).
 5. **The descriptor's run noise**, when the measure repeated a level to set it.
 

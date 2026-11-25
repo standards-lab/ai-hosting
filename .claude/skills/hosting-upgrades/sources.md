@@ -1,7 +1,7 @@
 # Sources
 
-Where a run reads each fact, and how it tiers what it reads. Every source is read fresh in the run
-that cites it, and cited with its URL or command and its read time in UTC.
+This file says where a run reads each fact, and how it tiers what it reads. Every source is read
+fresh in the run that cites it, and cited with its URL or command and its read time in UTC.
 
 ## Reading a source
 
@@ -56,8 +56,8 @@ A source whose tier is unclear is a pause, with lead as the default.
 
 ## Roles
 
-The interface a candidate serves its role through, which the vLLM support gate reads: vLLM must
-serve the candidate's architecture through it at the pin.
+Each role has one interface, and the vLLM support gate requires vLLM at the pin to serve the
+candidate's architecture through it.
 
 | Role | Interface |
 |---|---|
@@ -68,9 +68,9 @@ serve the candidate's architecture through it at the pin.
 
 ## Model security
 
-What survey's model security item reads, and where a candidate of Chinese origin's clearance is
-sought ([the policy](../../../docs/policy.md#clearance)). Both are primary for what the agency
-published.
+Survey's model security item reads these sources, and a candidate of Chinese origin's clearance
+is sought in them ([the policy](../../../docs/policy.md#clearance)). The two agencies' sites are
+primary for what each published.
 
 | What | Read | Notes |
 |---|---|---|

@@ -60,13 +60,13 @@ on every run.
 - `acceptance` will measure audio RTFx and embedding throughput under FAST. The embedding row
   takes no MIOpen setting: its long-input probe, 512 tokens, passed on the stock ROCm image
   ([findings](../docs/findings/embedding.md#e5-probes)).
-- A report upstream is deferred to the backlog. The `upgrades` task's watch will check each vLLM
-  ROCm release for a gfx1151 find database, so FAST can drop.
+- A report upstream is deferred to the backlog. The watch register's gfx1151 entry checks each
+  vLLM ROCm image for a gfx1151 find database, and its action drops FAST
+  ([watch.md](../docs/watch.md#a-gfx1151-miopen-find-database-in-vllms-rocm-image)).
 
-## The vLLM release and off-pin rehearsal
+## The vLLM release
 
-- **The pin's release.** `lib/vllm.env` pins the release current when `hosts` built, with the
-  rows' flags unchanged; `acceptance` will rerun the layout's floors on it and read the
-  Framework's start log for the KV-cache fallback.
-- **Off-pin rehearsal.** The `upgrades` task decides whether an upgrade rehearsal needs a run off
-  the pin.
+`lib/vllm.env` pins the release current when `hosts` built, with the rows' flags unchanged;
+`acceptance` will rerun the layout's floors on it and read the Framework's start log for the
+KV-cache fallback. A candidate release runs off the pin from a branch that moves it, checked out on
+the host ([upgrades.md](../docs/upgrades.md#measures-three-passes)).

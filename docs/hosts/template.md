@@ -1,7 +1,7 @@
 # <host>
 
-The descriptor of `<host>`, which a survey and a measure read to reach the host and judge what
-they find there ([the upgrade convention](../upgrades.md)). It names and links; every figure it
+This is the descriptor of `<host>`, which a survey and a measure read to reach the host and judge
+what they find there ([the upgrade convention](../upgrades.md)). It names and links; every figure it
 cites lives in the document it links. Every other fact about the host, its hardware, system,
 containers, and models, comes from the probe a survey takes.
 

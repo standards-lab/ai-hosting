@@ -38,9 +38,8 @@ gb10-1's at `26b6c37` and the Framework's at `12067db`.
 ## Replacing a model
 
 Replacing a model runs `profile set`, `model pull`, and `engine update`, then commits the profile
-(each runbook gives the commands). It is a kind of upgrade:
-the `upgrades` task's convention and its `hosting-upgrades` skill will cover evaluating the
-candidate (its card, its origin, a probe against the row's floors) before `profile set`. The
+(each runbook gives the commands). It is a kind of upgrade: a candidate screen evaluates the
+candidate before `profile set` ([upgrades.md](../docs/upgrades.md#measures-three-passes)). The
 `embedding` task's replacement of the embedding model with `intfloat/multilingual-e5-large`, made
 on the Framework beside audio, is the pattern: the card read, the pull and update, probes at the
 context's edge, the sweep that sets the cap, the memory read, retrieval against the published
@@ -48,8 +47,8 @@ scores, a cell beside any row sharing the host, then pruning the old model, each
 [its findings](../docs/findings/embedding.md). The same findings hold the row's re-measurement
 alone on framework-2, on the LAN.
 
-A read-only listing of the rows whose `measured_vllm` is older than the pin, the rows an upgrade
-re-measures, is planned for `upgrades`; that task's plan names its verb.
+`hosting profile stale` lists, read-only, the rows whose `measured_vllm` is older than the pin,
+the rows an upgrade re-measures ([hosting-suite.md](hosting-suite.md)).
 
 ## go-ai profiles
 

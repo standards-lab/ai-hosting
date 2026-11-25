@@ -1,8 +1,9 @@
 # framework-2
 
-The descriptor of the second Framework desktop, a Strix Halo host, which a survey and a measure
-read to reach the host and judge what they find there ([the upgrade convention](../upgrades.md)).
-Every other fact about the host comes from the probe a survey takes.
+This is the descriptor of the second Framework desktop, a Strix Halo host, which a survey and a
+measure read to reach the host and judge what they find there
+([the upgrade convention](../upgrades.md)). Every other fact about the host comes from the probe a
+survey takes.
 
 ## SSH short name
 

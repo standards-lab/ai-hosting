@@ -146,9 +146,10 @@ Each cell goes into its purpose's findings, `docs/findings/<purpose>.md`, a sect
 [the audio findings](../../../docs/findings/audio.md) do: each command as it ran, its time in UTC,
 its figures, and the tool versions. A pass that fails the verdict writes which row failed which
 test, with the figures. What an adoption changes beyond the findings, a reason, `measured_vllm`,
-or the pin, follows [the record an adoption leaves](../../../docs/upgrades.md#the-record-an-adoption-leaves),
-each a change the architect accepts on its own; the measure proposes them in its account and
-makes none of them.
+or the pin, follows
+[the record an adoption leaves](../../../docs/upgrades.md#the-record-an-adoption-leaves). Each is
+a change the architect accepts on its own; the measure proposes them in its account and makes none
+of them.
 
 A dry pass ends with the account it would give: the passes, their cells, the incumbent's figures
 from the findings each would be compared with, and the run noise it would use.

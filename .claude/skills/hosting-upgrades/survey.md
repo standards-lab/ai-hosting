@@ -157,7 +157,8 @@ check of <alias> <flag>, or a candidate screen of <model> for <alias>.
 
 ## Proposed changes
 Each change to a descriptor, the policy, the watch register, or a profile, one at a time, with
-its reason, the model security item's proposals among them; the stale descriptor lines with the profile's values.
+its reason, the model security item's proposals among them; the stale descriptor lines with the
+profile's values.
 
 ## Sources
 Each source cited, with its URL or command, its tier, and its read time.

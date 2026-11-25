@@ -1,9 +1,9 @@
 # Policy
 
-The gates every candidate meets, how it is judged on the host before it serves a row, and the rule
-that tunes a row once it does. A survey and a measure read this document and never write to it; when
-one needs a value this document doesn't state, it stops and asks the architect. How the rules are
-applied is in [the upgrade convention](upgrades.md).
+This policy sets the gates every candidate meets, how a candidate is judged on the host before it
+serves a row, and the rule that tunes a row once it does. A survey and a measure read this document
+and never write to it; when one needs a value this document doesn't state, it stops and asks the
+architect. How the rules are applied is in [the upgrade convention](upgrades.md).
 
 ## Model origin
 
@@ -19,10 +19,10 @@ candidate:
    the origin of the weights it quantizes, not its quantizer's.
 2. **Any distillation teacher**: a model whose generated outputs are the candidate's training
    targets, such as synthetic responses or data it learned to reproduce, or whose logits it was
-   trained to match, read by its role in the publisher's own documents, whatever they call it. A
-   teacher the documents leave unnamed passes only when they place it in the publisher's own
-   pipeline. A model that only filtered, labeled, punctuated, or cleaned human data is not a
-   teacher: that is dataset work, and not origin. So:
+   trained to match. A teacher is identified by its role in the publisher's own documents, whatever
+   they call it. A teacher the documents leave unnamed passes only when they place it in the
+   publisher's own pipeline. A model that only filtered, labeled, punctuated, or cleaned human data
+   is not a teacher: that is dataset work, and not origin. So:
    - a card that names no teacher and no external generator passes this level;
    - a card that names synthetic data from an external generator it leaves unnamed is "origin
      unclear", as an unnamed teacher outside the publisher's pipeline is;

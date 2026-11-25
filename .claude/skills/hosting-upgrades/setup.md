@@ -13,11 +13,11 @@ From the repository root, run:
 
 It prints survey's rules, then measure's own, each marked `present` or `missing` against the
 `permissions.allow` lists of `~/.claude/settings.json`, `.claude/settings.json`, and
-`.claude/settings.local.json`, a present rule with the file and the listed rule that grant it, then
-the JSON of every missing rule to add to `.claude/settings.json`. Given `survey` or `measure`, it
-prints that mode's rules alone; measure's include survey's. Given a host too, it counts that host's
-probe and `tailscale ping` rules alone, and refuses a host with no descriptor before it reads a
-settings file. It writes no settings file; the architect adds the rules.
+`.claude/settings.local.json`. A present rule names the file and the listed rule that grant it.
+Last, it prints the JSON of every missing rule to add to `.claude/settings.json`. Given `survey` or
+`measure`, it prints that mode's rules alone; measure's include survey's. Given a host too, it
+counts that host's probe and `tailscale ping` rules alone, and refuses a host with no descriptor
+before it reads a settings file. It writes no settings file; the architect adds the rules.
 
 | Rule | Mode | For |
 |---|---|---|
