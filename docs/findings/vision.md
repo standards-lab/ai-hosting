@@ -4,8 +4,10 @@ The measurements behind the gb10 profile's vision row, which serves
 `nvidia/Gemma-4-26B-A4B-NVFP4` alone on gb10-2, and behind its image budget, Gemma 4's
 `max_soft_tokens`, the most soft tokens an image's span may take. Each section is one cell: its
 command, its time in UTC, its figures, and the tool versions it ran on. The profile's reasons cite
-the cells by their section; the row's settings live in [the profile](../../classes/gb10/profile.toml).
-The cells at 560 are preliminary: 560 is an interim budget on the way to 1120.
+the cells by their section; the row's settings live in
+[the profile](../../classes/gb10/profile.toml). The capacity cells at 560 and 1120 are preliminary,
+the row alone rather than beside the layout's other rows; 560 is an interim budget on the way to
+1120.
 
 ## Tools
 
@@ -18,9 +20,9 @@ Every cell ran on the tools below.
 | Tokenizer | `google/gemma-4-26B-A4B-it`'s, through transformers 5.24.1 in GuideLLM's environment |
 | Checkpoint | `nvidia/Gemma-4-26B-A4B-NVFP4` at `a19cfe00be84568a6867111c9a68c9c44fdcffe6` |
 
-The row ran alone on gb10-2, the gateway's stack beside it and no other row, as the profile
-renders it but for the budget each cell names: cap 16 (`--max-num-seqs 16`,
-`--max-num-queued-reqs 32`), fraction 0.40, context 8,192. The client is the laptop on the LAN.
+The row ran alone on gb10-2, the gateway's stack beside it and no other row, at cap 16
+(`--max-num-seqs 16`, `--max-num-queued-reqs 32`), fraction 0.40, and context 8,192, with the
+budget each cell names. The client is the laptop on the LAN.
 
 ## probe-280
 
