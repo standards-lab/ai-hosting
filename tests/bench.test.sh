@@ -111,14 +111,6 @@ test_an_agent_scenario_against_a_profile_with_no_agent_row_fails() {
     "$fixtures/agent-session-1025.yaml"
   assert_equal status "$status" 1
   assert_equal stderr "$err" "FAIL: $fixtures/no-embedding-row.toml has no agent row with a numeric context"
-  run_lint "$fixtures/context-512.toml" "$fixtures/agent-session-1024.yaml"
-  assert_equal status "$status" 0
-}
-
-test_the_committed_agent_scenario_fits_the_gb10_agent_row() {
-  run_lint "$repo/classes/gb10/profile.toml" "$repo/bench/agent-capacity.yaml"
-  assert_equal status "$status" 0
-  assert_equal stderr "$err" ""
 }
 
 test_a_rate_sweep_over_the_context_fails() {

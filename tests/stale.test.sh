@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Tests for hosting profile stale (hosting_profile_stale and hosting_release_older in
-# lib/profile.sh), on the clone's copy of each class profile and of lib/vllm.env: it lists the rows
+# lib/profile.sh), on the clone's copy of each class profile and of lib/vllm.env, each test setting
+# the pin and the rows' measured releases it reads: it lists the rows
 # measured on a release older than the pin, compares releases number by number, exits 0 whether it
 # lists any or none, and refuses bad arguments and an invalid profile before listing anything.
 # shellcheck source=tests/lib.sh
@@ -25,7 +26,15 @@ measure_every_row_on() {
   done
 }
 
-test_the_committed_profiles_list_agent_and_vision_on_gb10() {
+measure_gb10_one_release_behind() {
+  set_pin v0.34.0
+  measure_every_row_on v0.34.0
+  set_measured gb10 agent v0.33.0
+  set_measured gb10 vision v0.33.0
+}
+
+test_the_rows_measured_before_the_pin_are_listed() {
+  measure_gb10_one_release_behind
   run_hosting profile stale
   assert_equal status "$status" 0
   assert_equal stdout "$out" "gb10 agent: measured on v0.33.0, the pin is v0.34.0
@@ -34,6 +43,7 @@ gb10 vision: measured on v0.33.0, the pin is v0.34.0"
 }
 
 test_a_class_given_lists_only_its_rows() {
+  measure_gb10_one_release_behind
   run_hosting profile stale strix-halo
   assert_equal status "$status" 0
   assert_equal stdout "$out" ""
@@ -44,6 +54,7 @@ gb10 vision: measured on v0.33.0, the pin is v0.34.0"
 }
 
 test_every_row_current_lists_none_and_exits_0() {
+  set_pin v0.34.0
   measure_every_row_on v0.34.0
   run_hosting profile stale
   assert_equal status "$status" 0
@@ -52,6 +63,7 @@ test_every_row_current_lists_none_and_exits_0() {
 }
 
 test_a_row_measured_after_the_pin_is_not_listed() {
+  set_pin v0.34.0
   measure_every_row_on v0.35.0
   run_hosting profile stale
   assert_equal status "$status" 0
@@ -118,6 +130,7 @@ test_an_invalid_profile_is_refused_before_anything_is_listed() {
 }
 
 test_the_host_class_is_not_probed() {
+  measure_gb10_one_release_behind
   HOSTING_CLASS=gb20 run_hosting profile stale
   assert_equal status "$status" 0
   assert_equal stdout "$out" "gb10 agent: measured on v0.33.0, the pin is v0.34.0

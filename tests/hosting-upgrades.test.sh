@@ -36,6 +36,10 @@ setup() {
   run "$clone/$skill/scripts/setup.sh" "$@"
 }
 
+rename_short_name() {
+  sed -i "s/^\`$1\`\$/\`$2\`/" "$clone/docs/hosts/$1.md"
+}
+
 allow() {
   local file=$clone/.claude/$1
   shift
@@ -86,8 +90,7 @@ test_probe_refuses_a_host_with_no_descriptor() {
 
 test_probe_refuses_a_descriptor_whose_short_name_is_not_short() {
   copy_skill
-  # shellcheck disable=SC2016 # The backticks are the descriptor's, matched literally.
-  sed -i 's/^`gb10-1`$/`gb10-1.example-tailnet.ts.net`/' "$clone/docs/hosts/gb10-1.md"
+  rename_short_name gb10-1 gb10-1.example-tailnet.ts.net
   write_stub ssh
   run "$clone/$skill/scripts/probe.sh" gb10-1
   assert_equal status "$status" 2
@@ -96,9 +99,12 @@ test_probe_refuses_a_descriptor_whose_short_name_is_not_short() {
 }
 
 test_probe_runs_the_host_probe_over_ssh_by_short_name() {
-  probe gb10-1
+  copy_skill
+  rename_short_name gb10-1 spark-1
+  write_stub ssh "cat >$(printf %q "$tmp/stdin")"
+  run "$clone/$skill/scripts/probe.sh" gb10-1
   assert_equal status "$status" 0
-  assert_equal "ssh calls" "$(calls)" "ssh -o BatchMode=yes -- gb10-1 bash -s"
+  assert_equal "ssh calls" "$(calls)" "ssh -o BatchMode=yes -- spark-1 bash -s"
   assert_equal "the script ssh reads" "$(<"$tmp/stdin")" \
     "$(<"$repo/$skill/scripts/probe-host.sh")"
 }
@@ -187,9 +193,11 @@ test_setup_marks_rules_present_by_exact_prefix_glob_and_bare_tool() {
 }
 
 test_setup_skips_the_template_and_names_hosts_by_short_name() {
-  setup measure
+  copy_skill
+  rename_short_name gb10-2 spark-2
+  run "$clone/$skill/scripts/setup.sh" measure
   assert_contains stdout "$out" '"Bash(tailscale ping -c 1 framework)"'
-  assert_contains stdout "$out" '"Bash(tailscale ping -c 1 gb10-2)"'
+  assert_contains stdout "$out" '"Bash(tailscale ping -c 1 spark-2)"'
   [[ $out != *template* ]] || fail "setup names the template as a host: $out"
 }
 
