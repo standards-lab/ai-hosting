@@ -40,8 +40,8 @@ the laptop on the LAN, direct, 0 to 1 ms by `tailscale ping`.
 
 Over the relay, audio's RTFx median alone is about 4.4 to 4.6, against 6.54 on the LAN in
 spike-model-layout (`docs/findings/vllm-layout.md`, F.4): its inter-token latency median is the
-LAN's, 45.6 ms, and the difference is the request's time on the relay. So audio's floor, an RTFx
-median of at least 5, is not judged on this path; the standing layout cell judges it. Beside
+LAN's, 45.6 ms, and the difference is the request's time on the relay. So `levels.jq`'s audio
+verdict, an RTFx median of at least 5, is not read on this path. Beside
 embedding, audio holds when its RTFx median is at least 0.89 times its median alone, measured right
 before on the same path: granite's ratio at 34 requests a second on the LAN, 5.84 over 6.54.
 

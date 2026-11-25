@@ -1,1 +1,1 @@
-rows[0].queue_limit: 24 is not twice the cap, 16
+rows[0].queue_limit_reason: required for a queue limit other than twice the cap, 16

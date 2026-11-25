@@ -1,0 +1,27 @@
+# The audio row at 4, 8, 12, 16, 24 and 32 concurrent streams, 90 s a level, each request a short
+# LibriSpeech clip to transcribe, read from the rows bench/audio-clips.sh writes. See
+# bench/README.md.
+spec:
+  backend:
+    kind: openai_http
+    request_format: /v1/chat/completions
+    max_tokens: 256
+  profile:
+    kind: concurrent
+    streams: [4, 8, 12, 16, 24, 32]
+  data:
+    - kind: json_file
+      path: .state/bench/audio/short.jsonl
+  data_column_mapper:
+    kind: generative_column_mapper
+    column_mappings:
+      text_column: 0.prompt
+      audio_column: 0.audio
+  data_preprocessors:
+    - kind: encode_media
+      audio_kwargs:
+        audio_format: wav
+        encode_sample_rate: 16000
+  constraints:
+    - kind: max_duration
+      seconds: 90

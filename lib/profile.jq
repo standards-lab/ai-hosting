@@ -6,8 +6,8 @@
 def profile_keys: ["store", "rows"];
 def row_keys: [
   "alias", "model", "container", "port", "image", "context", "card_context", "cap",
-  "queue_limit", "fraction", "dims", "flags", "cap_reason", "context_reason", "fraction_reason",
-  "flags_reason", "measured_vllm", "load", "source", "sampling"
+  "queue_limit", "fraction", "dims", "flags", "cap_reason", "context_reason", "queue_limit_reason",
+  "fraction_reason", "flags_reason", "measured_vllm", "load", "source", "sampling"
 ];
 def load_keys: ["target", "source"];
 def source_keys: [
@@ -172,6 +172,24 @@ def sampling_errors($prefix):
       problem($prefix + ["source", "generation_config"]; "required with base_model when the row sets no sampling")
     else empty end;
 
+# The errors of a row's queue limit: a limit under the cap, a limit other than twice the cap
+# without its reason, and a reason on a row whose limit is twice the cap or that has none.
+def queue_limit_errors($prefix):
+  field($prefix; "queue_limit"; "count"; false),
+  field($prefix; "queue_limit_reason"; "text"; false),
+  ("only a row whose queue limit isn't twice the cap records why" as $only
+  | if (.queue_limit | whole) and (.cap | whole) then
+      if .queue_limit < .cap then
+        problem($prefix + ["queue_limit"]; "\(.queue_limit) is under the cap, \(.cap)")
+      elif .queue_limit != 2 * .cap then
+        if has("queue_limit_reason") then empty
+        else problem($prefix + ["queue_limit_reason"]; "required for a queue limit other than twice the cap, \(.cap)") end
+      elif has("queue_limit_reason") then problem($prefix + ["queue_limit_reason"]; $only)
+      else empty end
+    elif has("queue_limit_reason") and (has("queue_limit") | not) then
+      problem($prefix + ["queue_limit_reason"]; $only)
+    else empty end);
+
 # The errors of one row, the input, at index $i.
 def row_errors($i):
   ["rows", $i] as $prefix
@@ -195,10 +213,7 @@ def row_errors($i):
       field($prefix; "context_reason"; "text"; true),
       field($prefix; "cap"; "count"; true),
       field($prefix; "cap_reason"; "text"; true),
-      field($prefix; "queue_limit"; "count"; false),
-      (if (.queue_limit | whole) and (.cap | whole) and .queue_limit != 2 * .cap then
-        problem($prefix + ["queue_limit"]; "\(.queue_limit) is not twice the cap, \(.cap)")
-      else empty end),
+      queue_limit_errors($prefix),
       field($prefix; "fraction"; "fraction"; true),
       field($prefix; "fraction_reason"; "text"; true),
       (if .alias == "embedding" then field($prefix; "dims"; "count"; true)
