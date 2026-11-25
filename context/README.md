@@ -53,8 +53,9 @@ record holds the tasks and their order.
   spike-model-layout's `bench/` at `e64d9c4`.
 - **Findings** (built): the measurements behind a row's settings, each cell with its command,
   time, figures, and tool versions, which the profile's reasons cite: the embedding row's in
-  [docs/findings/embedding.md](../docs/findings/embedding.md) and the audio row's in
-  [docs/findings/audio.md](../docs/findings/audio.md).
+  [docs/findings/embedding.md](../docs/findings/embedding.md), the audio row's in
+  [docs/findings/audio.md](../docs/findings/audio.md), and the vision row's image budget in
+  [docs/findings/vision.md](../docs/findings/vision.md).
 - **Upgrade evaluation** (planned): the convention and its `hosting-upgrades` skill
   ([host-classes.md](host-classes.md), [engines.md](engines.md)).
 - **Admin tooling** (planned): experiment.admin's Go CLI, which implements the profile schema
