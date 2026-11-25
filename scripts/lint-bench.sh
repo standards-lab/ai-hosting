@@ -38,62 +38,57 @@ done
 
 hosting_yq --version >/dev/null || exit
 
-# Prints the numeric context of the profile's row with the alias given:
-# row_context <profile> <alias>.
 row_context() {
   hosting_yq -p toml -o json '.' "$1" |
     jq -er --arg alias "$2" '[.rows[]? | select(.alias == $alias) | .context | numbers] | first'
 }
 
 fail=0
+declare -A contexts=()
 
-# Checks the embedding scenario given, as its path and its JSON, against the embedding row's
-# context.
+load_context() {
+  local profile=$1 alias=$2
+  if [[ ! -v contexts[$alias] ]]; then
+    if ! contexts[$alias]=$(row_context "$profile" "$alias"); then
+      contexts[$alias]=
+      echo "FAIL: $profile has no $alias row with a numeric context" >&2
+    fi
+  fi
+  if [[ -z ${contexts[$alias]} ]]; then
+    fail=1
+    return 1
+  fi
+}
+
 lint_embedding() {
-  local tokens
-  if [[ ! -v embedding_context ]]; then
-    embedding_context=$(row_context "$embedding_profile" embedding) || embedding_context=
-    [[ -n $embedding_context ]] ||
-      echo "FAIL: $embedding_profile has no embedding row with a numeric context" >&2
-  fi
-  if [[ -z $embedding_context ]]; then
-    fail=1
-    return
-  fi
+  local scenario=$1 json=$2 tokens
+  load_context "$embedding_profile" embedding || return
   if ! tokens=$(jq -er '[.spec.data[]? | select(.kind == "synthetic_text")
-      | .prompt_tokens, .prompt_tokens_max | numbers] | max // empty' <<<"$2"); then
-    echo "FAIL: $1 is an embedding scenario with no synthetic_text prompt_tokens" >&2
+      | .prompt_tokens, .prompt_tokens_max | numbers] | max // empty' <<<"$json"); then
+    echo "FAIL: $scenario is an embedding scenario with no synthetic_text prompt_tokens" >&2
     fail=1
     return
   fi
-  if ((tokens + special_tokens > embedding_context)); then
-    echo "FAIL: $1: $tokens input tokens plus $special_tokens special tokens exceed the embedding row's context in $embedding_profile, $embedding_context" >&2
+  if ((tokens + special_tokens > contexts[embedding])); then
+    echo "FAIL: $scenario: $tokens input tokens plus $special_tokens special tokens exceed the embedding row's context in $embedding_profile, ${contexts[embedding]}" >&2
     fail=1
   fi
 }
 
-# Checks the agent scenario given, as its path and its JSON, against the agent row's context.
 lint_agent() {
-  local tokens
-  if [[ ! -v agent_context ]]; then
-    agent_context=$(row_context "$agent_profile" agent) || agent_context=
-    [[ -n $agent_context ]] || echo "FAIL: $agent_profile has no agent row with a numeric context" >&2
-  fi
-  if [[ -z $agent_context ]]; then
-    fail=1
-    return
-  fi
+  local scenario=$1 json=$2 tokens
+  load_context "$agent_profile" agent || return
   if ! tokens=$(jq -er '[.spec.data[]? | select(.kind == "synthetic_text")
       | (.prompt_tokens_max // .prompt_tokens) as $p | (.turns // 1) as $t
       | select($p | type == "number")
       | (.first_prompt_tokens // $p) + ($t - 1) * $p
-        + $t * (.output_tokens_max // .output_tokens // 0)] | max // empty' <<<"$2"); then
-    echo "FAIL: $1 is an agent scenario with no synthetic_text prompt_tokens" >&2
+        + $t * (.output_tokens_max // .output_tokens // 0)] | max // empty' <<<"$json"); then
+    echo "FAIL: $scenario is an agent scenario with no synthetic_text prompt_tokens" >&2
     fail=1
     return
   fi
-  if ((tokens > agent_context)); then
-    echo "FAIL: $1: a session of $tokens tokens exceeds the agent row's context in $agent_profile, $agent_context" >&2
+  if ((tokens > contexts[agent])); then
+    echo "FAIL: $scenario: a session of $tokens tokens exceeds the agent row's context in $agent_profile, ${contexts[agent]}" >&2
     fail=1
   fi
 }

@@ -106,7 +106,7 @@ for mode in "${modes[@]}"; do
   case $mode in
     survey) report "Survey's rules" < <(survey_rules) ;;
     measure)
-      [[ ${#modes[@]} == 2 ]] || report "Survey's rules, which measure needs too" < <(survey_rules)
+      ((${#modes[@]} == 2)) || report "Survey's rules, which measure needs too" < <(survey_rules)
       report "Measure's own rules" < <(measure_rules)
       ;;
   esac
