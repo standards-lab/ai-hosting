@@ -42,7 +42,7 @@ queue_limit = 32
 fraction = 0.40
 fraction_reason = "0.40: its KV cache held 162,699 tokens, 19.86 requests of 8,192, over the cap of 16, and the host's MemAvailable fell no lower than 36.25 GiB during the start, against the 12.2 GiB floor (spike-model-layout docs/findings/vllm-layout.md, E.1; standards-lab context/ai-hosting.md, \"The layout\")."
 flags = ["--scheduling-policy", "priority", "--kv-cache-dtype", "bfloat16", "--reasoning-parser", "gemma4", "--enable-auto-tool-choice", "--tool-call-parser", "gemma4", "--mm-processor-kwargs.max_soft_tokens", "1120"]
-flags_reason = "Priority scheduling, so the gateway ranks its keys' work (spike-model-gateway docs/findings/priority.md); a BF16 KV cache, since the NVFP4 checkpoint declares a static FP8 one but ships no calibrated k/v scales (spike-model-engines host/vllm-rows); Gemma 4's own reasoning and tool-call parsers; and an image budget of 1120 soft tokens (docs/findings/vision.md, probe-1120)."
+flags_reason = "Priority scheduling, so the gateway ranks its keys' work (spike-model-gateway docs/findings/priority.md); a BF16 KV cache, since the NVFP4 checkpoint declares a static FP8 one but ships no calibrated k/v scales (spike-model-engines host/vllm-rows); Gemma 4's own reasoning and tool-call parsers; and an image budget of 1120 soft tokens, at which a page's image takes 1,094 to 1,104 prompt tokens (docs/findings/vision.md, probe-1120)."
 measured_vllm = "v0.33.0"
 
 [rows.load]

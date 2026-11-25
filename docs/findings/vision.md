@@ -110,3 +110,67 @@ The row's `/metrics` after the run, counting the probes: 211 requests finished, 
   request within 10 s. 8 streams meet it, 9.60 s, with 8 of 72 requests over 10 s.
 - The cost is out of proportion to the tokens: 55 % more prompt tokens a request bring 0.56 times
   the requests a second at 16 streams, and an ITL median of 116.80 ms against 64.08 ms.
+
+## probe-1120
+
+The same requests at 2026-11-25T14:00:23Z, without load, the row restarted with
+`--mm-processor-kwargs.max_soft_tokens 1120`; its start reported a KV cache of 159,645 tokens,
+19.49 requests of 8,192.
+
+| Request | Prompt tokens | Image span |
+| --- | --- | --- |
+| Text only | 18 | - |
+| 1240×1754 page | 1,112 | 1,094 |
+| 3705×4934 page | 1,122 | 1,104 |
+
+- **The image span doubles again**: 1,094 and 1,104 tokens against 534 and 542 at
+  [probe-560](#probe-560).
+- The two pages' spans differ by 10 tokens, the larger page again taking the more.
+
+## capacity-1120
+
+Preliminary. The row at a budget of 1120, the same three levels starting 2026-11-25T14:00:40Z,
+right after [probe-1120](#probe-1120), then 1 and 2 streams in a further run starting
+2026-11-25T14:05:49Z, since 4 streams missed the floor. Each request took 1,314 or 1,315 prompt
+tokens, 573 more than at 560. `tailscale ping gb10-2`, right before each run, answered direct, 1 ms
+and 2 ms.
+
+```sh
+GUIDELLM__SPEC__BACKEND__TARGET=http://gb10-2:8001 \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/vision-capacity.yaml \
+  --backend kind=openai_http,model=vision \
+  --tokenizer kind=huggingface_auto,model=google/gemma-4-26B-A4B-it \
+  --output kind=json,path=.state/bench/vision-1120-gb10-2-lan.json
+```
+
+The further run used an uncommitted copy of the scenario with `streams: [1, 2]`, written to
+`.state/bench/vision-1120-low-gb10-2-lan.json`.
+
+`levels.jq` with `--arg purpose vision`, the two runs' levels in one table:
+
+| Streams | Start, UTC | ok/err/inc | req/s | TTFT median ms | ITL median ms | Latency median s | Latency p90 s | Latency min s | ≤ 10 s | Prompt tok/s | Duration s | Floor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 2026-11-25T14:05:49Z | 17/0/1 | 0.189 | 1,843 | 32.45 | 5.06 | 5.06 | 5.05 | 17/17 | 248 | 90 | meets |
+| 2 | 2026-11-25T14:07:25Z | 28/0/2 | 0.311 | 3,317 | 30.83 | 6.37 | 6.40 | 6.34 | 28/28 | 409 | 90 | meets |
+| 4 | 2026-11-25T14:00:40Z | 32/0/4 | 0.356 | 5,378 | 38.15 | 10.89 | 10.91 | 10.82 | 0/32 | 468 | 90 | misses |
+| 8 | 2026-11-25T14:02:15Z | 32/0/8 | 0.356 | 5,452 | 135.55 | 18.87 | 22.34 | 18.81 | 0/32 | 468 | 90 | misses |
+| 16 | 2026-11-25T14:03:51Z | 29/0/16 | 0.322 | 7,321 | 293.01 | 36.35 | 52.89 | 34.40 | 0/29 | 424 | 90 | misses |
+
+The row's `/metrics` after both runs, counting the probes: 141 requests finished, 0 preemptions.
+
+- **4 streams miss vision's floor at 1120**: a request latency median of 10.89 s, no request within
+  10 s. 2 streams meet it, 6.37 s, and 1 stream, 5.06 s.
+- Requests a second stop growing past 4 streams, 0.356 at 4 and at 8, 0.322 at 16, and the prompt
+  throughput holds near 468 tokens a second from 4 streams up.
+
+## Comparison
+
+Each budget's request size in [`bench/vision-capacity.yaml`](../../bench/vision-capacity.yaml) and
+its request latency median at each level, against vision's floor of 10 s; a dash is a level the
+budget did not run.
+
+| Budget | Prompt tokens a request | 1 stream | 2 streams | 4 streams | 8 streams | 16 streams |
+| --- | --- | --- | --- | --- | --- | --- |
+| 280 | 478 to 479 | - | - | 4.54 s, meets | 6.23 s, meets | 9.33 s, meets |
+| 560 | 741 to 742 | - | - | 6.25 s, meets | 9.60 s, meets | 16.05 s, misses |
+| 1120 | 1,314 to 1,315 | 5.06 s, meets | 6.37 s, meets | 10.89 s, misses | 18.87 s, misses | 36.35 s, misses |
