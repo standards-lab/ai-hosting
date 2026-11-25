@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The host-class profiles: where each class's profile lives in the clone, and the validator every
-# command that reads a profile runs before its first effect. Sourced by lib/hosting.sh. See
-# classes/README.md.
+# command that reads a profile runs before its first effect, the editor, and the listing of the rows
+# measured on a release older than the vLLM pin. Sourced by lib/hosting.sh. See classes/README.md.
 
 # The directory holding one directory per host class, each holding the class's profile and its
 # runbook.
@@ -107,6 +107,43 @@ hosting_profile_validate_all() {
     fi
   done
   return "$fail"
+}
+
+# Succeeds when the first vLLM release given is older than the second, each vMAJOR.MINOR.PATCH,
+# compared number by number: hosting_release_older <release> <release>.
+hosting_release_older() {
+  local -a older newer
+  local i
+  IFS=. read -ra older <<<"${1#v}"
+  IFS=. read -ra newer <<<"${2#v}"
+  for i in 0 1 2; do
+    if ((10#${older[i]} != 10#${newer[i]})); then
+      ((10#${older[i]} < 10#${newer[i]}))
+      return
+    fi
+  done
+  return 1
+}
+
+# Lists each row of the classes given whose measured_vllm is older than the vLLM pin,
+# VLLM_RELEASE in lib/vllm.env, one "<class> <alias>: measured on <release>, the pin is <release>"
+# line each: hosting_profile_stale <class>.... Validates every class's profile first, and fails,
+# its errors printed and nothing listed, when any is invalid. Changes nothing.
+hosting_profile_stale() {
+  local class alias measured fail=0
+  for class in "$@"; do
+    hosting_profile_validate "$(hosting_profile_path "$class")" "classes/$class/profile.toml" ||
+      fail=1
+  done
+  ((fail == 0)) || return 1
+  for class in "$@"; do
+    while read -r alias measured; do
+      if hosting_release_older "$measured" "$VLLM_RELEASE"; then
+        echo "$class $alias: measured on $measured, the pin is $VLLM_RELEASE"
+      fi
+    done < <(hosting_yq -p toml -o json '.' "$(hosting_profile_path "$class")" |
+      jq -r '.rows[] | "\(.alias) \(.measured_vllm)"')
+  done
 }
 
 # Loads the host's class profile, which a command validates before its first effect: detects the
