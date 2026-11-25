@@ -1,0 +1,55 @@
+{
+  "benchmarks": [
+    {
+      "config": { "strategy": { "type_": "concurrent", "rate": null, "streams": 4 } },
+      "duration": 182.4,
+      "metrics": {
+        "request_totals": { "successful": 4, "errored": 0, "incomplete": 0 },
+        "requests_per_second": { "successful": { "mean": 0.0219 } },
+        "time_to_first_token_ms": { "successful": { "median": 61234.6 } },
+        "inter_token_latency_ms": { "successful": { "median": 49.134 } },
+        "prompt_tokens_per_second": { "successful": { "mean": 1437.2 } },
+        "output_tokens_per_second": { "successful": { "mean": 5.6125 } }
+      },
+      "requests": {
+        "successful": [
+          { "request_start_time": 0.0, "request_end_time": 60.0, "input_metrics": {} },
+          { "request_start_time": 0.0, "request_end_time": 120.0, "input_metrics": {} },
+          { "request_start_time": 0.0, "request_end_time": 150.0, "input_metrics": {} },
+          { "request_start_time": 0.0, "request_end_time": 182.0, "input_metrics": {} }
+        ]
+      }
+    },
+    {
+      "config": { "strategy": { "type_": "concurrent", "rate": null, "streams": 12 } },
+      "duration": 570,
+      "metrics": {
+        "request_totals": { "successful": 2, "errored": 0, "incomplete": 10 },
+        "requests_per_second": { "successful": { "mean": 0.0035 } },
+        "time_to_first_token_ms": { "successful": { "median": 250000 } },
+        "inter_token_latency_ms": { "successful": { "median": 100.5 } },
+        "prompt_tokens_per_second": { "successful": { "mean": 230 } },
+        "output_tokens_per_second": { "successful": { "mean": 0.9 } }
+      },
+      "requests": {
+        "successful": [
+          { "request_start_time": 0.0, "request_end_time": 400.0, "input_metrics": {} },
+          { "request_start_time": 0.0, "request_end_time": 560.0, "input_metrics": {} }
+        ]
+      }
+    },
+    {
+      "config": { "strategy": { "type_": "concurrent", "rate": null, "streams": 16 } },
+      "duration": 570,
+      "metrics": {
+        "request_totals": { "successful": 0, "errored": 0, "incomplete": 16 },
+        "requests_per_second": { "successful": { "mean": 0 } },
+        "time_to_first_token_ms": { "successful": { "median": null } },
+        "inter_token_latency_ms": { "successful": { "median": null } },
+        "prompt_tokens_per_second": { "successful": { "mean": 0 } },
+        "output_tokens_per_second": { "successful": { "mean": 0 } }
+      },
+      "requests": { "successful": [] }
+    }
+  ]
+}

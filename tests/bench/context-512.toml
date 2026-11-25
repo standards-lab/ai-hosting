@@ -1,3 +1,7 @@
 [[rows]]
 alias = "embedding"
 context = 512
+
+[[rows]]
+alias = "agent"
+context = 1024

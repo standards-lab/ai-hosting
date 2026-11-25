@@ -1,0 +1,10 @@
+spec:
+  backend:
+    kind: openai_http
+    request_format: /v1/chat/completions
+  data:
+    - kind: synthetic_text
+      turns: 3
+      first_prompt_tokens: 384
+      prompt_tokens: 128
+      output_tokens: 128
