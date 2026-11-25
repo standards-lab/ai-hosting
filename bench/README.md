@@ -33,6 +33,8 @@ them on the command line.
 | [`embedding-rate-sweep.yaml`](embedding-rate-sweep.yaml) | GuideLLM's sweep: synchronous, throughput, then 14 constant rates between them, 90 s a level, sixteen levels in one run | The highest rate the embedding row keeps |
 | [`audio.yaml`](audio.yaml) | 4 concurrent streams for 240 s | The audio row at 4 streams |
 | [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at a cap of 8 |
+| [`audio-capacity.yaml`](audio-capacity.yaml) | 4, 8, 12, 16, 24 and 32 concurrent streams, 90 s a level, six levels in one run | The audio row's throughput and RTFx on short clips |
+| [`audio-capacity-30s.yaml`](audio-capacity-30s.yaml) | The same six levels | The audio row's throughput and RTFx on 30 s windows of speech |
 | [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run | The vision row's throughput and request latency at each image budget it is given |
 
 Each embedding request is 510 synthetic tokens to `/v1/embeddings`: with the 2 special tokens an
@@ -65,6 +67,30 @@ duration says so. At 8 streams those rows ran out at 146 s (spike-model-layout
 docs/findings/vllm-layout.md, F.5), so `audio-8.yaml` reads the same split 24 times over, 1,752
 rows, with the prompt listed 1,752 times: room for 7.3 requests a second over 240 s. Its requests
 are the same clips and prompt as `audio.yaml`'s, so its cells compare with the 4-stream ones.
+
+The audio capacity scenarios read their requests from local files that
+[`audio-clips.sh`](audio-clips.sh) writes, so a run needs no Hugging Face download. It takes the
+same 73 LibriSpeech clips, 16 kHz, and writes each as a WAV under the untracked
+`.state/bench/audio/clips/`; it joins consecutive clips, in the split's order and across speakers
+and chapters alike, into windows of 28 to 30 s of real speech, written under `windows-30/`. A
+window never overlaps the next, and a clip that would carry one past 30 s drops the window's first
+clip instead, so the 8 minutes of the set make 11 windows, one of them the set's single 29.4 s
+clip. The grouping is [`audio-windows.jq`](audio-windows.jq). Each WAV has its reference
+transcript beside it, as a `.txt` of the same name. It then writes the rows: `short.jsonl`, 5,400
+rows cycling through the 73 clips, and `windows-30.jsonl`, 1,800 rows cycling through the 11
+windows, each row the card's transcription prompt and one WAV's path. With the prompt in the same
+row, the scenario reads one source, and each level reads the file again from its first row. The
+rows leave room for 60 requests a second over a 90 s level on short clips, over twice the 26 a
+second that the row's 6.5 at 8 streams ([audio-8](../docs/findings/audio.md#audio-8)) would make
+at 32 if it scaled evenly, and for 20 a second on windows, each about 4.4 times a short clip's
+mean of 6.6 s. A level whose streams send faster ends when the rows do, and its duration says
+so. GuideLLM 0.8.1's scenario takes no parameter for the
+window length, so each length is its own file.
+
+Each reply is at most 256 tokens on short clips and 512 on windows: a transcript runs roughly 3 to
+5 tokens a second of speech, after about 25 prompt tokens, so 30 s of speech needs about 150 and
+the cap leaves room for a full transcript. These are bench settings, sized so that a cut-off
+transcript doesn't lower a level's cost; they are not advice to a client on `max_tokens`.
 
 Each vision request is one synthetic 1440p JPEG beside 200 synthetic text tokens, sent to
 `/v1/chat/completions`, each reply exactly 100 tokens; GuideLLM's vision extra generates the
@@ -111,6 +137,32 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://framework:<port> \
   --tokenizer kind=huggingface_auto,model=google/gemma-4-E4B-it \
   --output kind=json,path=.state/bench/<cell>.json
 ```
+
+The audio capacity scenarios on `framework`, after writing their files once, from the bench
+environment (it downloads the LibriSpeech dummy set on its first run, then reads it from the
+Hugging Face cache):
+
+```sh
+MISE_ENV=bench mise exec -- bench/audio-clips.sh scenarios
+GUIDELLM__SPEC__BACKEND__TARGET=http://framework:8002 \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/audio-capacity.yaml \
+  --backend kind=openai_http,model=audio \
+  --tokenizer kind=huggingface_auto,model=google/gemma-4-E4B-it \
+  --output kind=json,path=.state/bench/<cell>.json
+GUIDELLM__SPEC__BACKEND__TARGET=http://framework:8002 \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/audio-capacity-30s.yaml \
+  --backend kind=openai_http,model=audio \
+  --tokenizer kind=huggingface_auto,model=google/gemma-4-E4B-it \
+  --output kind=json,path=.state/bench/<cell>.json
+```
+
+`audio-clips.sh scenarios --output <dir>` writes the files elsewhere, but the scenarios read
+`.state/bench/audio/`. `audio-clips.sh probe <dir>` writes single clips for probing the row by
+hand: `10s.wav`, `30s.wav`, `60s.wav` and `120s.wav`, each the first window in the set of
+consecutive clips lasting between 14/15 of that length and the length, so 9.90, 29.40, 56.60 and
+115.36 s, each with its transcript beside it. The argument handling's tests are
+[`tests/audio-clips.test.sh`](../tests/audio-clips.test.sh), and the windows' are in
+[`tests/bench.test.sh`](../tests/bench.test.sh), against the set's clip lengths.
 
 The vision row's three levels on gb10-2:
 
