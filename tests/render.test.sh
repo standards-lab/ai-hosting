@@ -54,7 +54,7 @@ test_a_row_with_a_queue_limit_and_sampling_renders_both_flags() {
   assert_equal status "$status" 0
   assert_contains stdout "$out" $'--max-num-queued-reqs\n32\n'
   assert_contains stdout "$out" \
-    $'--tool-call-parser\ngemma4\n--override-generation-config\n{"temperature":1.0,"top_k":64}'
+    $'--mm-processor-kwargs.max_soft_tokens\n560\n--override-generation-config\n{"temperature":1.0,"top_k":64}'
 }
 
 test_an_alias_the_class_has_no_row_for_is_refused_before_the_address_is_read() {
