@@ -8,17 +8,20 @@ config:
     mode: readOnly
   database:
     url: postgres://agentgateway:agentgateway@postgres:5432/agentgateway
-  tracing:
-    otlpEndpoint: http://otel-collector:4317
-    otlpProtocol: grpc
-    randomSampling: "true"
 
 frontendPolicies:
+  tracing:
+    host: otel-collector:4317
+    protocol: grpc
+    randomSampling: "true"
   accessLog:
     add:
       retry_after: 'response.headers["retry-after"]'
       overflow: 'response.headers["x-gateway-overflow"]'
       key_name: 'apiKey.name'
+    otlp:
+      host: otel-collector:4317
+      protocol: grpc
     database:
       llm: metadata
       add:

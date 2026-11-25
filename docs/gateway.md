@@ -385,10 +385,13 @@ The rendered config holds no secret, and neither does any file the render writes
 ## Telemetry
 
 The Collector is the stack's one telemetry ingress, on the compose network only; it publishes no
-port. It takes OTLP over gRPC from agentgateway, scrapes agentgateway's stats port and its own
-metrics, and listens for JSON log lines, with go-web-service's `prometheus/self` and `tcp_log`
-receivers at `2e31ca4`. It sends traces to Tempo, metrics to Mimir, and logs to Loki, and Grafana
-has a datasource for each.
+port. It takes OTLP over gRPC from agentgateway, its spans and its access log, and scrapes
+agentgateway's stats port and its own metrics, with go-web-service's `prometheus/self` receiver at
+`2e31ca4`. It sends traces to Tempo, metrics to Mimir, and logs to Loki, and Grafana has a
+datasource for each. agentgateway sends both over OTLP under `frontendPolicies`, `tracing` and
+`accessLog.otlp`, each at `otel-collector:4317` over gRPC; v1.7.0 deprecates the `config.tracing`
+form, which carries the same settings. The Collector is a compose service, so its host isn't a
+row host and the render looks up no tailnet address for it.
 
 - **Traces.** agentgateway starts a span for every request that arrives without a trace
   (`randomSampling: "true"`, every request), traces under a sampled `traceparent` that arrives,
@@ -400,7 +403,10 @@ has a datasource for each.
   "For production").
 - **The access log** adds three fields to every request's line: `retry_after`, the reply's
   `Retry-After`, the one place a client's 429 or 503 shows it; `overflow`, the reply's overflow
-  marker; and `key_name`, the admitting key's consumer, absent on a 401.
+  marker; and `key_name`, the admitting key's consumer, absent on a 401. Each line goes to
+  agentgateway's stdout and, as an OTLP log record with the same fields, to Loki, where Grafana's
+  Loki datasource queries it. No line holds prompt or completion content: agentgateway logs none
+  by default, and none of the three fields reads the body.
 - **The request log.** Every request also writes one row of `request_logs` in Postgres, which the
   UI's Logs and Analytics pages read. `llm: metadata` stores the request's metadata, usage,
   timing, and cost, and no prompt or completion content. `agentgateway.user` is set to the key's
@@ -431,9 +437,9 @@ isn't `gb10` before touching Docker.
 **What render derives, and why.** A container on gb10-2 can't resolve a tailnet short name: the
 host resolves through systemd-resolved's stub, which a container can't reach, and Docker's
 resolver doesn't know the tailnet's names. So the render reads each row host from the rendered
-config's `hostOverride`s, looks up its tailnet address (`tailscale ip -4`; gb10-2's own from the
-host), and writes `.state/gateway/compose.override.yml`, which gives agentgateway an `extra_hosts`
-entry per row host. It also writes `.state/gateway/compose.env`, setting `GATEWAY_ADDRESS` to
+config's routes, their `hostOverride`s and host backends, looks up its tailnet address
+(`tailscale ip -4`; gb10-2's own from the host), and writes `.state/gateway/compose.override.yml`,
+which gives agentgateway an `extra_hosts` entry per row host. It also writes `.state/gateway/compose.env`, setting `GATEWAY_ADDRESS` to
 gb10-2's tailnet address, where the consumer port is published. Deriving the hosts from the config
 keeps the alias-to-host map in one home, and the addresses stay in gitignored files, so no tailnet
 identifier is committed. Every `gateway` verb runs compose with both files when they are present.
@@ -441,7 +447,7 @@ identifier is committed. Every `gateway` verb runs compose with both files when 
 **Reloads.** agentgateway watches its config and reloads routes, keys, budgets, buckets, and
 switches in place, so a render is all a change to them needs; a reload builds the backends
 again, which clears the rows' eviction counts. Fields under the config's `config` section (the
-database, tracing, the admin address, storage) are read once, at start, so a change there takes
+database, the admin address, storage) are read once, at start, so a change there takes
 `hosting gateway down`, then `up`.
 
 **The attestation workaround.** `up` runs compose with `BUILDX_NO_DEFAULT_ATTESTATIONS=1`. Compose

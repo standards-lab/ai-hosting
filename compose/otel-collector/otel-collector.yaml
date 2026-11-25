@@ -26,40 +26,6 @@ receivers:
           static_configs:
             - targets: ["localhost:8888"]
 
-  tcp_log:
-    listen_address: 0.0.0.0:4319
-    resource:
-      service.name: gateway
-    operators:
-      - type: json_parser
-        timestamp:
-          parse_from: attributes.time
-          layout_type: gotime
-          layout: "2006-01-02T15:04:05.999999999Z07:00"
-        severity:
-          parse_from: attributes.level
-        trace:
-          trace_id:
-            parse_from: attributes.trace_id
-          span_id:
-            parse_from: attributes.span_id
-      - type: move
-        if: 'attributes.msg != nil'
-        from: attributes.msg
-        to: body
-      - type: remove
-        if: 'attributes.time != nil'
-        field: attributes.time
-      - type: remove
-        if: 'attributes.level != nil'
-        field: attributes.level
-      - type: remove
-        if: 'attributes.trace_id != nil'
-        field: attributes.trace_id
-      - type: remove
-        if: 'attributes.span_id != nil'
-        field: attributes.span_id
-
 processors:
   batch: {}
 
@@ -93,6 +59,6 @@ service:
       processors: [batch]
       exporters: [prometheus_remote_write/mimir]
     logs:
-      receivers: [tcp_log]
+      receivers: [otlp]
       processors: [batch]
       exporters: [otlp_http/loki]

@@ -174,13 +174,14 @@ hosting_gateway_host() {
   fi
 }
 
-# Prints each row host the config at the path given names, one a line, sorted: each provider's
-# hostOverride and each host backend's host, without its port, leaving out the Azure hosts, which
-# ${AZURE_FOUNDRY_ACCOUNT} opens.
+# Prints each row host the config at the path given names, one a line, sorted: each route's
+# provider hostOverride and host backend host, without its port, leaving out the Azure hosts, which
+# ${AZURE_FOUNDRY_ACCOUNT} opens; frontendPolicies' telemetry hosts aren't row hosts.
 hosting_gateway_hosts() {
   local json
   json=$(hosting_yq -o json '.' "$1") || return
-  jq -r '[.. | objects | (.hostOverride?, .host?) | strings | select(startswith("$") | not)
+  jq -r '[.routes[]? | .. | objects | (.hostOverride?, .host?) | strings
+    | select(startswith("$") | not)
     | sub(":[0-9]+$"; "")] | unique[]' <<<"$json"
 }
 

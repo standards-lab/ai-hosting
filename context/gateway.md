@@ -17,7 +17,7 @@ spike-model-gateway at `2f2e8c1`, and go-web-service's at `2e31ca4`.
 | agentgateway's config template, `compose/agentgateway/config.template.yaml`, the key list `keys.toml`, and the overflow switches `overflow.toml` | `gateway/agentgateway/config.yaml`; the key-hash form from `scripts/agentgateway-deploy.sh` |
 | Postgres | `gateway/postgres.yml`, `gateway/postgres/Dockerfile` |
 | The Collector, Tempo, and Grafana | `gateway/otel-collector.yml`, `gateway/tempo.yml`, `gateway/grafana.yml`, and their directories |
-| Loki and Mimir, the Collector's `prometheus/self` and `tcp_log` receivers, and their Grafana datasources | go-web-service's `compose/observability.yml`, `compose/loki/`, `compose/mimir/`, `compose/otel-collector/` |
+| Loki and Mimir, the Collector's `prometheus/self` receiver, and their Grafana datasources | go-web-service's `compose/observability.yml`, `compose/loki/`, `compose/mimir/`, `compose/otel-collector/` |
 | The `gateway` group: `lib/gateway.sh`, `lib/gateway.jq`, `bin/hosting-gateway-*` | `scripts/agentgateway-deploy.sh`, `gateway/compose.sh` |
 | The `key` group: `lib/key.sh`, `bin/hosting-key-*` | `scripts/agentgateway-deploy.sh`'s key generation |
 | Currency's `FROM` rule over every `compose/*/Dockerfile`, with `crane` pinned | `scripts/currency.sh:28-49`, `mise.toml:8-9` |
@@ -25,8 +25,9 @@ spike-model-gateway at `2f2e8c1`, and go-web-service's at `2e31ca4`.
 | The gateway document, `docs/gateway.md` | `docs/gateway.md`, rewritten |
 | Each alias's go-ai profile, `go-ai/<alias>.json` ([host-classes](host-classes.md)) | |
 
-- The Collector takes from go-web-service its `prometheus/self` and `tcp_log` receivers, not
-  `fluentforward`, beside its own `prometheus/agentgateway` scrape of agentgateway's stats port.
+- The Collector takes from go-web-service its `prometheus/self` receiver, not `tcp_log` or
+  `fluentforward`, beside its own `prometheus/agentgateway` scrape of agentgateway's stats port;
+  agentgateway's access log reaches it over OTLP, in the `logs` pipeline's `otlp` receiver.
 - `gateway status` checks agentgateway alone for a stranded container: it is the one container
   bound to gb10-2's tailnet address, and the Collector publishes no port.
 - `key revoke` deletes the consumer's hash from the key list only; the consumer's `fnox.toml`
