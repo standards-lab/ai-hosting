@@ -42,7 +42,7 @@ audio
 --gpu-memory-utilization
 0.28
 --max-num-queued-reqs
-64
+128
 --kv-cache-dtype
 bfloat16
 --reasoning-parser
