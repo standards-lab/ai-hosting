@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Tests for scripts/lint-bench.sh, the bench scenarios' lint, against the committed scenarios and
-# profile and against the fixtures in tests/bench/: a 512-token context with a scenario within it
-# and one over it, a stream sweep and a rate sweep among them. Tests too that each committed audio
+# profiles and against the fixtures in tests/bench/: a 512-token embedding context and a 1,024-token
+# agent context, each with a scenario within it and one over it, a stream sweep and a rate sweep
+# among them. Tests too that each committed audio
 # scenario reading LibriSpeech from Hugging Face lists one prompt per clip row, for
 # bench/audio-windows.jq's windows against toy clips and the LibriSpeech dummy set's clip lengths,
-# and for bench/levels.jq's level names and vision's figures and floor against the result fixtures
-# there: a rate sweep's, a stream sweep's, and a vision stream sweep's.
+# and for bench/levels.jq's level names and the agent and vision figures and floors against the
+# result fixtures there: a rate sweep's, a stream sweep's, an agent stream sweep's, and a vision
+# stream sweep's.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 # shellcheck source=lib/profile.sh
@@ -18,7 +20,7 @@ run_lint() {
   run "$repo/scripts/lint-bench.sh" "$@"
 }
 
-test_the_committed_scenarios_fit_the_strix_halo_profile() {
+test_the_committed_scenarios_fit_the_strix_halo_and_gb10_profiles() {
   run_lint
   assert_equal status "$status" 0
   assert_equal stderr "$err" ""
@@ -91,6 +93,26 @@ test_the_dummy_set_holds_a_probe_clip_of_about_each_length() {
   done
 }
 
+test_an_agent_session_of_the_agent_rows_context_fits() {
+  run_lint "$fixtures/context-512.toml" "$fixtures/agent-session-1024.yaml"
+  assert_equal status "$status" 0
+  assert_equal stderr "$err" ""
+}
+
+test_an_agent_session_over_the_agent_rows_context_fails() {
+  run_lint "$fixtures/context-512.toml" "$fixtures/agent-session-1024.yaml" \
+    "$fixtures/agent-session-1025.yaml"
+  assert_equal status "$status" 1
+  assert_equal stderr "$err" "FAIL: $fixtures/agent-session-1025.yaml: a session of 1025 tokens exceeds the agent row's context in $fixtures/context-512.toml, 1024"
+}
+
+test_an_agent_scenario_against_a_profile_with_no_agent_row_fails() {
+  run_lint "$fixtures/no-embedding-row.toml" "$fixtures/agent-session-1024.yaml" \
+    "$fixtures/agent-session-1025.yaml"
+  assert_equal status "$status" 1
+  assert_equal stderr "$err" "FAIL: $fixtures/no-embedding-row.toml has no agent row with a numeric context"
+}
+
 test_a_rate_sweep_over_the_context_fails() {
   run_lint "$fixtures/context-512.toml" "$fixtures/rate-sweep-511.yaml"
   assert_equal status "$status" 1
@@ -110,7 +132,8 @@ test_a_scenario_that_does_not_parse_fails() {
 }
 
 test_a_profile_with_no_embedding_row_is_refused() {
-  run_lint "$fixtures/no-embedding-row.toml" "$fixtures/embedding-510.yaml"
+  run_lint "$fixtures/no-embedding-row.toml" "$fixtures/embedding-510.yaml" \
+    "$fixtures/embedding-511.yaml"
   assert_equal status "$status" 1
   assert_equal stderr "$err" "FAIL: $fixtures/no-embedding-row.toml has no embedding row with a numeric context"
 }
@@ -134,7 +157,7 @@ run_levels() {
 test_levels_names_a_rate_sweeps_synchronous_throughput_and_constant_levels() {
   run_levels "$fixtures/sweep-result.json"
   assert_equal status "$status" 0
-  assert_equal levels "$(cut -d '|' -f 1-3,15 <<<"$out")" "## sweep-result.json
+  assert_equal levels "$(cut -d '|' -f 1-3,16 <<<"$out")" "## sweep-result.json
 level | ok/err/inc | req/s | floor
 synchronous | 2/0/1 | 9.250 | meets
 throughput | 2/1/0 | 70.500 | meets
@@ -150,17 +173,27 @@ test_levels_names_a_stream_sweeps_level_by_its_streams() {
 test_levels_judges_each_vision_level_by_its_latency_median() {
   run jq -r --arg purpose vision -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
   assert_equal status "$status" 0
-  assert_equal levels "$(cut -d '|' -f 1,2,4-9,15 <<<"$out")" "## vision-result.json
+  assert_equal levels "$(cut -d '|' -f 1,2,4-9,16 <<<"$out")" "## vision-result.json
 level | ok/err/inc | TTFT med ms | ITL med ms | lat med s | lat p90 s | lat min s | lat<=10s | floor
 4 | 3/0/4 | 812 | 31.26 | 4.00 | 4.80 | 3.00 | 3/3 | meets
 8 | 3/1/8 | 2400 | 70.00 | 9.50 | 11.50 | 8.00 | 2/3 | meets
 16 | 2/0/16 | 6100 | 95.50 | 11.00 | 12.60 | 9.00 | 1/2 | MISSES"
 }
 
+test_levels_judges_each_agent_level_by_its_itl_median() {
+  run jq -r --arg purpose agent -f "$repo/bench/levels.jq" "$fixtures/agent-result.json"
+  assert_equal status "$status" 0
+  assert_equal levels "$(cut -d '|' -f 1,2,4,5,11,16 <<<"$out")" "## agent-result.json
+level | ok/err/inc | TTFT med ms | ITL med ms | out tok/s | floor
+4 | 4/0/0 | 61235 | 49.13 | 5.61 | meets
+12 | 2/0/10 | 250000 | 100.50 | 0.90 | MISSES
+16 | 0/0/16 | - | - | 0.00 | MISSES"
+}
+
 test_levels_refuses_an_unknown_purpose() {
-  run jq -r --arg purpose agent -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
+  run jq -r --arg purpose client -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
   assert_equal status "$status" 5
-  assert_contains stderr "$err" "purpose must be vision, audio or embed"
+  assert_contains stderr "$err" "purpose must be agent, vision, audio or embed"
 }
 
 run_tests

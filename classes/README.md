@@ -76,7 +76,7 @@ it. It never names a goal record, or a value the row doesn't run at.
 | `card_url` | yes | The served checkpoint's model card. |
 | `base_model` | with `base_origin` | The repository of the model another publisher's checkpoint derives from, by quantization or fine-tuning, whose card describes it. |
 | `base_origin` | with `base_model` | The base model's publisher's country. A fine-tune takes its base's origin. |
-| `origin_reason` | when `origin` or `base_origin` is `China` | Why the model was chosen: the alternatives that don't serve. Set on no other model. |
+| `origin_reason` | when `origin` or `base_origin` is `China` | The evaluation that cleared the release, by its URL, as [the policy's clearance](../docs/policy.md#clearance) requires. Set on no other model. |
 | `generation_config` | with `base_model`, unless the row sets `sampling` | That the checkpoint's `generation_config.json` carries the base model card's sampling, which vLLM applies by default. |
 
 The restricted origin is China alone (`standards-lab/context/ai-strategy.md`, "Constraint: model

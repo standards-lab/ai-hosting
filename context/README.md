@@ -47,17 +47,22 @@ record holds the tasks and their order.
 - **Runbooks** (built): one per host class, `classes/<class>/runbook.md`: the root steps, the
   suite's install, and each row's commands ([gb10](../classes/gb10/runbook.md),
   [strix-halo](../classes/strix-halo/runbook.md)).
-- **The bench** (built): GuideLLM and MTEB in mise's `bench` environment, with the GuideLLM
-  scenarios and the BelebeleRetrieval runner that the findings' cells run, from the laptop
-  ([bench/README.md](../bench/README.md)). The scenarios and `levels.jq` derive from
+- **The bench** (built): GuideLLM and MTEB in mise's `bench` environment, with a GuideLLM
+  scenario for each purpose, the agent's among them, the cell runner `bench/cell.sh`, which runs
+  a scenario against one row a level at a time, and the BelebeleRetrieval runner, all run from the
+  laptop ([bench/README.md](../bench/README.md)). The scenarios and `levels.jq` derive from
   spike-model-layout's `bench/` at `e64d9c4`.
 - **Findings** (built): the measurements behind a row's settings, each cell with its command,
   time, figures, and tool versions, which the profile's reasons cite: the embedding row's in
   [docs/findings/embedding.md](../docs/findings/embedding.md), the audio row's in
   [docs/findings/audio.md](../docs/findings/audio.md), and the vision row's image budget and cap in
   [docs/findings/vision.md](../docs/findings/vision.md).
-- **Upgrade evaluation** (planned): the convention and its `hosting-upgrades` skill
-  ([host-classes.md](host-classes.md), [engines.md](engines.md)).
+- **Upgrade evaluation** (built): the convention for evaluating a vLLM release, a row's settings,
+  or a replacement model ([docs/upgrades.md](../docs/upgrades.md)), the policy every candidate
+  meets ([docs/policy.md](../docs/policy.md)), one descriptor a host
+  ([docs/hosts/](../docs/hosts/)), and the `hosting-upgrades` skill, whose `setup`, `survey`, and
+  `measure` modes run it
+  ([.claude/skills/hosting-upgrades/](../.claude/skills/hosting-upgrades/)).
 - **Admin tooling** (planned): experiment.admin's Go CLI, which implements the profile schema
   ([classes/README.md](../classes/README.md)), built after experiment.admin's intake.
 - **One hosting repository per workstation** (built): each host runs the suite from one clone,

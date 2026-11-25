@@ -1,0 +1,18 @@
+# The agent row at 8 concurrent streams, each sending one request of 65,536 synthetic prompt tokens
+# with exactly 256 output tokens, 8 requests in all. See bench/README.md.
+spec:
+  backend:
+    kind: openai_http
+    request_format: /v1/chat/completions
+  profile:
+    kind: concurrent
+    streams: [8]
+  data:
+    - kind: synthetic_text
+      prompt_tokens: 65536
+      output_tokens: 256
+  constraints:
+    - kind: max_requests
+      count: 8
+    - kind: max_duration
+      seconds: 570

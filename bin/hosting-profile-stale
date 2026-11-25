@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# hosting:summary=Lists the rows measured on a vLLM release older than the pin
+# `hosting profile stale [<class>]`: validates every class profile, or the one class given, then
+# lists each row whose measured_vllm is older than the vLLM pin in lib/vllm.env, by class and
+# alias (hosting_profile_stale in lib/profile.sh): the rows an upgrade re-measures. Exits 0
+# whether it lists any or none. Runs on any host, and changes nothing. See
+# context/hosting-suite.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+usage='profile stale [<class>]'
+if (($# > 1)); then
+  hosting_usage_error "profile stale takes at most one class" "$usage"
+fi
+if (($# == 0)); then
+  hosting_profile_stale "${HOSTING_CLASSES[@]}"
+  exit
+fi
+for class in "${HOSTING_CLASSES[@]}"; do
+  if [[ $1 == "$class" ]]; then
+    hosting_profile_stale "$1"
+    exit
+  fi
+done
+hosting_usage_error "$1 is none of ${HOSTING_CLASSES[*]}" "$usage"

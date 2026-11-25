@@ -316,3 +316,47 @@ and
 - **State:** watching.
 - **Last checked:** 2026-11-24T23:16Z, `mise run watch`: as recorded; v1.7.0, the latest
   release, has no `concurrencyLimit`.
+
+## A gfx1151 MIOpen find database in vLLM's ROCm image
+
+- **Kind:** capability.
+- **Dependency:** vLLM's ROCm image, `vllm-project/vllm`, built from `docker/Dockerfile.rocm_base`
+  on the ROCm SDK its `ROCM_SDK_VERSION` names, whose MIOpen comes from `ROCm/rocm-libraries`; the
+  audio image's base, pinned in
+  [`images/vllm-openai-rocm-audio/Dockerfile`](../images/vllm-openai-rocm-audio/Dockerfile) at the
+  release in [`lib/vllm.env`](../lib/vllm.env) (v0.34.0).
+- **Wants:** a packaged gfx1151 find database in the image, so that MIOpen resolves the audio
+  encoder's convolutions from it rather than by live solver timing, which fails on the Framework's
+  gfx1151, and the audio image can drop `MIOPEN_FIND_MODE=FAST`
+  ([engines](../context/engines.md#the-audio-image)).
+- **Evidence:** rocm-libraries#10050, merged 2026-08-26 at `6ff142b`, adds MIOpen's gfx1151 system
+  databases, `projects/miopen/src/kernels/gfx115128.HIP.fdb.txt.bz2` (find) and
+  `gfx115128.db.txt.bz2` (perf), named for the 40-CU part the Framework carries. TheRock's
+  `therock-10.0` tag doesn't hold the merge (its compare is diverged); `therock-10.1` and
+  `therock-10.2` do. vLLM v0.34.0 builds its ROCm image on `ROCM_SDK_VERSION=10.0.0`, so the pinned
+  image predates the databases. Upstream, the gfx1151 database still reports 658 find-database
+  workspace mismatches once its DBSync test runs (rocm-libraries#16420), and #15618 would refresh
+  the shipped gfx1151 databases with newer measurements. vllm#37472 reported vLLM hanging on
+  gfx1151 for want of a solver database, and was closed after a maintainer served a nightly image
+  there.
+- **Upstream:**
+  - `upstream ROCm/rocm-libraries#10050 = merged` the gfx1151 and gfx1200 system databases.
+  - `upstream ROCm/rocm-libraries#16420 = open` gfx1151's find-database workspace mismatches.
+  - `upstream ROCm/rocm-libraries#15618 = open` newer measurements layered over the shipped
+    databases, gfx1151's among them.
+  - `upstream vllm-project/vllm#37472 = closed` vLLM on gfx1151 without MIOpen's solver database.
+- **Watched:**
+  - `text vllm-project/vllm docker/Dockerfile.rocm_base ARG ROCM_SDK_VERSION=10.0.0 = present`
+    the ROCm SDK vLLM's latest release builds its ROCm image on; its absence, a newer SDK, is the
+    change to read.
+  - `release-contains ROCm/rocm-libraries 6ff142b359893aff2ff040fcd9456eb2befb6bf1 = present`
+    the latest TheRock tag carries the gfx1151 databases.
+- **Parity:** a vLLM release whose ROCm image is built on a ROCm SDK carrying the merge, 10.1 or
+  later, with `gfx115128.HIP.fdb.txt` readable under its MIOpen's `share/miopen/db`.
+- **Action:** on the pin's move to that release, build the audio image without
+  `MIOPEN_FIND_MODE=FAST` and rerun the audio row's probe on audio of 10 s or more; if it passes,
+  drop the setting from the image and from [engines](../context/engines.md#the-audio-image).
+- **State:** watching.
+- **Last checked:** 2026-11-25T18:50Z, `mise run watch`: as recorded; vLLM v0.34.0, the latest
+  release, builds on `ROCM_SDK_VERSION=10.0.0`, and `therock-10.2`, the latest TheRock tag,
+  carries the databases.

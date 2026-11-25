@@ -6,10 +6,10 @@ The measurements behind the gb10 profile's vision row, which serves
 its time in UTC, its figures, and the tool versions it ran on. The profile's reasons cite the cells
 by their section; the row's settings live in [the profile](../../classes/gb10/profile.toml).
 
-The capacity cells at 560 and 1120, capacity-1120-clean among them, are preliminary: they ran the
-row alone, not beside the layout's other rows. 560 is an interim budget, measured before 1120. Each
-table's Floor column, and "the 10 s floor" below, is `levels.jq`'s vision verdict, a request
-latency median of at most 10 s; the row's cap follows its throughput peak instead, as the
+The capacity cells at 560 and 1120, capacity-1120-clean among them, are
+[preliminary](../../bench/README.md#preliminary-cells). 560 is an interim budget, measured before
+1120. Each table's Floor column, and "the 10 s floor" below, is `levels.jq`'s vision verdict, a
+request latency median of at most 10 s; the row's cap follows its throughput peak instead, as the
 profile's `cap_reason` says.
 
 ## Tools
