@@ -6,10 +6,11 @@ The measurements behind the gb10 profile's vision row, which serves
 its time in UTC, its figures, and the tool versions it ran on. The profile's reasons cite the cells
 by their section; the row's settings live in [the profile](../../classes/gb10/profile.toml).
 
-The capacity cells at 560 and 1120 are preliminary: they ran the row alone, not beside the
-layout's other rows. 560 is an interim budget, measured before 1120. Each table's Floor column, and
-"the 10 s floor" below, is `levels.jq`'s vision verdict, a request latency median of at most 10 s;
-the row's cap follows its throughput peak instead, as the profile's `cap_reason` says.
+The capacity cells at 560 and 1120, capacity-1120-clean among them, are preliminary: they ran the
+row alone, not beside the layout's other rows. 560 is an interim budget, measured before 1120. Each
+table's Floor column, and "the 10 s floor" below, is `levels.jq`'s vision verdict, a request
+latency median of at most 10 s; the row's cap follows its throughput peak instead, as the
+profile's `cap_reason` says.
 
 ## Tools
 
@@ -199,6 +200,56 @@ The row's `/metrics` after both runs, counting the probes: 141 requests finished
   8 and 0.322 at 16, and the prompt throughput holds near 468 tokens a second from 4 streams up.
 - 4 streams miss the 10 s floor at 1120, with a request latency median of 10.89 s and no request
   within 10 s. 2 streams meet it, 6.37 s, and 1 stream, 5.06 s.
+
+## capacity-1120-clean
+
+[capacity-1120](#capacity-1120) again at 4 and 8 streams, on requests no earlier request sent
+([synthetic-data](#synthetic-data)): each level its own run of
+[`bench/vision-capacity.yaml`](../../bench/vision-capacity.yaml) with its streams as both seeds,
+as [bench/README.md](../../bench/README.md#running-a-cell) gives, on a row with empty caches. The
+row restarted at cap 16, `hosting engine update vision` at 2026-11-25T16:30:14Z, its start
+reporting a KV cache of 158,611 tokens, 19.36 requests of 8,192. Each request took 1,314 or 1,315
+prompt tokens, as at capacity-1120. `tailscale ping gb10-2`, right before each run, answered
+direct, 1 ms and 2 ms.
+
+```sh
+for streams in 4 8; do
+  GUIDELLM__SPEC__BACKEND__TARGET=http://gb10-2:8001 \
+    MISE_ENV=bench mise exec -- guidellm run -c bench/vision-capacity.yaml \
+    --profile kind=concurrent,streams=$streams \
+    --data kind=synthetic_text,prompt_tokens=200 \
+    --data kind=synthetic_image,resolution=1440p,format=jpeg,output_tokens=100,seed=$streams \
+    --seed kind=static,value=$streams \
+    --backend kind=openai_http,model=vision \
+    --tokenizer kind=huggingface_auto,model=google/gemma-4-26B-A4B-it \
+    --output kind=json,path=.state/bench/vision-1120-clean-gb10-2-lan-$streams.json
+done
+```
+
+`levels.jq` with `--arg purpose vision`:
+
+| Streams | Start, UTC | ok/err/inc | req/s | TTFT median ms | ITL median ms | Latency median s | Latency p90 s | Latency min s | ≤ 10 s | Prompt tok/s | Duration s | Floor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 4 | 2026-11-25T16:31:25Z | 32/0/4 | 0.356 | 5,409 | 38.27 | 10.87 | 10.91 | 10.79 | 0/32 | 468 | 90 | misses |
+| 8 | 2026-11-25T16:33:13Z | 32/0/8 | 0.356 | 9,176 | 99.47 | 19.01 | 20.77 | 18.86 | 0/32 | 468 | 90 | misses |
+
+The row's caches, from `/metrics`' `vllm:mm_cache_*_total` and `vllm:prefix_cache_*_total`:
+
+| Read | Multimodal hits/queries | Prefix hits/queries, tokens |
+| --- | --- | --- |
+| Before 4 streams | 0/0 | 0/0 |
+| After 4 streams | 0/36, 0% | 0/47,339, 0% |
+| After 8 streams | 0/76, 0% | 0/99,938, 0% |
+
+The row finished 64 requests, all at `max_tokens`, with 0 preemptions.
+
+- **capacity-1120 was not inflated.** Without any cache reuse, 4 and 8 streams give the same
+  0.356 requests a second as capacity-1120's one-run sweep, and request latency medians within 1%
+  of it: 10.87 s against 10.89 s at 4 streams, 19.01 s against 18.87 s at 8. The latency's split
+  differs at 8 streams, a TTFT median of 9,176 ms against 5,452 and an ITL median of 99.47 ms
+  against 135.55. 2 and 16 streams were not run again, since 4 and 8 didn't change, and
+  capacity-280 and capacity-560 were not run again.
+- **Throughput still peaks at 4 streams**: 8 streams add nothing and take 1.7 times the latency.
 
 ## Comparison
 
