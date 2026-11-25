@@ -1,0 +1,19 @@
+# The vision row at 4, 8 and 16 concurrent streams, 90 s a level, each request one synthetic 1440p
+# JPEG beside 200 synthetic text tokens, with exactly 100 output tokens. See bench/README.md.
+spec:
+  backend:
+    kind: openai_http
+    request_format: /v1/chat/completions
+  profile:
+    kind: concurrent
+    streams: [4, 8, 16]
+  data:
+    - kind: synthetic_text
+      prompt_tokens: 200
+    - kind: synthetic_image
+      resolution: 1440p
+      format: jpeg
+      output_tokens: 100
+  constraints:
+    - kind: max_duration
+      seconds: 90

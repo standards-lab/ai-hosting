@@ -2,8 +2,9 @@
 # Tests for scripts/lint-bench.sh, the bench scenarios' lint, against the committed scenarios and
 # profile and against the fixtures in tests/bench/: a 512-token context with a scenario within it
 # and one over it, a stream sweep and a rate sweep among them. Tests too that each committed audio
-# scenario lists one prompt per clip row, and for bench/levels.jq's level names against the result
-# fixtures there: a rate sweep's and a stream sweep's.
+# scenario lists one prompt per clip row, and for bench/levels.jq's level names and vision's
+# figures and floor against the result fixtures there: a rate sweep's, a stream sweep's, and a
+# vision stream sweep's.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 # shellcheck source=lib/profile.sh
@@ -88,7 +89,7 @@ run_levels() {
 test_levels_names_a_rate_sweeps_synchronous_throughput_and_constant_levels() {
   run_levels "$fixtures/sweep-result.json"
   assert_equal status "$status" 0
-  assert_equal levels "$(cut -d '|' -f 1-3,13 <<<"$out")" "## sweep-result.json
+  assert_equal levels "$(cut -d '|' -f 1-3,15 <<<"$out")" "## sweep-result.json
 level | ok/err/inc | req/s | floor
 synchronous | 2/0/1 | 9.250 | meets
 throughput | 2/1/0 | 70.500 | meets
@@ -99,6 +100,22 @@ test_levels_names_a_stream_sweeps_level_by_its_streams() {
   run_levels "$fixtures/streams-result.json"
   assert_equal status "$status" 0
   assert_equal levels "$(sed -n 3p <<<"$out" | cut -d '|' -f 1)" "16 "
+}
+
+test_levels_judges_each_vision_level_by_its_latency_median() {
+  run jq -r --arg purpose vision -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
+  assert_equal status "$status" 0
+  assert_equal levels "$(cut -d '|' -f 1,2,4-9,15 <<<"$out")" "## vision-result.json
+level | ok/err/inc | TTFT med ms | ITL med ms | lat med s | lat p90 s | lat min s | lat<=10s | floor
+4 | 3/0/4 | 812 | 31.26 | 4.00 | 4.80 | 3.00 | 3/3 | meets
+8 | 3/1/8 | 2400 | 70.00 | 9.50 | 11.50 | 8.00 | 2/3 | meets
+16 | 2/0/16 | 6100 | 95.50 | 11.00 | 12.60 | 9.00 | 1/2 | MISSES"
+}
+
+test_levels_refuses_an_unknown_purpose() {
+  run jq -r --arg purpose agent -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
+  assert_equal status "$status" 5
+  assert_contains stderr "$err" "purpose must be vision, audio or embed"
 }
 
 run_tests

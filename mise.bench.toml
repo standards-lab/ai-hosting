@@ -8,5 +8,5 @@ python 3.14.10: MTEB 2.27.22 requires Python below 3.15, and torchcodec 0.17.0, 
 
 [tools]
 python = "3.14.10"
-"pipx:guidellm" = { version = "0.8.1", extras = ["audio"] }
+"pipx:guidellm" = { version = "0.8.1", extras = ["vision", "audio"] }
 "pipx:mteb" = "2.27.22"

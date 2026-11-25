@@ -1,7 +1,8 @@
 # Per-level figures from GuideLLM 0.8.1 result JSON, one table a file, judged by the purpose's
-# floor: audio an RTFx median of at least 5, embed a mean of at least 4,300 prompt tok/s.
+# floor: vision a request latency median of at most 10 s, audio an RTFx median of at least 5, embed
+# a mean of at least 4,300 prompt tok/s.
 #
-#   jq -r --arg purpose <audio|embed> -f bench/levels.jq <result.json>...
+#   jq -r --arg purpose <vision|audio|embed> -f bench/levels.jq <result.json>...
 #
 # See bench/README.md.
 
@@ -45,15 +46,19 @@ def level($purpose):
      | .input_metrics.audio_seconds / (.request_end_time - .request_start_time)] as $rtfx
   | $m.prompt_tokens_per_second.successful.mean as $ptps
   | ($lat | median) as $latm
-  | ((if $purpose == "audio" then ($rtfx | length) > 0 and ($rtfx | median) >= 5
+  | ((if $purpose == "vision" then ($lat | length) > 0 and $latm <= 10
+     elif $purpose == "audio" then ($rtfx | length) > 0 and ($rtfx | median) >= 5
      else $ptps >= 4300 end) and $rt.successful > 0) as $ok
   | [ level_name,
       "\($rt.successful)/\($rt.errored)/\($rt.incomplete)",
       ($m.requests_per_second.successful.mean | fixed(3)),
       ($m.time_to_first_token_ms.successful.median | fixed(0)),
+      ($m.inter_token_latency_ms.successful.median | fixed(2)),
       ($latm | fixed(2)),
       ($lat | pct(0.9) | fixed(2)),
       (if ($lat | length) > 0 then $lat | min | fixed(2) else "-" end),
+      (if $purpose == "vision"
+       then "\([$lat[] | select(. <= 10)] | length)/\($lat | length)" else "-" end),
       ($ptps | fixed(0)),
       (if ($rtfx | length) > 0
        then "\($rtfx | median | fixed(2)) | \($rtfx | min | fixed(2)) | \([$rtfx[] | select(. >= 5)] | length)/\($rtfx | length)"
@@ -65,9 +70,9 @@ def level($purpose):
 def table($purpose):
   "## \(name)",
   knee,
-  "level | ok/err/inc | req/s | TTFT med ms | lat med s | lat p90 s | lat min s | prompt tok/s | RTFx med | RTFx min | RTFx>=5 | dur s | floor",
+  "level | ok/err/inc | req/s | TTFT med ms | ITL med ms | lat med s | lat p90 s | lat min s | lat<=10s | prompt tok/s | RTFx med | RTFx min | RTFx>=5 | dur s | floor",
   (.benchmarks[] | level($purpose));
 
 $ARGS.named.purpose as $purpose
-| if $purpose == "audio" or $purpose == "embed" then table($purpose)
-  else error("purpose must be audio or embed") end
+| if $purpose == "vision" or $purpose == "audio" or $purpose == "embed" then table($purpose)
+  else error("purpose must be vision, audio or embed") end

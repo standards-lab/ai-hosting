@@ -8,7 +8,7 @@ task's ([host-classes.md](../context/host-classes.md)).
 ## The environment
 
 The tools live in mise's `bench` environment, [`mise.bench.toml`](../mise.bench.toml), beside
-`mise.toml`: Python, GuideLLM 0.8.1 with its audio extra, and MTEB, each pinned exactly. A command
+`mise.toml`: Python, GuideLLM 0.8.1 with its vision and audio extras, and MTEB, each pinned exactly. A command
 reads that file only with `MISE_ENV=bench` set, so `mise run check` never installs them and reads
 no network. `mise run currency` reads its pins with every other pin. Install it once, from the
 repository root:
@@ -33,6 +33,7 @@ them on the command line.
 | [`embedding-rate-sweep.yaml`](embedding-rate-sweep.yaml) | GuideLLM's sweep: synchronous, throughput, then 14 constant rates between them, 90 s a level, sixteen levels in one run | The highest rate the embedding row keeps |
 | [`audio.yaml`](audio.yaml) | 4 concurrent streams for 240 s | The audio row at 4 streams |
 | [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at a cap of 8 |
+| [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run | The vision row's request latency against its floor, run once for each image budget the row is given |
 
 Each embedding request is 510 synthetic tokens to `/v1/embeddings`: with the 2 special tokens an
 XLM-R tokenizer adds, 512, the embedding row's context. `scripts/lint-bench.sh`, which the check
@@ -64,6 +65,12 @@ duration says so. At 8 streams those rows ran out at 146 s (spike-model-layout
 docs/findings/vllm-layout.md, F.5), so `audio-8.yaml` reads the same split 24 times over, 1,752
 rows, with the prompt listed 1,752 times: room for 7.3 requests a second over 240 s. Its requests
 are the same clips and prompt as `audio.yaml`'s, so its cells compare with the 4-stream ones.
+
+Each vision request is one synthetic 1440p JPEG beside 200 synthetic text tokens, sent to
+`/v1/chat/completions`, each reply exactly 100 tokens; GuideLLM's vision extra draws the images.
+The requests and the 90 s level are spike-model-layout's vision cells'
+(`bench/vllm-layout-vision-capacity.yaml`, which ran 8 and 16 streams); this scenario adds a level
+at 4. A level stops at 90 s, and the requests then in flight count as incomplete.
 
 ## Running a cell
 
@@ -105,6 +112,16 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://framework:<port> \
   --output kind=json,path=.state/bench/<cell>.json
 ```
 
+The vision row's three levels on gb10-2:
+
+```sh
+GUIDELLM__SPEC__BACKEND__TARGET=http://gb10-2:8001 \
+  MISE_ENV=bench mise exec -- guidellm run -c bench/vision-capacity.yaml \
+  --backend kind=openai_http,model=vision \
+  --tokenizer kind=huggingface_auto,model=google/gemma-4-26B-A4B-it \
+  --output kind=json,path=.state/bench/<cell>.json
+```
+
 The rate scenario takes its rate from the environment too,
 `GUIDELLM__SPEC__PROFILE__RATE=<requests a second>`; with none set, GuideLLM refuses to start. The
 earlier pair cell was two runs started together, `audio.yaml` against the audio row and
@@ -115,15 +132,17 @@ earlier pair cell was two runs started together, `audio.yaml` against the audio 
 [`levels.jq`](levels.jq) turns a result JSON into one table a file, one row a level: its streams,
 `rate <r>` on a constant-rate level, its rate to two places, or `synchronous` or `throughput` on a
 sweep's first two levels; requests ok, errored, and incomplete; requests a second;
-the request latency's median, p90, and minimum; prompt tok/s; for audio, the RTFx median and
+the TTFT median; the ITL median; the request latency's median, p90, and minimum; for vision, the
+count of requests that finished in 10 s or less; prompt tok/s; for audio, the RTFx median and
 minimum and the count of requests at RTFx 5 or more (each request's clip seconds over its request
 time); and the level's floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's an
-RTFx median of 5; a level with no successful request misses. A sweep's table starts with the knee
-GuideLLM concluded. Medians and percentiles interpolate linearly between the two nearest ranks.
+RTFx median of 5, vision's a request latency median of at most 10 s; a level with no successful
+request misses. A sweep's table starts with the knee GuideLLM concluded. Medians and percentiles interpolate linearly between the two nearest ranks.
 
 ```sh
 jq -r --arg purpose embed -f bench/levels.jq .state/bench/<cell>.json
 jq -r --arg purpose audio -f bench/levels.jq .state/bench/<cell>.json
+jq -r --arg purpose vision -f bench/levels.jq .state/bench/<cell>.json
 ```
 
 ## Scoring retrieval

@@ -1,0 +1,57 @@
+{
+  "benchmarks": [
+    {
+      "config": { "strategy": { "type_": "concurrent", "rate": null, "streams": 4 } },
+      "duration": 90.1,
+      "metrics": {
+        "request_totals": { "successful": 3, "errored": 0, "incomplete": 4 },
+        "requests_per_second": { "successful": { "mean": 0.95 } },
+        "time_to_first_token_ms": { "successful": { "median": 812.4 } },
+        "inter_token_latency_ms": { "successful": { "median": 31.256 } },
+        "prompt_tokens_per_second": { "successful": { "mean": 2650 } }
+      },
+      "requests": {
+        "successful": [
+          { "request_start_time": 0.0, "request_end_time": 3.0, "input_metrics": {} },
+          { "request_start_time": 0.0, "request_end_time": 5.0, "input_metrics": {} },
+          { "request_start_time": 1.0, "request_end_time": 5.0, "input_metrics": {} }
+        ]
+      }
+    },
+    {
+      "config": { "strategy": { "type_": "concurrent", "rate": null, "streams": 8 } },
+      "duration": 90,
+      "metrics": {
+        "request_totals": { "successful": 3, "errored": 1, "incomplete": 8 },
+        "requests_per_second": { "successful": { "mean": 0.8 } },
+        "time_to_first_token_ms": { "successful": { "median": 2400 } },
+        "inter_token_latency_ms": { "successful": { "median": 70 } },
+        "prompt_tokens_per_second": { "successful": { "mean": 2200 } }
+      },
+      "requests": {
+        "successful": [
+          { "request_start_time": 0.0, "request_end_time": 8.0, "input_metrics": {} },
+          { "request_start_time": 0.0, "request_end_time": 12.0, "input_metrics": {} },
+          { "request_start_time": 2.0, "request_end_time": 11.5, "input_metrics": {} }
+        ]
+      }
+    },
+    {
+      "config": { "strategy": { "type_": "concurrent", "rate": null, "streams": 16 } },
+      "duration": 90,
+      "metrics": {
+        "request_totals": { "successful": 2, "errored": 0, "incomplete": 16 },
+        "requests_per_second": { "successful": { "mean": 0.6 } },
+        "time_to_first_token_ms": { "successful": { "median": 6100 } },
+        "inter_token_latency_ms": { "successful": { "median": 95.5 } },
+        "prompt_tokens_per_second": { "successful": { "mean": 1500 } }
+      },
+      "requests": {
+        "successful": [
+          { "request_start_time": 0.0, "request_end_time": 9.0, "input_metrics": {} },
+          { "request_start_time": 0.0, "request_end_time": 13.0, "input_metrics": {} }
+        ]
+      }
+    }
+  ]
+}
