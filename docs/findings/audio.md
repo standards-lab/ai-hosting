@@ -34,6 +34,9 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://framework:8002 \
 The row's `/metrics` after both runs: 3,130 requests finished, 0 preemptions, and the KV cache
 never full.
 
+Its rows cycle the same 73 clips, and its caches weren't read, so its figures may hold the cache
+reuse that [audio-capacity-short](#audio-capacity-short) measured.
+
 - **Cap 8 meets audio's floor**: an RTFx median of 5.32, over the floor of 5, at 1.74 times the
   4-stream throughput. Beside granite, the earlier embedding row, the 8-stream cell held 4.94
   (spike-model-layout `docs/findings/vllm-layout.md`, F.5).
@@ -96,8 +99,8 @@ The replies are the session's, outside the repository.
 
 ## audio-capacity-short
 
-Preliminary, at an interim setting the sweeps run at, not the row's tuned one: cap 32
-(`--max-num-seqs 32`, `--max-num-queued-reqs 64`), fraction 0.28, context 8,192, on vLLM v0.34.0
+Preliminary, at the interim setting the sweeps ran at, which the row then took but for its
+queue limit, now 128: cap 32 (`--max-num-seqs 32`, `--max-num-queued-reqs 64`), fraction 0.28, context 8,192, on vLLM v0.34.0
 in the image `ai-hosting/vllm-openai-rocm-audio:v0.34.0`, the row alone on `framework`. Its
 start, `hosting engine update audio` at 2026-11-25T15:33:11Z, read the 0.28 back as 31.36 GiB of
 the GPU's 112.0; its weights took 15.22 GiB, and its KV cache held 372,696 tokens, 45.50 requests
@@ -108,7 +111,8 @@ GTT available 81.50 GiB, against the Framework's floors of 12.5 and 11.2 (spike-
 
 The client is the laptop on the LAN, GuideLLM 0.8.1 in the bench environment with Gemma 4 E4B's
 tokenizer; `tailscale ping framework` answered direct, 1 ms, before each run. The rows are
-`bench/audio-clips.sh scenarios`', each with its own audio ([bench/README.md](../../bench/README.md)).
+`bench/audio-clips.sh scenarios`', each with its own audio
+([bench/README.md](../../bench/README.md)).
 
 **The caches in one run.** [`bench/audio-capacity.yaml`](../../bench/audio-capacity.yaml) as
 committed, its six levels in one run from 2026-11-25T15:35:59Z, each level reading the rows from
