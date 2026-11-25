@@ -14,7 +14,7 @@ creates and pushes no branch, and writes no finding.
 ## 1. Before the measure
 
 1. Run [setup.md](setup.md), "Before a mode", with `measure`.
-2. **The last survey**: the newest `.state/upgrades/<host>/<YYYY-MM-DD>.md`. With none, stop:
+2. **The last survey**: the newest `.state/upgrades/<host>/<UTC date>T<HHMM>Z.md`. With none, stop:
    "No survey for `<host>`; run `/hosting-upgrades survey <host>` first." Name the report.
 3. **What moved.** Compare the probe with the report's: the clone's commit and branch, each row's
    image and arguments, a pending update now applied. A change that would alter an item's verdict
@@ -45,8 +45,10 @@ The pass pauses with a proposal, and runs none of the cell, when a cell it would
   MemAvailable low-water during it, as the fraction's cell in spike-model-layout's E.1 reads them.
   `bench/cell.sh` runs loads only, so the cell is outside it. The proposal names the cell and the
   steps it took.
-- **has inputs or a command the repository doesn't hold**, such as the vision probe's pages
-  ([probe-1120](../../../docs/findings/vision.md#probe-1120)). The proposal names what is missing.
+- **has inputs or a command the repository doesn't hold**. The proposal names what is missing.
+  The vision row's accuracy measure is one:
+  [probe-1120](../../../docs/findings/vision.md#probe-1120)'s pages and request command aren't
+  in the repository, so no vision pass reaches a verdict until `acceptance` commits them.
 - **needs a file staged into the row's container**, such as a chat template the row's model
   doesn't ship. There is no staging route yet; the proposal names the file and where the row would
   read it.
@@ -69,7 +71,8 @@ Each command is printed, then run, then recorded with its UTC time and exit stat
 
 A dry pass prints the same lines and ends each with `not run (dry)`. Each pass has three parts.
 
-**The incumbent.** On the default branch, for each cell the pass runs:
+**The incumbent.** On the default branch, for each cell the measure's passes run, once a measure
+([the convention](../../../docs/upgrades.md#measures-three-passes)):
 
 ```sh
 ssh <host> docker restart <container>
@@ -86,22 +89,30 @@ The accuracy measures are each purpose's own: embedding's retrieval through `ben
 ([bench/README.md](../../../bench/README.md#scoring-retrieval)), and the audio, vision, and agent
 probes as their findings give them.
 
+A cell its findings ran under settings the profile no longer holds, such as vision's cells at cap
+16 where the row now runs cap 4, runs at the current settings as the row's new baseline
+([the convention](../../../docs/upgrades.md#measures-three-passes)), and the account names it.
+
 **The change**, from a branch the host's clone checks out:
 
 | Pass | The branch's one change | On the host |
 |---|---|---|
 | Engine move | `VLLM_RELEASE=<release>` in `lib/vllm.env` | `ssh <host> 'cd ~/ai-hosting && git fetch && git switch <branch> && hosting engine update'` |
 | Settings check | `bin/hosting profile set <alias> <field>=<value>` | `ssh <host> 'cd ~/ai-hosting && git fetch && git switch <branch> && hosting engine update <alias>'` |
-| Candidate screen | the row's `model`, and its `source` table, naming the candidate | `ssh <host> 'cd ~/ai-hosting && git fetch && git switch <branch> && hosting model pull <model> && hosting engine update <alias>'` |
+| Candidate screen | a direct edit of the class profile's row, not `hosting profile set`: its `model`; its `source` table, naming the candidate, without `base_model`, `base_origin`, or `generation_config` where they no longer apply; and its `card_context` | `ssh <host> 'cd ~/ai-hosting && git fetch && git switch <branch> && hosting model pull <model> && hosting engine update <alias>'` |
 
 The branch is cut, committed, and pushed from this clone, `measure/<host>-<what>`, each command
 printed:
 
 ```sh
 git switch -c measure/<host>-<what> main
+bin/hosting profile validate
 git commit -m "<the change>" -- <file>
 git push -u origin measure/<host>-<what>
 ```
+
+`hosting profile validate` passes before the commit, so the host never checks out a profile it
+would refuse.
 
 Then the incumbent's cells again on the changed row, each from a restart, with the cell name
 `<cell>-<release, field, or model>`.

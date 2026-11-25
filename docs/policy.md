@@ -22,7 +22,15 @@ candidate:
    trained to match, read by its role in the publisher's own documents, whatever they call it. A
    teacher the documents leave unnamed passes only when they place it in the publisher's own
    pipeline. A model that only filtered, labeled, punctuated, or cleaned human data is not a
-   teacher: that is dataset work, and not origin.
+   teacher: that is dataset work, and not origin. So:
+   - a card that names no teacher and no external generator passes this level;
+   - a card that names synthetic data from an external generator it leaves unnamed is "origin
+     unclear", as an unnamed teacher outside the publisher's pipeline is;
+   - "relabeled" data is labeling, dataset work, so its relabeling model is not a teacher;
+   - LLM-generated query-passage pairs for an embedding model are its training targets, so their
+     generator is a teacher;
+   - a base model's own teachers bind its fine-tunes, since a fine-tune takes its base's origin and
+     the base's origin is read at all three levels.
 3. **Each component in the inference path**: a vision or audio encoder, a projector, or the
    tokenizer, as the publisher ships it.
 
@@ -46,8 +54,8 @@ other open weights, as soon as a government evaluator can vouch for that release
 
 A candidate that fails origin is admitted only when all of these hold:
 
-- NIST's Center for AI Standards and Innovation (CAISI) or the UK AI Security Institute (AISI)
-  published an evaluation of that exact release: the weights' repository and commit;
+- NIST's CAISSI (formerly CAISI) or the UK AI Security Institute (AISI) published an evaluation
+  of that exact release: the weights' repository and commit;
 - the evaluation assessed covert behavior or backdoors, and agent hijacking;
 - it found the model at parity with the U.S. reference models it tested.
 

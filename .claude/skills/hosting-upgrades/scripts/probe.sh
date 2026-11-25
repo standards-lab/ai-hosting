@@ -29,11 +29,8 @@ redact() {
 
 (($# == 1)) || refuse "usage: probe.sh <host>"
 host=$1
-[[ $host =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]] || refuse "$host is not a short host name"
-[[ $host != template ]] || refuse "template.md is the descriptor template, not a host"
-descriptor=$root/docs/hosts/$host.md
-[[ -f $descriptor ]] || refuse "no descriptor docs/hosts/$host.md"
-short=$(descriptor_short_name "$descriptor") || exit 2
+reason=$(descriptor_check "$root" "$host") || refuse "$reason"
+short=$(descriptor_short_name "$root/docs/hosts/$host.md") || exit 2
 
 ssh -o BatchMode=yes -- "$short" bash -s <"$here/probe-host.sh" | redact
 exit "${PIPESTATUS[0]}"

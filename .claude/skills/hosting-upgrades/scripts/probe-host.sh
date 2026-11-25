@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 # probe-host runs on one host, fed over ssh by probe.sh, and prints the host's state in labeled
-# sections (== name ==), read-only and without root: the system, the GPU driver and its CUDA or
-# ROCm version, the ai-hosting clone, the rows through the suite's read-only verbs, each row
-# container's running image and arguments beside the command its profile renders and its start's
-# warnings, pending package and firmware updates, failed units, and docker's disk with the images
-# no container uses, compared by image ID. It never calls sudo, never installs a tool, and changes
-# no system state: apt reads its cached lists, and Arch's checkupdates syncs into a temporary
-# database of its own, leaving pacman's untouched. A read whose command is absent prints
-# "skipped:", and the last section lists every skip.
+# sections (== name ==), read-only and without root: the system, the GPU driver and the CUDA it
+# supports or the host's ROCm and the GPU's gfx target, the memory a row's fraction applies to, the
+# ai-hosting clone, the rows through the suite's read-only verbs, each row container's running image
+# and arguments beside the command its profile renders and its start's WARNING and ERROR lines,
+# pending package and firmware updates, apt's with each package's source package, failed units, and
+# docker's disk with the images no container uses, compared by image ID. It never calls sudo, never
+# installs a tool, and changes no system state: apt reads its cached lists, and Arch's checkupdates
+# syncs into a temporary database of its own, leaving pacman's untouched. A read that finds nothing
+# prints "skipped:", and the last section lists every skip. Files are read under HOSTING_SYSROOT,
+# empty on a host.
 # See .claude/skills/hosting-upgrades/survey.md
 set -u
 export GIT_OPTIONAL_LOCKS=0 MISE_EXEC_AUTO_INSTALL=0
 clone=$HOME/ai-hosting
+sys=${HOSTING_SYSROOT:-}
 skipped=()
 docker_ok=0
 
@@ -56,22 +59,92 @@ print_system() {
   fi
 }
 
+gib() { awk -v b="$1" 'BEGIN { printf "%.2f GiB", b / 2^30 }'; }
+
+print_memory() {
+  local field kib card name total found=0
+  for field in MemTotal MemAvailable; do
+    kib=$(awk -v f="$field:" '$1 == f { print $2 }' "$sys/proc/meminfo" 2>/dev/null)
+    if [[ -n $kib ]]; then
+      printf 'memory: %s %s\n' "$field" "$(gib $((kib * 1024)))"
+    else
+      skip "memory: no $field in /proc/meminfo"
+    fi
+  done
+  if [[ $1 == nvidia ]]; then
+    total=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -n 1)
+    if [[ $total =~ ^[0-9]+$ ]]; then
+      printf 'memory: nvidia-smi total %s\n' "$(gib $((total * 1024 * 1024)))"
+    else
+      skip "memory: nvidia-smi gives no memory.total [${total:-none}]"
+    fi
+    return
+  fi
+  [[ $1 == amdgpu ]] || return
+  for card in "$sys"/sys/class/drm/card*/device; do
+    name=${card%/device}
+    [[ ${name##*/} != *-* ]] || continue
+    for field in gtt vram; do
+      [[ -r $card/mem_info_${field}_total ]] || continue
+      printf 'memory: amdgpu %s total %s (%s)\n' "${field^^}" \
+        "$(gib "$(<"$card/mem_info_${field}_total")")" "${card#"$sys"}"
+      found=1
+    done
+  done
+  ((found)) || skip "memory: no amdgpu mem_info_gtt_total or mem_info_vram_total"
+}
+
+print_gfx_target() {
+  local file version targets=()
+  for file in "$sys"/sys/class/kfd/kfd/topology/nodes/*/properties; do
+    [[ -r $file ]] || continue
+    version=$(awk '$1 == "gfx_target_version" { print $2 }' "$file")
+    [[ -n $version && $version != 0 ]] || continue
+    targets+=("$(printf 'gfx%d%d%x (gfx_target_version %s)' $((version / 10000)) \
+      $((version / 100 % 100)) $((version % 100)) "$version")")
+  done
+  if ((${#targets[@]})); then
+    printf 'gfx target: %s\n' "${targets[@]}" | sort -u
+  else
+    skip "gfx target: no GPU node in /sys/class/kfd/kfd/topology"
+  fi
+}
+
 print_gpu() {
   section gpu
-  if have nvidia-smi; then
+  local package version
+  if [[ -d $sys/sys/module/amdgpu ]]; then
+    printf 'amdgpu: %s\n' \
+      "$(cat "$sys/sys/module/amdgpu/version" 2>/dev/null || echo "in-tree, kernel $(uname -r)")"
+    print_gfx_target
+    echo "the row runs its image's ROCm SDK; the host's ROCm is read below"
+    if [[ -r $sys/opt/rocm/.info/version ]]; then
+      printf "host's rocm: %s\n" "$(<"$sys/opt/rocm/.info/version")"
+    else
+      skip "host's rocm: no /opt/rocm/.info/version"
+    fi
+    if have pacman; then
+      for package in rocm-core hip-runtime-amd linux-firmware-amdgpu; do
+        if version=$(pacman -Q "$package" 2>/dev/null); then
+          printf "host's package: %s\n" "$version"
+        else
+          skip "host's package: $package not installed"
+        fi
+      done
+    else
+      skip "host's packages: no pacman"
+    fi
+    print_memory amdgpu
+  elif have nvidia-smi; then
     printf 'driver: %s\n' "$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>&1 |
       sort -u | paste -sd ' ')"
-    printf 'cuda: %s\n' "$(nvidia-smi 2>/dev/null | grep -o 'CUDA Version: [0-9.]*' |
-      head -n 1 | cut -d ' ' -f 3)"
-    [[ -r /proc/driver/nvidia/version ]] && head -n 1 /proc/driver/nvidia/version
-  elif [[ -d /sys/module/amdgpu ]]; then
-    printf 'amdgpu: %s\n' \
-      "$(cat /sys/module/amdgpu/version 2>/dev/null || echo "in-tree, kernel $(uname -r)")"
-    [[ -r /opt/rocm/.info/version ]] && printf 'rocm: %s\n' "$(</opt/rocm/.info/version)"
-    have pacman && pacman -Q rocm-core hip-runtime-amd linux-firmware-amdgpu 2>/dev/null |
-      sed 's/^/package: /'
+    printf "cuda, the highest the driver supports, not the image's: %s\n" \
+      "$(nvidia-smi 2>/dev/null | grep -o 'CUDA Version: [0-9.]*' | head -n 1 | cut -d ' ' -f 3)"
+    [[ -r $sys/proc/driver/nvidia/version ]] && head -n 1 "$sys/proc/driver/nvidia/version"
+    print_memory nvidia
   else
-    skip "gpu: no nvidia-smi or amdgpu module"
+    skip "gpu: no amdgpu module or nvidia-smi"
+    print_memory none
   fi
 }
 
@@ -95,9 +168,15 @@ print_container() {
   args {{json .Args}}' 2>&1
   docker image inspect "$(docker inspect --format '{{.Image}}' "$1")" \
     --format '  image created {{.Created}}, digests {{json .RepoDigests}}' 2>&1
+  local lines=() first=0
+  mapfile -t lines < <(docker logs --since "$(docker inspect --format '{{.State.StartedAt}}' "$1")" \
+    "$1" 2>&1 | sed '/Application startup complete/q' | grep -wE 'WARNING|ERROR')
   echo "  start warnings:"
-  docker logs --since "$(docker inspect --format '{{.State.StartedAt}}' "$1")" "$1" 2>&1 |
-    sed '/Application startup complete/q' | grep -iE 'warn|error' | tail -n 10 | sed 's/^/    /'
+  if ((${#lines[@]} > 10)); then
+    first=$((${#lines[@]} - 10))
+    printf '    (%d earlier lines dropped, the last 10 shown)\n' "$first"
+  fi
+  ((${#lines[@]})) && printf '    %s\n' "${lines[@]:first}"
 }
 
 print_rows() {
@@ -127,13 +206,23 @@ print_rows() {
 
 print_updates() {
   section updates
-  local lines=() out rc synced='checkupdates, synced into a temporary database'
+  local lines=() line package source out rc synced='checkupdates, synced into a temporary database'
+  local -A sources=()
   if have apt; then
     printf 'apt lists: refreshed %s; the probe never refreshes them\n' \
       "$(date -r /var/lib/apt/lists '+%F %T' 2>/dev/null || echo never)"
     mapfile -t lines < <(apt list --upgradable 2>/dev/null | grep '/')
     printf 'pending: %d packages (apt, from the cached lists)\n' "${#lines[@]}"
-    ((${#lines[@]})) && printf 'update: %s\n' "${lines[@]}"
+    if ((${#lines[@]})) && have dpkg-query; then
+      while read -r package source; do
+        [[ -n ${sources[$package]:-} ]] || sources[$package]=$source
+      done < <(dpkg-query -W -f='${Package} ${source:Package}\n' "${lines[@]%%/*}" 2>/dev/null)
+    elif ((${#lines[@]})); then
+      skip "updates: dpkg-query absent, so no source packages"
+    fi
+    for line in "${lines[@]}"; do
+      printf 'update: %s; source package %s\n' "$line" "${sources[${line%%/*}]:-unknown}"
+    done
   elif have checkupdates; then
     out=$(timeout 90 checkupdates 2>&1)
     rc=$?

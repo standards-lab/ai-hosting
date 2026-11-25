@@ -35,7 +35,7 @@ A survey reads the host's probe (pending updates, failed units, the system's oth
 running rows), `mise run currency` (the vLLM release, image tags, and digests), `mise run watch`
 (each entry's upstream), each row's flags against vLLM's release notes since the row's
 `measured_vllm`, model candidates for each alias the host serves, gated by the policy, and the
-state of model security: NIST CAISI's and UK AISI's publications, and the methods and standards
+state of model security: NIST CAISSI's and UK AISI's publications, and the methods and standards
 for detecting a backdoor or covert behavior in a model. It reads every source fresh: no research
 cache is kept. It gives each item one verdict:
 
@@ -54,11 +54,11 @@ changes, with the profile's value beside it.
 
 ### Where survey reports go
 
-Each survey writes one dated report, `.state/upgrades/<host>/<YYYY-MM-DD>.md`, in the clone it
-runs from. `.state/` is untracked, so a report is never committed: it is host state, read by the
-next survey and the next measure. What a report settles reaches the repository only as a findings
-cell or an accepted proposal. The watch register holds what blocks a row from an upgrade, each
-entry with its upstream state, so there is no separate blocker register.
+Each survey writes one report, `.state/upgrades/<host>/<UTC date>T<HHMM>Z.md`, in the clone it
+runs from, so no later run replaces it. `.state/` is untracked, so a report is never committed:
+it is host state, read by the next survey and the next measure. What a report settles reaches the
+repository only as a findings cell or an accepted proposal. The watch register holds what blocks a
+row from an upgrade, each entry with its upstream state, so there is no separate blocker register.
 
 ## What triggers a measure
 
@@ -105,6 +105,11 @@ changes the host before it runs, and records it as run.
    candidate runs from a branch whose profile names it, after `hosting model pull`. An agent
    candidate stops after the gates and the capacity cell, at "needs `model-evaluation`'s tiers":
    its BFCL and conform tiers are that goal's, and no agent candidate is adopted before they run.
+
+The incumbent's cells run once a measure, and every pass in it compares with them. A cell its
+findings ran under settings the profile no longer holds runs at the current ones instead, and its
+figures become the row's new baseline: that row gets no drift verdict in the measure, which says
+so.
 
 Every load goes through the bench cell runner, [`bench/cell.sh`](../bench/cell.sh): one scenario
 against one row, each level alone, on inputs no other level sends, from a row restarted since its

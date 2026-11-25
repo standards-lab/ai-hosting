@@ -9,8 +9,9 @@ document. A change it would make is a proposal in its report.
 
 1. Run [setup.md](setup.md), "Before a mode", with `survey`: the host, the rules, the inputs, and
    the probe.
-2. Read the host's last report, the newest in `.state/upgrades/<host>/`, if any. The report names
-   what moved since it.
+2. Read the host's last report, the newest in `.state/upgrades/<host>/` from before this run, if
+   any. The report names what moved since it. An item the last report has no section for, such
+   as model security, reads the last 90 days.
 
 ## 2. Reconcile the probe with the descriptor
 
@@ -38,11 +39,25 @@ rollback; one with none is hold.
    repository and security status where the notes give them; a pending reboot; each failed unit;
    a row that is unhealthy (`hosting engine status`), stranded, or differs from its rendered
    command; each row's startup warnings; images no container uses; models `hosting model list`
-   shows no row serving. A host clone with no changed files whose commit is behind this clone's
-   `origin/main` is take: `git pull` in the host's clone, stating whether the row's rendered
-   command is unchanged, which it is when
-   `git diff --stat <host commit> origin/main -- classes/<class>/ lib/` lists no file. A root step
-   is printed for the architect, never run.
+   shows no row serving. A package with no notes source, such as the DGX repository's `nvidia-*`
+   or Omarchy's own repository, is take when it doesn't touch the row's path, such as a desktop
+   app, and otherwise hold, "no notes source". A root step is printed for the architect, never
+   run.
+
+   A host clone with no changed files whose commit is behind `origin/main` is take: `git pull` in
+   the host's clone, with the rollback `git -C ~/ai-hosting reset --keep <host commit>`. First
+   run `git fetch origin main` here, then state whether the row's rendered command is unchanged
+   by rendering the served row at `origin/main` in a temporary worktree:
+
+   ```sh
+   git worktree add --detach .state/upgrades/<host>/scratch/<timestamp>/main origin/main
+   (cd .state/upgrades/<host>/scratch/<timestamp>/main &&
+     HOSTING_CLASS=<class> bin/hosting profile render <alias>)
+   git worktree remove .state/upgrades/<host>/scratch/<timestamp>/main
+   ```
+
+   It is unchanged when the serve arguments the render prints after the image equal the running
+   container's `args` from the probe, past docker's leading `serve`, which the render omits.
 2. **The engine.** Run `mise run currency`. It prints only what trails, so a release past the pin
    or a built image's base digest behind its tag each print a line, and no line means current. A
    nonzero exit is a finding, not a failure. The latest release is the newest that
@@ -69,26 +84,27 @@ rollback; one with none is hold.
    which is verify ([the convention](../../../docs/upgrades.md#what-triggers-a-measure)). A
    finding a row's reason leaves owed, or a value a watch entry's parity frees, is verify too.
 5. **The watch.** From `mise run watch`: each entry the descriptor names, or that bears on the
-   row's engine, model, or image, with its upstream beside its recorded value. An entry that
-   differs is a proposal to update the register, and its action, when parity is reached, is an
-   item of its own.
+   row's engine, model, or image, with its upstream beside its recorded value. An entry that reads
+   as recorded is skip. One that differs is a proposal to update the register, and its action,
+   when parity is reached, is an item of its own.
 6. **Model candidates** for the host's alias ([sources.md](sources.md#models)). Each candidate
    meets [the policy](../../../docs/policy.md)'s gates: origin at all three levels, with its
    clearance; artifact integrity; vLLM's support at the pin for its architecture through the
-   role's interface ([sources.md](sources.md#roles)); and its fit in the row's share, the probe's
-   `engine memory` pool at the row's current `fraction`. Any gate's failure is decisive, in any
-   order, so read the cheap gates (integrity, vLLM support, fit) first: a candidate that fails one
-   is skip, naming the gate, and its origin is not read. Then:
-   - a card that needs a login is hold, "card unread";
-   - a candidate whose origin can't be established, when every other gate passes, is hold,
-     "origin unclear", with what was checked;
-   - for a candidate of Chinese origin, read CAISI's and UK AISI's publications for an
-     evaluation of its release ([sources.md](sources.md#model-security)). With none that clears it
-     by the policy's terms, it is skip, "origin, no clearance". With one, it passes origin pending
-     the architect's admission, a proposal citing the evaluation, and goes on to the next line;
-   - a candidate that passes every gate is verify when its card reports a gain for the role over
-     the incumbent, or when no card settles the comparison, a candidate screen; and skip, "gains
-     the row nothing", when its card reports no gain.
+   role's interface ([sources.md](sources.md#roles)); and its fit in the row's share, the row's
+   current `fraction` of the pool's total from the probe's `== gpu ==` memory lines: `MemTotal`
+   on gb10, whose GPU shares the system's memory, and amdgpu's GTT total on strix-halo, never
+   `MemAvailable`. Every skip is applied before a hold, so read the decisive gates first:
+   - a candidate that fails integrity, vLLM support, or fit is skip, naming the gate;
+   - a candidate whose card reports no gain for the role over the incumbent is skip, "gains the
+     row nothing". A card that never compares the candidate with the incumbent settles nothing;
+   - only then origin: a candidate of Chinese origin is skip, "origin, no clearance", unless
+     CAISSI's or UK AISI's publications hold an evaluation of its release that clears it by the
+     policy's terms ([sources.md](sources.md#model-security)). With one, it passes origin pending
+     the architect's admission, a proposal citing the evaluation;
+   - a card that needs a login is hold, "card unread", and a candidate whose origin can't be
+     established is hold, "origin unclear", with what was checked;
+   - a candidate that passes every gate is verify, a candidate screen, when its card reports a
+     gain or no card settles the comparison.
 
    An agent candidate's verify notes that a measure stops it at `model-evaluation`'s tiers
    ([the convention](../../../docs/upgrades.md#measures-three-passes)).
@@ -97,25 +113,26 @@ rollback; one with none is hold.
    changes", with the profile's value beside it. A watch item the descriptor lacks, or one that no
    longer bears, is a proposal too. So is run noise a finding has since measured. A descriptor
    with none of these is skip, "descriptor current".
-8. **Model security**, once a run, whatever the host: CAISI's and UK AISI's publications since the
-   last report, and the state of the methods and standards for detecting a backdoor or covert
+8. **Model security**, once a run, whatever the host: CAISSI's and UK AISI's publications since
+   the last report, and the state of the methods and standards for detecting a backdoor or covert
    behavior in a model ([sources.md](sources.md#model-security)). With nothing new, it is skip,
    "nothing new". A development that could make it possible to evaluate and clear a model is take
-   or verify, as a proposal to [the policy](../../../docs/policy.md#clearance).
+   or verify, as a proposal to [the policy](../../../docs/policy.md#clearance). A correction it
+   finds to a document, such as an agency's new name, is take, as a proposal.
 
 Order the items within each section verify, take, hold, skip, and, within a verdict, the item
 that risks serving first.
 
 ## 4. Write the report
 
-Write `.state/upgrades/<host>/<YYYY-MM-DD>.md`, the date in UTC. If today's report exists, ask
-whether to replace it. Its shape:
+Write `.state/upgrades/<host>/<UTC date>T<HHMM>Z.md`, the run's start in UTC, such as
+`2026-11-25T2012Z.md`, so a later run the same day never replaces it. Its shape:
 
 ```markdown
-# <host>: survey, <YYYY-MM-DD>
+# <host>: survey, <UTC date>T<HHMM>Z
 
-Run at <time UTC> from this clone at <commit>, `origin/main` at <commit>; the host's clone at
-<commit> on <branch>. Last report: <path>, or none.
+Run at <time UTC> from this clone at <commit> on <branch>, whose documents it judges against,
+`origin/main` at <commit>; the host's clone at <commit> on <branch>. Last report: <path>, or none.
 
 ## Inputs
 The descriptor, the policy, the profile row, and the pin, each with its commit; the probe's
