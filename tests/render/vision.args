@@ -51,4 +51,4 @@ gemma4
 --tool-call-parser
 gemma4
 --mm-processor-kwargs.max_soft_tokens
-560
+1120
