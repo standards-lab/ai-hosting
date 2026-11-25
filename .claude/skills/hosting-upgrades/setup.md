@@ -19,7 +19,7 @@ architect adds the rules.
 
 | Rule | Mode | For |
 |---|---|---|
-| `Bash(.claude/skills/hosting-upgrades/scripts/probe.sh <host>)`, one per descriptor | both | the probe, by the descriptor's SSH short name |
+| `Bash(.claude/skills/hosting-upgrades/scripts/probe.sh <host>)`, one per descriptor | both | the probe, by the descriptor's file name in `docs/hosts/` |
 | `Bash(mise run currency)`, `Bash(mise run watch)` | both | the vLLM release, image tags and digests, and the watch register's upstream |
 | `Bash(bin/hosting profile stale)` | both | the rows measured on a release older than the pin |
 | `Bash(gh release list *)`, `Bash(gh release view *)` | both | vLLM's release notes |
@@ -27,12 +27,13 @@ architect adds the rules.
 | `Bash(curl -s https://<site>/*)` for `huggingface.co`, `hub.docker.com`, `raw.githubusercontent.com`, `changelogs.ubuntu.com`, `ubuntu.com`, `archlinux.org`, `www.nist.gov`, and `www.aisi.gov.uk`; `Bash(jq *)` | both | JSON and raw files: the Hub's API, Docker Hub's tags, vLLM's files at a tag, the distributions' package notes, and CAISI's and UK AISI's publications ([sources.md](sources.md#reading-a-source)) |
 | `WebFetch`, `WebSearch` | both | model cards, publishers' documents, and what the list doesn't hold |
 | `Edit(.state/upgrades/**)` | both | the survey report |
-| `Bash(tailscale ping -c 1 <host>)`, one per descriptor | measure | the direct path a cell needs ([bench/README.md](../../../bench/README.md#running-a-cell)) |
+| `Bash(tailscale ping -c 1 <short name>)`, one per descriptor | measure | the direct path a cell needs ([bench/README.md](../../../bench/README.md#running-a-cell)) |
 | `Edit(docs/findings/**)` | measure | the findings cells |
 
 The probe's rule names one host each, never a wildcard: a wildcard would match any argument,
-which the probe refuses, but a rule should not depend on that. `setup.sh` reads each host's short
-name from its descriptor, so a new descriptor brings its rules at the next `setup`.
+which the probe refuses, but a rule should not depend on that. `setup.sh` takes each probe rule's
+host from a descriptor's file name and each `tailscale ping` rule's from the descriptor's SSH short
+name, so a new descriptor brings its rules at the next `setup`.
 
 **Never granted.** Every command that changes or loads a host asks each time, in the architect's
 view: `ssh` beyond the probe, `docker`, `hosting engine update`, `hosting model pull`,

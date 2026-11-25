@@ -198,7 +198,16 @@ test_setup_skips_the_template_and_names_hosts_by_short_name() {
   run "$clone/$skill/scripts/setup.sh" measure
   assert_contains stdout "$out" '"Bash(tailscale ping -c 1 framework)"'
   assert_contains stdout "$out" '"Bash(tailscale ping -c 1 spark-2)"'
+  [[ $out != *"tailscale ping -c 1 gb10-2"* ]] || fail "setup pings a descriptor by file name: $out"
   [[ $out != *template* ]] || fail "setup names the template as a host: $out"
+}
+
+test_setup_names_the_probe_by_descriptor_file_name() {
+  copy_skill
+  rename_short_name gb10-2 spark-2
+  run "$clone/$skill/scripts/setup.sh" survey
+  assert_contains stdout "$out" '"Bash(.claude/skills/hosting-upgrades/scripts/probe.sh gb10-2)"'
+  [[ $out != *"probe.sh spark-2"* ]] || fail "setup names the probe by short name: $out"
 }
 
 test_setup_measure_prints_survey_rules_then_its_own() {

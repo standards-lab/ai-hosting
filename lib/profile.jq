@@ -147,7 +147,7 @@ def source_errors($prefix):
           problem($p + ["origin_reason"]; "required for a model whose origin or base origin is \(restricted_origin)")
         else empty end
       elif has("origin_reason") then
-        problem($p + ["origin_reason"]; "only a model whose origin or base origin is \(restricted_origin) records why it was chosen")
+        problem($p + ["origin_reason"]; "only a model whose origin or base origin is \(restricted_origin) records the evaluation that cleared the release")
       else empty end));
 
 # The errors of a row's sampling override: its fields, a row whose checkpoint is its card

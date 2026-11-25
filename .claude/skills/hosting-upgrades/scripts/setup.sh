@@ -4,8 +4,8 @@
 # .claude/settings.json and .claude/settings.local.json, then the JSON of every missing rule to add
 # to .claude/settings.json. A rule is present when a listed rule is the same, is its bare tool name,
 # or ends in :* or * and the rule's text begins with what comes before it. The probe's and
-# tailscale's rules are one per host descriptor in docs/hosts/. It writes nothing, and exits 2 on an
-# unknown argument.
+# tailscale's rules are one per host descriptor in docs/hosts/, the probe's by the descriptor's file
+# name and tailscale's by its SSH short name. It writes nothing, and exits 2 on an unknown argument.
 #
 #   .claude/skills/hosting-upgrades/scripts/setup.sh [survey|measure]
 #
@@ -30,15 +30,17 @@ elif (($# == 1)); then
   modes=("$1")
 fi
 
-hosts=()
+descriptors=()
+short_names=()
 while IFS= read -r host; do
   short=$(descriptor_short_name "$root/docs/hosts/$host.md") || exit 2
-  hosts+=("$short")
+  descriptors+=("$host")
+  short_names+=("$short")
 done < <(descriptor_hosts "$root")
 
 survey_rules() {
   local host
-  for host in "${hosts[@]}"; do
+  for host in "${descriptors[@]}"; do
     echo "Bash(.claude/skills/hosting-upgrades/scripts/probe.sh $host)"
   done
   printf '%s\n' "Bash(mise run currency)" "Bash(mise run watch)" "Bash(bin/hosting profile stale)" \
@@ -54,7 +56,7 @@ survey_rules() {
 
 measure_rules() {
   local host
-  for host in "${hosts[@]}"; do
+  for host in "${short_names[@]}"; do
     echo "Bash(tailscale ping -c 1 $host)"
   done
   echo "Edit(docs/findings/**)"
