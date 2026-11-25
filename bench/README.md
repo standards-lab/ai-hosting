@@ -8,10 +8,10 @@ task's ([host-classes.md](../context/host-classes.md)).
 ## The environment
 
 The tools live in mise's `bench` environment, [`mise.bench.toml`](../mise.bench.toml), beside
-`mise.toml`: Python, GuideLLM 0.8.1 with its vision and audio extras, and MTEB, each pinned exactly. A command
-reads that file only with `MISE_ENV=bench` set, so `mise run check` never installs them and reads
-no network. `mise run currency` reads its pins with every other pin. Install it once, from the
-repository root:
+`mise.toml`: Python, GuideLLM 0.8.1 with its vision and audio extras, and MTEB, each pinned
+exactly. A command reads that file only with `MISE_ENV=bench` set, so `mise run check` never
+installs them and reads no network. `mise run currency` reads its pins with every other pin.
+Install it once, from the repository root:
 
 ```sh
 MISE_ENV=bench mise install
@@ -137,7 +137,8 @@ count of requests that finished in 10 s or less; prompt tok/s; for audio, the RT
 minimum and the count of requests at RTFx 5 or more (each request's clip seconds over its request
 time); and the level's floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's an
 RTFx median of 5, vision's a request latency median of at most 10 s; a level with no successful
-request misses. A sweep's table starts with the knee GuideLLM concluded. Medians and percentiles interpolate linearly between the two nearest ranks.
+request misses. A sweep's table starts with the knee GuideLLM concluded. Medians and percentiles
+interpolate linearly between the two nearest ranks.
 
 ```sh
 jq -r --arg purpose embed -f bench/levels.jq .state/bench/<cell>.json
