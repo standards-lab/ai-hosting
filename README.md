@@ -8,7 +8,8 @@ The working context starts at [`context/README.md`](context/README.md).
 ## The `hosting` suite
 
 `hosting <group> <verb>` installs, updates, and inspects a host's rows, its model store, and its
-class's profile; `hosting` with no arguments lists every command. `mise run install` links it into
+class's profile, runs the gateway's stack, and issues the gateway's keys; `hosting` with no
+arguments lists every command. `mise run install` links it into
 `~/.local/bin`, and `mise run uninstall` removes the link. Each host class has a directory under
 `classes/` holding its profile, whose schema is [`classes/README.md`](classes/README.md), and its
 runbook: [gb10](classes/gb10/runbook.md) and [strix-halo](classes/strix-halo/runbook.md). A runbook

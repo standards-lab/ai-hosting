@@ -1,11 +1,11 @@
 # The gateway
 
-agentgateway v1.7.0's compose stack on gb10-2, run from ai-hosting's clone, with the `gateway`
-group that runs it and the `key` group that issues its consumers' keys. The stack is specified,
-and runs on gb10-2 once `hosting gateway up` starts it. [The gateway document](../docs/gateway.md)
-holds the requirements, the reasoning behind each setting and amount, the key procedure, how the
-stack is operated, and the open gaps; the [watch register](../docs/watch.md) holds what agentgateway
-may change upstream; its secrets are in [secrets](secrets.md). Spike files are cited from
+This note records where each part of the gateway comes from. The gateway is agentgateway v1.7.0's
+compose stack, running on gb10-2 from ai-hosting's clone, with the `gateway` group that runs it and
+the `key` group that issues its consumers' keys. [The gateway document](../docs/gateway.md) holds
+the requirements, the reasoning behind each setting and amount, the key procedure, how the stack is
+operated, and the open gaps. The [watch register](../docs/watch.md) holds what agentgateway may
+change upstream, and [secrets](secrets.md) holds the gateway's secrets. Spike files are cited from
 spike-model-gateway at `2f2e8c1`, and go-web-service's at `2e31ca4`.
 
 ## What's built, and its sources
@@ -23,15 +23,11 @@ spike-model-gateway at `2f2e8c1`, and go-web-service's at `2e31ca4`.
 | Currency's `FROM` rule over every `compose/*/Dockerfile`, with `crane` pinned | `scripts/currency.sh:28-49`, `mise.toml:8-9` |
 | The watch register, `docs/watch.md`, and its check, `scripts/watch.sh` (`mise run watch`) | `docs/watch.md`, `scripts/watch.sh` |
 | The gateway document, `docs/gateway.md` | `docs/gateway.md`, rewritten |
-| Each alias's go-ai profile, `go-ai/<alias>.json` ([host-classes](host-classes.md)) | |
+| Each alias's go-ai profile, `go-ai/<alias>.json`, and its evidence ([go-ai/README.md](../go-ai/README.md)) | |
 
-- The Collector takes from go-web-service its `prometheus/self` receiver, not `tcp_log` or
-  `fluentforward`, beside its own `prometheus/agentgateway` scrape of agentgateway's stats port;
-  agentgateway's access log reaches it over OTLP, in the `logs` pipeline's `otlp` receiver.
-- `gateway status` checks agentgateway alone for a stranded container: it is the one container
-  bound to gb10-2's tailnet address, and the Collector publishes no port.
-- `key revoke` deletes the consumer's hash from the key list only; the consumer's `fnox.toml`
-  keeps the key, which the gateway refuses once gb10-2 renders.
+- The Collector takes go-web-service's `prometheus/self` receiver, not its `tcp_log` or
+  `fluentforward` receivers, beside its own `prometheus/agentgateway` scrape of agentgateway's stats
+  port.
 - Each file keeps one header and no source comment; the commit messages cite the spike.
 
 What the spike had and ai-hosting dropped: the six probes and the `rows-down` overlay with its
@@ -41,7 +37,5 @@ document links at `2f2e8c1`; the laptop's deploy, `gateway/compose.sh`, and the 
 `gateway:*` and `agentgateway-deploy` mise tasks, replaced by the `gateway` group; `deploy.env`;
 `postgres.env` and the rendered config's secrets; the fixed `container_name`; and the
 `spike.config-section` label.
-
-Assumes agentgateway v1.7.0 runs against Postgres 19.0, where the spike ran 18.7.
 
 Assumes gb10-2's Compose still drops a service's `provenance: false`, as v5.2.0 did in the spike.

@@ -3,12 +3,12 @@
 ai-hosting specifies how the organization's local model hosts serve models: the settings the two
 Framework desktops and the two GB10 workstations use, stated generally enough that another host of
 the same class follows them. Its secrets, the `hosting` suite, and each class's profile and
-runbook are built, and each host serves its rows from its clone. Pi sessions, Claude Code
-subagents, go-ai, and the capstone's services are to reach the rows through one gateway, with
-overflow to Azure AI Foundry; the gateway is specified and runs on gb10-2 once started. Until it
-runs, callers use the rows directly, and a caller of `embedding` points its
-`AI_EMBEDDING_BASE_URL` at framework-2. It is low-level infrastructure outside the five tiers,
-beside the harness repositories, and is the one hosting repository on each workstation.
+runbook are built, and each host serves its rows from its clone. One gateway on gb10-2 fronts the
+rows, each alias at its own base URL behind an issued key, with overflow to Azure AI Foundry
+([docs/gateway.md](../docs/gateway.md)). go-ai and docinfer hold its keys; Pi sessions, Claude
+Code subagents, and the capstone's services are to reach the rows through it with keys the tasks
+that build them issue. ai-hosting is low-level infrastructure outside the five tiers, beside the
+harness repositories, and is the one hosting repository on each workstation.
 
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.

@@ -358,8 +358,7 @@ its parity (behavior 12)"; [answer.md][f-answer], "The revalidation (behaviors 4
   `incomplete_details.reason` `max_tokens`, where the API says `max_output_tokens`; an unknown
   model name succeeds, since the provider sets the deployment as the model.
 
-Each alias's go-ai profile ([host-class profiles](../context/host-classes.md)) declares only the
-row's refusals, not Azure's.
+Each alias's [go-ai profile](../go-ai/README.md) declares only the row's refusals, not Azure's.
 
 ## Secrets and Postgres
 
@@ -385,13 +384,13 @@ The rendered config holds no secret, and neither does any file the render writes
 ## Telemetry
 
 The Collector is the stack's one telemetry ingress, on the compose network only; it publishes no
-port. It takes OTLP over gRPC from agentgateway, its spans and its access log, and scrapes
-agentgateway's stats port and its own metrics, with go-web-service's `prometheus/self` receiver at
-`2e31ca4`. It sends traces to Tempo, metrics to Mimir, and logs to Loki, and Grafana has a
-datasource for each. agentgateway sends both over OTLP under `frontendPolicies`, `tracing` and
-`accessLog.otlp`, each at `otel-collector:4317` over gRPC; v1.7.0 deprecates the `config.tracing`
-form, which carries the same settings. The Collector is a compose service, so its host isn't a
-row host and the render looks up no tailnet address for it.
+port. agentgateway sends it spans and the access log over OTLP gRPC at `otel-collector:4317`,
+under `frontendPolicies.tracing` and `frontendPolicies.accessLog.otlp`; v1.7.0 deprecates the
+`config.tracing` form, which carries the same settings. The Collector also scrapes agentgateway's
+stats port, and its own metrics with go-web-service's `prometheus/self` receiver at `2e31ca4`. It
+sends traces to Tempo, metrics to Mimir, and logs to Loki, and Grafana has a datasource for each.
+The Collector is a compose service, so its host isn't a row host and the render looks up no tailnet
+address for it.
 
 - **Traces.** agentgateway starts a span for every request that arrives without a trace
   (`randomSampling: "true"`, every request), traces under a sampled `traceparent` that arrives,
@@ -439,8 +438,9 @@ host resolves through systemd-resolved's stub, which a container can't reach, an
 resolver doesn't know the tailnet's names. So the render reads each row host from the rendered
 config's routes, their `hostOverride`s and host backends, looks up its tailnet address
 (`tailscale ip -4`; gb10-2's own from the host), and writes `.state/gateway/compose.override.yml`,
-which gives agentgateway an `extra_hosts` entry per row host. It also writes `.state/gateway/compose.env`, setting `GATEWAY_ADDRESS` to
-gb10-2's tailnet address, where the consumer port is published. Deriving the hosts from the config
+which gives agentgateway an `extra_hosts` entry per row host. It also writes
+`.state/gateway/compose.env`, setting `GATEWAY_ADDRESS` to gb10-2's tailnet address, where the
+consumer port is published. Deriving the hosts from the config
 keeps the alias-to-host map in one home, and the addresses stay in gitignored files, so no tailnet
 identifier is committed. Every `gateway` verb runs compose with both files when they are present.
 

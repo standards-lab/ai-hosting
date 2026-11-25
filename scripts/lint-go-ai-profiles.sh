@@ -3,7 +3,7 @@
 # object whose members are among go-ai's formats, completions, messages, and responses, each an
 # object; every file names an alias of a class profile; and every class profile's alias has a file.
 # It needs jq and mise's pinned mikefarah yq, reads no network, writes nothing, and exits non-zero
-# on any failure. See context/host-classes.md.
+# on any failure. See go-ai/README.md.
 set -uo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd) || exit
 # shellcheck source=lib/profile.sh
