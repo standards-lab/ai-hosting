@@ -7,6 +7,7 @@ task.run_auto_install = false
 [tools]
 "github:standards-lab/claude-plugins" = { version = "0.24.0", version_prefix = "marathon/v" }
 "aqua:FiloSottile/age" = "1.3.2"
+crane = "0.22.1"
 fnox = "1.50.0"
 jq = "1.8.2"
 "pipx:huggingface_hub" = "2.4.0"
@@ -17,12 +18,17 @@ yq = "4.54.3"
 [secrets.fnox]
 
 [tasks.check]
-description = "Shellcheck every tracked shell script, resolve every relative Markdown link, run lint-context, lint-references, lint-secrets, lint-bench, hosting profile validate on every class profile, and the shell tests; reads no network, since no task installs a missing tool, and writes nothing"
+description = "Shellcheck every tracked shell script, resolve every relative Markdown link, run lint-context, lint-references, lint-secrets, lint-bench, lint-go-ai-profiles, hosting profile validate on every class profile, and the shell tests; reads no network, since no task installs a missing tool, and writes nothing"
 run = "scripts/check.sh"
 
 [tasks.currency]
-description = "Report every mise tool and action pin, the bench environment's among them, the vLLM release, and each built image's base digest and Python pins behind its latest, exiting nonzero if any; reads the network, writes nothing"
+description = "Report every mise tool and action pin, the bench environment's among them, the vLLM release, each built image's base digest and Python pins, and each gateway service's FROM pin behind its latest, exiting nonzero if any; reads the network, writes nothing"
 run = "scripts/currency.sh"
+quiet = true
+
+[tasks.watch]
+description = "Report each docs/watch.md entry's upstream issue and pull request states and watched release fields beside the recorded values, exiting nonzero if any differ; reads the network through gh, writes nothing"
+run = "scripts/watch.sh"
 quiet = true
 
 [tasks.install]

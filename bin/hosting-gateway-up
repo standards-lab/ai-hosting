@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# hosting:summary=Builds and starts the gateway's stack on the rendered config
+# `hosting gateway up`: refuses a host whose class isn't gb10, gb10-2's, before it touches
+# Docker, and a clone the render hasn't written the config, the compose override, and the env file
+# into; then reads the Foundry key and account from fnox.toml, writes the key's secret file under
+# .state/gateway, and builds and starts the stack, waiting for it, with the account in compose's
+# environment and the render's addresses applied (hosting_gateway_up in lib/gateway.sh). The key
+# reaches no command line and no command's environment. See docs/gateway.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "gateway up takes no argument" "gateway up"
+fi
+
+hosting_gateway_host
+hosting_gateway_up
+echo "the gateway's stack is up; hosting gateway status shows it"

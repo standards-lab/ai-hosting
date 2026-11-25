@@ -1,0 +1,291 @@
+# agentgateway's config template: lib/gateway.sh renders it into config.yaml with each row's port
+# and model from the class profiles, each host backend that names an alias with that alias's row
+# host and port, each key from keys.toml, and the switches in overflow.toml.
+# See docs/gateway.md
+config:
+  adminAddr: localhost:15000
+  storage:
+    mode: readOnly
+  database:
+    url: postgres://agentgateway:agentgateway@postgres:5432/agentgateway
+
+frontendPolicies:
+  tracing:
+    host: otel-collector:4317
+    protocol: grpc
+    randomSampling: "true"
+  accessLog:
+    add:
+      retry_after: 'response.headers["retry-after"]'
+      overflow: 'response.headers["x-gateway-overflow"]'
+      key_name: 'apiKey.name'
+    otlp:
+      host: otel-collector:4317
+      protocol: grpc
+    database:
+      llm: metadata
+      add:
+        agentgateway.user: 'apiKey.name'
+
+gateways:
+  consumer:
+    port: 3000
+    authorization:
+      rules:
+      - deny: 'request.path.contains("..") || request.path.matches("(?i)%2[ef]")'
+    apiKey:
+      mode: strict
+      keys:
+      - keyHash: ""
+        metadata:
+          name: ""
+          class: interactive
+        budgets:
+        - name: tokens
+          limit:
+            unit: Tokens
+            amount: 5000000
+          window:
+            rolling: 1h
+          onBudgetExceeded: Audit
+      - keyHash: ""
+        metadata:
+          name: ""
+          class: bulk
+        budgets:
+        - name: tokens
+          limit:
+            unit: Tokens
+            amount: 1000000
+          window:
+            rolling: 1h
+          onBudgetExceeded: Block
+  ui:
+    port: 3001
+
+ui:
+  gateways: ui
+
+routes:
+- name: agent
+  gateways: consumer
+  matches:
+  - path:
+      pathPrefix: /agent/v1
+  policies:
+    urlRewrite:
+      path:
+        prefix: /v1
+    directResponse:
+      conditional:
+      - &models
+        condition: request.path == "/v1/models"
+        status: 200
+        headers:
+          content-type: '"application/json"'
+        body: ""
+      - &not-serving
+        condition: >-
+          !(request.path in ["/v1/models", "/v1/chat/completions", "/v1/completions",
+          "/v1/messages", "/v1/responses", "/v1/embeddings", "/v1/audio/transcriptions",
+          "/v1/audio/translations"])
+        status: 404
+    ai: &typed
+      routes:
+        /v1/chat/completions: completions
+        /v1/embeddings: embeddings
+        /v1/messages: messages
+        /v1/responses: responses
+        "*": detect
+    retry: &retry-503
+      attempts: 2
+      backoff: 20ms
+      codes: [503]
+    localRateLimit: &key-rates
+      conditional:
+      - condition: 'apiKey.class == "bulk"'
+        key: apiKey.name
+        type: requests
+        maxTokens: 600
+        tokensPerFill: 600
+        fillInterval: 60s
+      - key: apiKey.name
+        type: requests
+        maxTokens: 1200
+        tokensPerFill: 1200
+        fillInterval: 60s
+  backends:
+  - ai:
+      groups:
+      - providers:
+        - name: agent-row
+          hostOverride: gb10-1
+          provider:
+            custom:
+              formats: &row-formats
+              - type: completions
+              - type: messages
+              - type: responses
+              - type: embeddings
+          policies:
+            health: &row-health
+              unhealthyExpression: '!has(response.code) || response.code == 503'
+              eviction:
+                consecutiveFailures: 2
+                duration: 5s
+            ai: &row-priority
+              transformations:
+                priority: 'apiKey.class == "bulk" ? 10 : 0'
+      - providers:
+        - name: agent-azure
+          hostOverride: ${AZURE_FOUNDRY_ACCOUNT}.services.ai.azure.com:443
+          pathPrefix: /openai/v1
+          provider:
+            custom:
+              model: gpt-oss-120b
+              providerOverride: azure
+              formats:
+              - type: completions
+          policies: &azure-policies
+            health:
+              unhealthyExpression: '!has(response.code) || response.code == 503 || response.code == 429'
+              eviction:
+                consecutiveFailures: 2
+                duration: 5s
+            backendTLS: {}
+            backendAuth:
+              key:
+                value:
+                  file: /run/secrets/azure-foundry-key
+                location:
+                  header:
+                    name: api-key
+            responseHeaderModifier:
+              set:
+                x-gateway-overflow: azure
+- name: vision
+  gateways: consumer
+  matches:
+  - path:
+      pathPrefix: /vision/v1
+  policies:
+    urlRewrite:
+      path:
+        prefix: /v1
+    directResponse:
+      conditional:
+      - *models
+      - *not-serving
+    ai: *typed
+    retry: *retry-503
+    localRateLimit: *key-rates
+  backends:
+  - ai:
+      groups:
+      - providers:
+        - name: vision-row
+          hostOverride: gb10-2
+          provider:
+            custom:
+              formats: *row-formats
+          policies:
+            health: *row-health
+            ai: *row-priority
+      - providers:
+        - name: vision-azure
+          hostOverride: ${AZURE_FOUNDRY_ACCOUNT}.services.ai.azure.com:443
+          pathPrefix: /openai/v1
+          provider:
+            custom:
+              model: gpt-5-mini
+              providerOverride: azure
+              formats:
+              - type: completions
+              - type: responses
+          policies: *azure-policies
+- name: audio
+  gateways: consumer
+  matches:
+  - path:
+      pathPrefix: /audio/v1
+  policies:
+    urlRewrite:
+      path:
+        prefix: /v1
+    directResponse:
+      conditional:
+      - *models
+      - *not-serving
+    ai: *typed
+    retry: *retry-503
+    localRateLimit: *key-rates
+  backends:
+  - ai:
+      groups:
+      - providers:
+        - name: audio-row
+          hostOverride: framework
+          provider:
+            custom:
+              formats: *row-formats
+          policies:
+            health: *row-health
+      - providers:
+        - name: audio-azure
+          hostOverride: ${AZURE_FOUNDRY_ACCOUNT}.services.ai.azure.com:443
+          pathPrefix: /openai/v1
+          provider:
+            custom:
+              model: gpt-audio-mini
+              providerOverride: azure
+              formats:
+              - type: completions
+          policies: *azure-policies
+- name: embedding
+  gateways: consumer
+  matches:
+  - path:
+      pathPrefix: /embedding/v1
+  policies:
+    urlRewrite:
+      path:
+        prefix: /v1
+    directResponse:
+      conditional:
+      - *models
+      - *not-serving
+    ai: *typed
+    retry: *retry-503
+    localRateLimit:
+    - type: requests
+      maxTokens: 78
+      tokensPerFill: 78
+      fillInterval: 1s
+    - key: apiKey.name
+      type: requests
+      maxTokens: 156
+      tokensPerFill: 156
+      fillInterval: 1s
+  backends:
+  - ai:
+      groups:
+      - providers:
+        - name: embedding-row
+          hostOverride: framework-2
+          provider:
+            custom:
+              formats: *row-formats
+          policies:
+            health: *row-health
+- name: embedding-tokenize
+  gateways: consumer
+  matches:
+  - path:
+      exact: /embedding/v1/tokenize
+    method: POST
+  policies:
+    urlRewrite:
+      path:
+        full: /tokenize
+  backends:
+  - host: embedding

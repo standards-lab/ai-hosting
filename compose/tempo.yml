@@ -1,0 +1,13 @@
+# Tempo, the trace store, fed by the Collector and read by Grafana on the compose network; it
+# publishes no port.
+# See docs/gateway.md
+services:
+  tempo:
+    build:
+      context: tempo
+    restart: unless-stopped
+    volumes:
+      - gateway-tempo:/var/tempo
+
+volumes:
+  gateway-tempo:

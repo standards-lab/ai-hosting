@@ -1,0 +1,28 @@
+# agentgateway, the gateway in front of the hosted rows, reading its rendered config from
+# compose/agentgateway/ read-only and the Foundry key from a Compose secret, with its consumer port
+# published on the address GATEWAY_ADDRESS names and its UI on the host's loopback only.
+# See docs/gateway.md
+services:
+  agentgateway:
+    build:
+      context: agentgateway
+    command: ["-f", "/config/config.yaml"]
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_ADDRESS:-127.0.0.1}:3000:3000"
+      - "127.0.0.1:3001:3001"
+    environment:
+      - AZURE_FOUNDRY_ACCOUNT
+    secrets:
+      - azure-foundry-key
+    volumes:
+      - ./agentgateway:/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+secrets:
+  azure-foundry-key:
+    file: ../.state/gateway/azure-foundry-key

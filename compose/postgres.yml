@@ -1,0 +1,12 @@
+# Postgres, agentgateway's database, holding its budgets and request log; it publishes no port.
+# See docs/gateway.md
+services:
+  postgres:
+    build:
+      context: postgres
+    restart: unless-stopped
+    volumes:
+      - gateway-postgres:/var/lib/postgresql
+
+volumes:
+  gateway-postgres:

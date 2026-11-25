@@ -23,7 +23,7 @@ and `HOSTING_CLASS` ([host-classes.md](host-classes.md), "Class detection").
 ## Groups and verbs
 
 The suite's groups are `engine`, `model`, `profile`, `gateway`, and `key`. The `hosts` task built
-the first three; the `gateway` task builds the other two.
+the first three, and the `gateway` task the other two.
 
 | Command | What it does |
 | --- | --- |
@@ -40,8 +40,8 @@ the first three; the `gateway` task builds the other two.
 | `profile validate` | Validates every class profile, or the files given; the check runs it |
 | `profile render <alias>` | Prints the full `docker run` command a row runs, one argument a line; install and update run the same command |
 | `profile set <alias> <field>=<value>` | Edits the committed profile in place, validating first and writing nothing when validation fails |
-| `gateway render`, `validate`, `up`, `down`, `reset`, `status` | Planned: the gateway stack ([gateway](gateway.md)) |
-| `key issue <consumer>`, `key revoke <consumer>`, `key list` | Planned: a consumer's gateway key ([gateway](gateway.md)) |
+| `gateway render`, `validate`, `up`, `down`, `reset`, `status` | On gb10-2, the gateway's stack: render and validate agentgateway's config, start and stop the stack, and report its state ([gateway document](../docs/gateway.md#operating-the-stack-on-gb10-2)) |
+| `key issue <consumer> <class> <repository> [--rotate]`, `key revoke <consumer>`, `key list` | On any host, a consumer's gateway key: issue or rotate it into the consumer's `fnox.toml` with its hash in the key list, delete its hash, or list the consumers holding one ([gateway document](../docs/gateway.md#keys)) |
 
 The host's install record, `$XDG_STATE_HOME/hosting/aliases`, lists the aliases it stands on.
 `model prune` keeps only the models those rows serve, so a host holds only what its rows serve.

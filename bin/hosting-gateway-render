@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# hosting:summary=Renders agentgateway's config and the stack's addresses, in place once valid
+# `hosting gateway render`: refuses a host whose class isn't gb10, gb10-2's, before it touches
+# Docker, and one with no tailnet address; then renders agentgateway's config from the template,
+# the class profiles, the key list, and the overflow switches, validates a copy with the pinned
+# image, writes the stack's compose override and env file under .state/gateway, holding each row
+# host's tailnet address and the address the consumer port is published on, and only then renames
+# the copy to compose/agentgateway/config.yaml (hosting_gateway_render_in_place in lib/gateway.sh).
+# Leaves the config, the override, and the env file as they were when any step fails. Prints no
+# address. See docs/gateway.md.
+set -euo pipefail
+
+# shellcheck source=lib/hosting.sh
+source "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")/../lib/hosting.sh"
+
+if (($# > 0)); then
+  hosting_usage_error "gateway render takes no argument" "gateway render"
+fi
+
+hosting_gateway_host
+hosting_tailnet_address
+hosting_gateway_render_in_place
+echo "rendered $HOSTING_GATEWAY/config.yaml; hosting gateway up starts the stack on it"

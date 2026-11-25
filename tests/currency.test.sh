@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Tests for scripts/currency.sh's report of the mise tool pins and its HOLDS list, offline: mise,
-# gh, and curl are stubbed, over a project whose action, vLLM release, and image pins are current.
+# Tests for scripts/currency.sh's report of the mise tool pins, the gateway services' FROM pins, and
+# its HOLDS list, offline: mise, gh, curl, and crane are stubbed, over a project whose action, vLLM
+# release, and image pins are current.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 
@@ -13,8 +14,18 @@ fake_project() {
   echo "      - uses: owner/action@v1" >"$project/.github/workflows/ci.yml"
   printf 'FROM owner/image:v1@sha256:d\nRUN pip install package==1\n' \
     >"$project/images/audio/Dockerfile"
+  service_image agentgateway owner/gateway:v1.1.0 v1.0.0 v1.1.0 v1.2.0-rc.1 latest
   write_stub gh "echo v1"
   write_stub curl "echo '{\"digest\": \"sha256:d\", \"info\": {\"version\": \"1\"}}'"
+}
+
+service_image() {
+  local service=$1 base=$2
+  shift 2
+  mkdir -p "$project/compose/$service" "$(dirname "$tmp/tags/${base%:*}")"
+  printf 'FROM %s\n' "$base" >"$project/compose/$service/Dockerfile"
+  printf '%s\n' "$@" >"$tmp/tags/${base%:*}"
+  write_stub crane "cat '$tmp/tags/'\"\$2\""
 }
 
 outdated_tools() {
@@ -64,6 +75,54 @@ test_current_pins_report_nothing() {
   run_currency
   assert_equal status "$status" 0
   assert_equal stdout "$out" ""
+}
+
+test_a_service_image_behind_its_latest_v_tag_is_reported() {
+  fake_project
+  outdated_tools ""
+  service_image agentgateway owner/gateway:v1.0.0 v1.0.0 v1.1.0 v1.10.0 v1.11.0-rc.1 1.12.0
+  run_currency
+  assert_equal status "$status" 1
+  assert_equal stdout "$out" "compose/agentgateway/Dockerfile: owner/gateway v1.0.0 -> v1.10.0"
+}
+
+test_a_service_image_is_compared_within_its_variant() {
+  fake_project
+  outdated_tools ""
+  service_image postgres postgres:18.7-alpine 18.7-alpine 18.10-alpine 19.0 20-alpine \
+    19.1-alpine3.22 latest
+  run_currency
+  assert_equal status "$status" 1
+  assert_equal stdout "$out" "compose/postgres/Dockerfile: postgres 18.7-alpine -> 18.10-alpine"
+}
+
+test_a_service_image_at_its_latest_tag_reports_nothing() {
+  fake_project
+  outdated_tools ""
+  service_image postgres postgres:19.0-alpine 18.7-alpine 19.0-alpine 19.1 19.2-beta1-alpine
+  run_currency
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" ""
+}
+
+test_a_held_service_image_passes() {
+  fake_project
+  outdated_tools "postgres 18.7-alpine: $reason"
+  service_image postgres postgres:18.7-alpine 18.7-alpine 19.0-alpine
+  run_currency
+  assert_equal status "$status" 0
+  assert_equal stdout "$out" "compose/postgres/Dockerfile: postgres 18.7-alpine -> 19.0-alpine held: $reason"
+}
+
+test_a_service_image_with_no_tag_of_its_form_fails() {
+  fake_project
+  outdated_tools ""
+  service_image agentgateway owner/gateway:v1.0.0 1.0.0 1.1.0 latest
+  run_currency
+  assert_equal status "$status" 1
+  assert_equal stdout "$out" ""
+  assert_equal stderr "$err" \
+    "compose/agentgateway/Dockerfile: owner/gateway lists no release tag of v1.0.0's form"
 }
 
 run_tests

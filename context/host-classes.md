@@ -53,9 +53,8 @@ re-measures, is planned for `upgrades`; that task's plan names its verb.
 
 ## go-ai profiles
 
-Planned for the `gateway` task: ai-hosting will publish each alias's go-ai profile as a JSON file
-in go-ai's own field names, declaring the reasoning efforts the row refuses. Acceptance will run
-go-ai's integration tier with them through `AI_<ROLE>_PROFILE`.
+Each alias's go-ai profile, with the evidence for each refusal it declares, is in
+[go-ai/README.md](../go-ai/README.md).
 
 ## What later tasks take from spike-model-hosting
 

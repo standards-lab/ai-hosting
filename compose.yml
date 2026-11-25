@@ -1,0 +1,13 @@
+# The gateway's compose stack on gb10-2: agentgateway, the Postgres that holds its budgets and
+# request log, and its telemetry stores and Grafana, one included file per service.
+# See docs/gateway.md
+name: gateway
+
+include:
+  - compose/postgres.yml
+  - compose/agentgateway.yml
+  - compose/otel-collector.yml
+  - compose/tempo.yml
+  - compose/mimir.yml
+  - compose/loki.yml
+  - compose/grafana.yml

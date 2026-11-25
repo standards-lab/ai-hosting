@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # currency reports every mise tool pin, the bench environment's (mise.bench.toml) among them, and
-# every GitHub Actions pin that trails its latest release, the vLLM release in lib/vllm.env, and
-# each image the suite builds (images/*/Dockerfile): its base image's tag and digest against the
-# vLLM release's, and its Python packages' pins against PyPI's latest, one line each. A pin the
-# HOLDS list names, one `<item> <pin>: <reason>` line each in mise.bench.toml's [env], is reported
-# as held with its reason. It exits non-zero when it reports any pin that isn't held. It reads the
-# network and writes nothing.
+# every GitHub Actions pin that trails its latest release, the vLLM release in lib/vllm.env, each
+# image the suite builds (images/*/Dockerfile): its base image's tag and digest against the vLLM
+# release's, and its Python packages' pins against PyPI's latest, and each gateway service's image
+# (compose/*/Dockerfile): its FROM tag against the highest release tag crane lists with the same
+# `v` prefix and variant suffix, one line each. A pin the HOLDS list names, one
+# `<item> <pin>: <reason>` line each in mise.bench.toml's [env], is reported as held with its
+# reason. It exits non-zero when it reports any pin that isn't held. It reads the network and
+# writes nothing.
 # See architecture/principles/rolling-currency.md
 set -euo pipefail
 cd "$MISE_PROJECT_ROOT"
@@ -87,10 +89,40 @@ report_outdated_images() {
   done
 }
 
+latest_release_tag() {
+  local image=$1 pin=$2 prefix='' version suffix
+  if [[ $pin == v* ]]; then
+    prefix=v
+  fi
+  version=${pin#"$prefix"}
+  suffix=${version#"${version%%[!0-9.]*}"}
+  crane ls "$image" |
+    sed -nE "s/^${prefix}([0-9]+(\.[0-9]+)+)${suffix//./\\.}\$/\1/p" |
+    sort -V | tail -n 1 | sed "s/.\+/${prefix}&${suffix}/"
+}
+
+report_outdated_service_images() {
+  local dockerfile base image pin latest
+  for dockerfile in compose/*/Dockerfile; do
+    [ -e "$dockerfile" ] || continue
+    base=$(sed -n 's/^FROM  *\([^ ]*\).*/\1/p' "$dockerfile" | head -n 1)
+    image=${base%:*}
+    pin=${base##*:}
+    latest=$(latest_release_tag "$image" "$pin")
+    if [ -z "$latest" ]; then
+      echo "$dockerfile: $image lists no release tag of $pin's form" >&2
+      stale=1
+    elif [ "$pin" != "$latest" ]; then
+      trailing "$dockerfile" "$image" "$pin" "$latest"
+    fi
+  done
+}
+
 # shellcheck source=lib/vllm.env
 source lib/vllm.env
 report_outdated_mise_tools
 report_outdated_actions
 report_outdated_vllm
 report_outdated_images
+report_outdated_service_images
 exit "$stale"

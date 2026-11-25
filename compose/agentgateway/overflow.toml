@@ -1,0 +1,5 @@
+# The overflow switches: true keeps the alias's Azure group, false drops it.
+# See docs/gateway.md
+agent = true
+vision = true
+audio = true
