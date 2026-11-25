@@ -6,7 +6,8 @@ the items only the host can settle to bench cells; and an adoption leaves findin
 `measured_vllm`, and, once every host holds, a moved pin. The `hosting-upgrades` skill runs both
 modes from the documents below.
 
-- [The policy](policy.md): the gates every candidate passes, and the tuning rule.
+- [The policy](policy.md): the gates every candidate passes, how it is judged on the host, and
+  the tuning rule.
 - [The host descriptors](hosts/), one a host: how to reach it, the alias it serves, its run
   noise, and its watch items.
 - The class profiles, [gb10](../classes/gb10/profile.toml) and
@@ -33,8 +34,10 @@ the host or in a committed document. It runs:
 A survey reads the host's probe (pending updates, failed units, the system's other debt, and the
 running rows), `mise run currency` (the vLLM release, image tags, and digests), `mise run watch`
 (each entry's upstream), each row's flags against vLLM's release notes since the row's
-`measured_vllm`, and model candidates for each alias the host serves, gated by the policy. It
-reads every source fresh: no research cache is kept. It gives each item one verdict:
+`measured_vllm`, model candidates for each alias the host serves, gated by the policy, and the
+state of model security: NIST CAISI's and UK AISI's publications, and the methods and standards
+for detecting a backdoor or covert behavior in a model. It reads every source fresh: no research
+cache is kept. It gives each item one verdict:
 
 - **verify**: only the host can settle it, so a measure takes it;
 - **take**: it needs no measurement, and goes with the host's next update;
@@ -43,7 +46,9 @@ reads every source fresh: no research cache is kept. It gives each item one verd
 
 A survey proposes and applies nothing. A change it would make to a descriptor, the policy, the
 watch register, or a profile is a proposal in its report, which the architect accepts or rejects
-one at a time before the host's next survey. A descriptor that restates a figure the class profile
+one at a time before the host's next survey. The policy's origin section is revisited from the
+model security item's proposals: a development that could make it possible to evaluate and clear
+a model ([the policy](policy.md#clearance)). A descriptor that restates a figure the class profile
 holds, such as a load target, a cap, or a context, is flagged as stale under the report's proposed
 changes, with the profile's value beside it.
 
@@ -62,10 +67,10 @@ A measure takes the host's last survey to bench cells. It runs when that survey:
 - gives verify to an engine move: a vLLM release the rows should run;
 - gives verify to a row's settings: a flag the release notes change, a key a finding left owed, or
   a value a watch entry's parity frees;
-- gives verify to a candidate model: one that passes every gate, the policy's three, vLLM's
-  support at the pin, and its size in the row's share, and whose card reports a gain for the role
-  or which no card settles. A candidate whose card reports no gain is skip: it gains the row
-  nothing.
+- gives verify to a candidate model: one that passes the policy's gates, origin with its
+  clearance, artifact integrity, vLLM's support, and its fit in the row's share, and whose card
+  reports a gain for the role or which no card settles. A candidate whose card reports no gain is
+  skip: it gains the row nothing.
 
 `hosting profile stale` lists, read-only, each row whose `measured_vllm` is older than the pin in
 `lib/vllm.env`, by class and alias, and exits 0 whether it lists any or none. A listed row's
@@ -95,7 +100,8 @@ changes the host before it runs, and records it as run.
    `hosting profile set` on a branch, committed there, which the host's clone checks out before
    `hosting engine update <alias>`; the default branch and the same update return the row.
 3. **A candidate screen.** A replacement model for one alias: its card, the policy's gates, probes
-   at the row's context and of its purpose, a capacity cell, and the row's accuracy measure. The
+   at the row's context and of its purpose, a capacity cell, and the row's accuracy measure, judged
+   as [the policy](policy.md#judged-on-the-host) says. The
    candidate runs from a branch whose profile names it, after `hosting model pull`. An agent
    candidate stops after the gates and the capacity cell, at "needs `model-evaluation`'s tiers":
    its BFCL and conform tiers are that goal's, and no agent candidate is adopted before they run.

@@ -24,7 +24,7 @@ architect adds the rules.
 | `Bash(bin/hosting profile stale)` | both | the rows measured on a release older than the pin |
 | `Bash(gh release list *)`, `Bash(gh release view *)` | both | vLLM's release notes |
 | `Bash(gh search issues *)`, `Bash(gh search prs *)`, `Bash(gh issue view *)`, `Bash(gh pr view *)` | both | vLLM's tracker |
-| `Bash(curl -s https://<site>/*)` for `huggingface.co`, `hub.docker.com`, `raw.githubusercontent.com`, `changelogs.ubuntu.com`, `ubuntu.com`, and `archlinux.org`; `Bash(jq *)` | both | JSON and raw files: the Hub's API, Docker Hub's tags, vLLM's files at a tag, and the distributions' package notes ([sources.md](sources.md#reading-a-source)) |
+| `Bash(curl -s https://<site>/*)` for `huggingface.co`, `hub.docker.com`, `raw.githubusercontent.com`, `changelogs.ubuntu.com`, `ubuntu.com`, `archlinux.org`, `www.nist.gov`, and `www.aisi.gov.uk`; `Bash(jq *)` | both | JSON and raw files: the Hub's API, Docker Hub's tags, vLLM's files at a tag, the distributions' package notes, and CAISI's and UK AISI's publications ([sources.md](sources.md#reading-a-source)) |
 | `WebFetch`, `WebSearch` | both | model cards, publishers' documents, and what the list doesn't hold |
 | `Edit(.state/upgrades/**)` | both | the survey report |
 | `Bash(tailscale ping -c 1 <host>)`, one per descriptor | measure | the direct path a cell needs ([bench/README.md](../../../bench/README.md#running-a-cell)) |

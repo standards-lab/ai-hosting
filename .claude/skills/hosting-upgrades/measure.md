@@ -107,8 +107,12 @@ Then the incumbent's cells again on the changed row, each from a restart, with t
 `<cell>-<release, field, or model>`.
 
 A candidate screen first re-reads the policy's gates on the candidate, as
-[survey.md](survey.md#3-the-items), item 6, reads them, and loads nothing that fails one. An agent
-candidate stops after the gates and the capacity cell, at "needs `model-evaluation`'s tiers".
+[survey.md](survey.md#3-the-items), item 6, reads them, and loads nothing that fails one. It then
+judges the candidate on the host against the incumbent, accuracy and capability first, then its
+throughput peak at the row's cap and queue limit, as
+[the policy](../../../docs/policy.md#judged-on-the-host) says; a card's evals don't enter the
+judgement. An agent candidate stops after the gates and the capacity cell, at "needs
+`model-evaluation`'s tiers".
 
 **The return** to the default branch, which ends every pass and the measure:
 

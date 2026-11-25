@@ -173,7 +173,7 @@ test_setup_marks_rules_present_by_exact_prefix_glob_and_bare_tool() {
     "Bash(.claude/skills/hosting-upgrades/scripts/probe.sh gb10-1)"
   setup survey
   assert_equal status "$status" 0
-  assert_contains stdout "$out" "Survey's rules: 6 of 23 present."
+  assert_contains stdout "$out" "Survey's rules: 6 of 25 present."
   assert_contains stdout "$out" '  present  "Bash(mise run currency)"'
   assert_contains stdout "$out" '  present  "Edit(.state/upgrades/**)"'
   assert_contains stdout "$out" '  present  "WebFetch"'
@@ -195,7 +195,7 @@ test_setup_skips_the_template_and_names_hosts_by_short_name() {
 
 test_setup_measure_prints_survey_rules_then_its_own() {
   setup measure
-  assert_contains stdout "$out" "Survey's rules, which measure needs too: 0 of 23 present."
+  assert_contains stdout "$out" "Survey's rules, which measure needs too: 0 of 25 present."
   assert_contains stdout "$out" "Measure's own rules: 0 of 5 present."
 }
 

@@ -47,7 +47,8 @@ survey_rules() {
     "Bash(curl -s https://huggingface.co/*)" "Bash(curl -s https://hub.docker.com/*)" \
     "Bash(curl -s https://raw.githubusercontent.com/*)" \
     "Bash(curl -s https://changelogs.ubuntu.com/*)" "Bash(curl -s https://ubuntu.com/*)" \
-    "Bash(curl -s https://archlinux.org/*)" "Bash(jq *)" \
+    "Bash(curl -s https://archlinux.org/*)" "Bash(curl -s https://www.nist.gov/*)" \
+    "Bash(curl -s https://www.aisi.gov.uk/*)" "Bash(jq *)" \
     "WebFetch" "WebSearch" "Edit(.state/upgrades/**)"
 }
 

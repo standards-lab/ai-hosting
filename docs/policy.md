@@ -1,15 +1,15 @@
 # Policy
 
-The rules every candidate meets before it serves a row, and the rule that tunes a row once it
-does. A survey and a measure read this document and never write to it; when one needs a value
-this document doesn't state, it stops and asks the architect. How the rules are applied is in
-[the upgrade convention](upgrades.md).
+The gates every candidate meets, how it is judged on the host before it serves a row, and the rule
+that tunes a row once it does. A survey and a measure read this document and never write to it; when
+one needs a value this document doesn't state, it stops and asks the architect. How the rules are
+applied is in [the upgrade convention](upgrades.md).
 
 ## Model origin
 
-No model of Chinese origin serves a row, and a fine-tune takes its base's origin. A model's origin
-is that of the entity that trained it; an entity based in, or controlled from, the People's
-Republic of China, Hong Kong and Macau included, is of Chinese origin.
+No model of Chinese origin serves a row unless it is cleared, and a fine-tune takes its base's
+origin. A model's origin is that of the entity that trained it; an entity based in, or controlled
+from, the People's Republic of China, Hong Kong and Macau included, is of Chinese origin.
 
 The rule is read at three levels, and a model of Chinese origin at any of them excludes the
 candidate:
@@ -17,9 +17,12 @@ candidate:
 1. **The weights and their base chain**: the publisher of the checkpoint, every ancestor it was
    fine-tuned, quantized, or merged from, and every model merged into it. A quantization takes
    the origin of the weights it quantizes, not its quantizer's.
-2. **Any distillation teacher**: a model whose outputs or logits the candidate was trained to
-   reproduce, read by its role in the publisher's own documents, whatever they call it. A teacher
-   the documents leave unnamed passes only when they place it in the publisher's own pipeline.
+2. **Any distillation teacher**: a model whose generated outputs are the candidate's training
+   targets, such as synthetic responses or data it learned to reproduce, or whose logits it was
+   trained to match, read by its role in the publisher's own documents, whatever they call it. A
+   teacher the documents leave unnamed passes only when they place it in the publisher's own
+   pipeline. A model that only filtered, labeled, punctuated, or cleaned human data is not a
+   teacher: that is dataset work, and not origin.
 3. **Each component in the inference path**: a vision or audio encoder, a projector, or the
    tokenizer, as the publisher ships it.
 
@@ -30,8 +33,28 @@ outcome in the row's `source` table: the publisher and its `origin`, and the bas
 `base_origin` for a checkpoint built on another publisher's
 ([classes/README.md](../classes/README.md#source)).
 
-Only the three levels decide. A quantization's calibration data, the datasets in a training mix,
-and conventions such as a chat template's or a tool-call format's layout are not read as origin.
+Only the three levels decide. A quantization's calibration data, the human data in a training mix
+and the models that only prepared it, and conventions such as a chat template's or a tool-call
+format's layout are not read as origin. Data a model generated for the candidate to reproduce is
+not dataset work: its generator is a teacher, read at level 2.
+
+### Clearance
+
+The ban guards against covert behavior, such as a backdoor, that no current method can rule out
+from a model's weights. Clearance keeps a path open should a model of Chinese origin far outstrip
+other open weights, as soon as a government evaluator can vouch for that release.
+
+A candidate that fails origin is admitted only when all of these hold:
+
+- NIST's Center for AI Standards and Innovation (CAISI) or the UK AI Security Institute (AISI)
+  published an evaluation of that exact release: the weights' repository and commit;
+- the evaluation assessed covert behavior or backdoors, and agent hijacking;
+- it found the model at parity with the U.S. reference models it tested.
+
+The architect then admits it, and the row's `source` table records the evaluation
+([classes/README.md](../classes/README.md#source)). A candidate that fails origin with no such
+evaluation is refused, "origin, no clearance". This section is revisited from the model security
+proposals each survey makes ([the convention](upgrades.md#when-survey-runs)).
 
 ## Artifact integrity
 
@@ -56,31 +79,26 @@ architect edits. Each entry is one line: `<repository>` at `<commit>`, `<file>`,
 
 - None.
 
-## Quantization floor
+## Support and fit
 
-The floor is read from the checkpoint's own `quantization_config`, the format vLLM loads, not from
-the repository's name. A checkpoint meets it by one of three paths.
+Any quantization or format is eligible: one the publisher trained in, a post-training checkpoint,
+or a community quantization, at any width. A candidate goes on to a screen when:
 
-1. **Formats the publisher trained in.** A model's native format, released by its publisher as
-   the model itself, passes at any size. The agent row's `openai/gpt-oss-120b` ships its expert
-   weights in MXFP4, OpenAI's own format for the model.
-2. **A post-training checkpoint its publisher evaluated.** An NVFP4, FP8, or other post-training
-   checkpoint passes when its card reports evals against the full-precision base and none falls
-   more than about 1% below the base's score, relative ((base − quantized) / base). The vision
-   row's `nvidia/Gemma-4-26B-A4B-NVFP4` passes this way: its card's largest loss is
-   LiveCodeBench's, 80.50% to 79.80%, 0.87%, and two evals rose
-   ([its card](https://huggingface.co/nvidia/Gemma-4-26B-A4B-NVFP4), "Evaluation Results", read
-   2026-11-25).
-3. **Everything else**: a community quantization, or a post-training checkpoint whose card gives
-   no evals or a larger loss. It runs at FP8 weights or wider, never at a 4-bit format such as
-   AWQ, GPTQ INT4, bitsandbytes, or an unevaluated NVFP4. Embedding models, audio models, and
-   dense models under 8B parameters run at FP8 or wider by this path too.
+- **vLLM serves it**: vLLM at the pin serves its architecture, in the format its
+  `quantization_config` names, through the role's interface
+  ([the roles](../.claude/skills/hosting-upgrades/sources.md#roles));
+- **it fits**: its weights fit the row's memory share, the host's memory pool at the row's current
+  fraction.
 
-Full-precision weights pass every path: BF16 or FP16 as published, or as vLLM casts a float32
-checkpoint. The audio row's `google/gemma-4-E4B-it` serves its published BF16, and the embedding
-row's `intfloat/multilingual-e5-large`, a float32 checkpoint, serves as float16
-([e5-update](findings/embedding.md#e5-update)). A model's size is the parameters its card names as
-effective.
+## Judged on the host
+
+Whether a candidate serves is settled by our own measurement on the host it would serve on, in the
+candidate screen ([the convention](upgrades.md#measures-three-passes)), against the incumbent:
+accuracy and capability first, then speed and efficiency, its throughput peak at the row's cap and
+queue limit. It serves only when it fits the host's memory and compute, and gives accurate results
+with acceptable performance within its concurrent session cap and queue limit.
+
+A card's evals only rank which candidates to screen first; they never admit or refuse one.
 
 The KV cache's dtype is a row's setting, not a checkpoint format, and the tuning rule below judges
 it: the agent row's FP8 KV cache stands on an accuracy check against BF16, which its `flags_reason`

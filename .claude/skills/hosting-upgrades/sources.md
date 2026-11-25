@@ -6,9 +6,10 @@ that cites it, and cited with its URL or command and its read time in UTC.
 ## Reading a source
 
 - **`curl -s <url> | jq`** reads JSON and raw files: the Hugging Face API, raw files from
-  `raw.githubusercontent.com`, Docker Hub's tags API, and the distributions' package records. It
-  takes fields by name and figures verbatim, where a summary would paraphrase them. The URL follows
-  `-s` unquoted, and a query goes after it as `-G --data-urlencode <name>=<value>` arguments, so
+  `raw.githubusercontent.com`, Docker Hub's tags API, the distributions' package records, and a feed
+  or file CAISI's or UK AISI's site serves. It takes fields by name and figures verbatim, where a
+  summary would paraphrase them. The URL follows `-s` unquoted, and a query goes after it as
+  `-G --data-urlencode <name>=<value>` arguments, so
   [the setup rules](setup.md#the-permission-check) match the command.
 - **WebFetch** reads pages: model cards, the publishers' documents, and the distributions' notes.
   Ask it for figures verbatim.
@@ -48,9 +49,9 @@ A source whose tier is unclear is a pause, with lead as the default.
 | A publisher's newest | `https://huggingface.co/api/models?author=<org>&pipeline_tag=<tag>&sort=createdAt&direction=-1&limit=20` | The pipeline tag by role: `text-generation` for agent, `image-text-to-text` and `any-to-any` for vision, `automatic-speech-recognition` and `any-to-any` for audio, `feature-extraction` and `sentence-similarity` for embedding. Start from the publishers of the class profiles' rows and of their bases. |
 | A model's record | `https://huggingface.co/api/models/<id>?expand[]=cardData&expand[]=safetensors&expand[]=config` | `cardData.base_model` for the base chain, the safetensors parameter count, and the config's architecture. |
 | Its files | `https://huggingface.co/api/models/<id>/tree/main?expand=true` | Each file's name, size, and `securityFileStatus`: the artifact integrity gate reads that the weights are safetensors and no pickle loads. |
-| Its config | `https://huggingface.co/<id>/raw/main/config.json` | `quantization_config`, the format vLLM loads, for the quantization floor; `auto_map`, which names repository code. |
+| Its config | `https://huggingface.co/<id>/raw/main/config.json` | `quantization_config`, the format vLLM loads, for vLLM's support; `auto_map`, which names repository code. |
 | Its chat template | `chat_template.jinja`, else `tokenizer_config.json`'s `chat_template`, at the candidate and at its base | Compared for the policy's chat-template rule. |
-| Its card | `https://huggingface.co/<id>` | Its evals against the base, its base and distillation sections, and the publisher's own documents it links. |
+| Its card | `https://huggingface.co/<id>` | Its evals, which rank candidates for a screen and whether it reports a gain over the incumbent; its base and distillation sections; and the publisher's own documents it links. |
 | A publisher | `https://huggingface.co/api/organizations/<org>/overview`, then the publisher's own domain | Who the publisher is, and where it is based. |
 
 ## Roles
@@ -64,6 +65,18 @@ serve the candidate's architecture through it at the pin.
 | vision | chat completions with images |
 | audio | chat completions with audio input, as [audio-probe](../../../docs/findings/audio.md#audio-probe) sends it; a transcription-only or realtime-only model fails |
 | embedding | `/v1/embeddings` |
+
+## Model security
+
+What survey's model security item reads, and where a candidate of Chinese origin's clearance is
+sought ([the policy](../../../docs/policy.md#clearance)). Both are primary for what the agency
+published.
+
+| What | Read | Notes |
+|---|---|---|
+| NIST CAISI | `https://www.nist.gov/caisi`, and the publications and news it links | The Center for AI Standards and Innovation's evaluations of models, and its guidance and standards work. |
+| UK AISI | `https://www.aisi.gov.uk/`, and the research and work it links | The AI Security Institute's evaluations and research. |
+| Detection methods | WebSearch for backdoor, sleeper-agent, and covert-behavior detection in model weights since the last report, each found page read with WebFetch | A paper or a standard is a lead until an agency or the publisher's own evaluation applies it. |
 
 ## Distribution packages
 

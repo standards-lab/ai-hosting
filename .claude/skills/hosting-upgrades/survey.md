@@ -73,16 +73,19 @@ rollback; one with none is hold.
    differs is a proposal to update the register, and its action, when parity is reached, is an
    item of its own.
 6. **Model candidates** for the host's alias ([sources.md](sources.md#models)). Each candidate
-   meets five gates: the three of [the policy](../../../docs/policy.md) (origin at all three
-   levels, artifact integrity, the quantization floor), vLLM's support at the pin for its
-   architecture through the role's interface ([sources.md](sources.md#roles)), and its size: its
-   weights fit the row's share of the host, the probe's `engine memory` pool at the row's current
-   `fraction`. Any gate's failure is decisive, in any order, so read the cheap gates (integrity,
-   vLLM support, size) first: a candidate that fails one is skip, naming the gate, and its origin
-   is not read. Then:
+   meets [the policy](../../../docs/policy.md)'s gates: origin at all three levels, with its
+   clearance; artifact integrity; vLLM's support at the pin for its architecture through the
+   role's interface ([sources.md](sources.md#roles)); and its fit in the row's share, the probe's
+   `engine memory` pool at the row's current `fraction`. Any gate's failure is decisive, in any
+   order, so read the cheap gates (integrity, vLLM support, fit) first: a candidate that fails one
+   is skip, naming the gate, and its origin is not read. Then:
    - a card that needs a login is hold, "card unread";
    - a candidate whose origin can't be established, when every other gate passes, is hold,
      "origin unclear", with what was checked;
+   - for a candidate of Chinese origin, read CAISI's and UK AISI's publications for an
+     evaluation of its release ([sources.md](sources.md#model-security)). With none that clears it
+     by the policy's terms, it is skip, "origin, no clearance". With one, it passes origin pending
+     the architect's admission, a proposal citing the evaluation, and goes on to the next line;
    - a candidate that passes every gate is verify when its card reports a gain for the role over
      the incumbent, or when no card settles the comparison, a candidate screen; and skip, "gains
      the row nothing", when its card reports no gain.
@@ -94,6 +97,11 @@ rollback; one with none is hold.
    changes", with the profile's value beside it. A watch item the descriptor lacks, or one that no
    longer bears, is a proposal too. So is run noise a finding has since measured. A descriptor
    with none of these is skip, "descriptor current".
+8. **Model security**, once a run, whatever the host: CAISI's and UK AISI's publications since the
+   last report, and the state of the methods and standards for detecting a backdoor or covert
+   behavior in a model ([sources.md](sources.md#model-security)). With nothing new, it is skip,
+   "nothing new". A development that could make it possible to evaluate and clear a model is take
+   or verify, as a proposal to [the policy](../../../docs/policy.md#clearance).
 
 Order the items within each section verify, take, hold, skip, and, within a verdict, the item
 that risks serving first.
@@ -123,6 +131,7 @@ What differs from the last report's probe and items, or "first report".
 ## Watch
 ## Model candidates
 ## Descriptor
+## Model security
 One line an item: **<verdict>**: <item>: <what was read, with its source and read time>.
 
 ## Needs measurement
@@ -131,7 +140,7 @@ check of <alias> <flag>, or a candidate screen of <model> for <alias>.
 
 ## Proposed changes
 Each change to a descriptor, the policy, the watch register, or a profile, one at a time, with
-its reason; the stale descriptor lines with the profile's values.
+its reason, the model security item's proposals among them; the stale descriptor lines with the profile's values.
 
 ## Sources
 Each source cited, with its URL or command, its tier, and its read time.
