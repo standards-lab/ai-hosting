@@ -33,7 +33,7 @@ them on the command line.
 | [`embedding-rate-sweep.yaml`](embedding-rate-sweep.yaml) | GuideLLM's sweep: synchronous, throughput, then 14 constant rates between them, 90 s a level, sixteen levels in one run | The highest rate the embedding row keeps |
 | [`audio.yaml`](audio.yaml) | 4 concurrent streams for 240 s | The audio row at 4 streams |
 | [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at a cap of 8 |
-| [`audio-capacity.yaml`](audio-capacity.yaml) | 4, 8, 12, 16, 24 and 32 concurrent streams, 90 s a level, six levels in one run | The audio row's throughput and RTFx on short clips |
+| [`audio-capacity.yaml`](audio-capacity.yaml) | 4, 8, 12, 16, 24 and 32 concurrent streams, 90 s a level, six levels in one run; a cell runs them one at a time | The audio row's throughput and RTFx on short clips |
 | [`audio-capacity-30s.yaml`](audio-capacity-30s.yaml) | The same six levels | The audio row's throughput and RTFx on 30 s windows of speech |
 | [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run | The vision row's throughput and request latency at each image budget it is given |
 
@@ -86,12 +86,16 @@ writer stops on a repeat. The gains run from 1 to about 1.06, half a decibel, wh
 speech and its transcript unchanged; distinct audio keeps vLLM's prefix and multimodal caches
 from reusing one request's work for another within a level. With the prompt in the same row, the
 scenario reads one source, and each level reads the file again from its first row, so a level
-repeats the earlier levels' first rows. The
-rows leave room for 60 requests a second over a 90 s level on short clips, over twice the 26 a
-second that the row's 6.5 at 8 streams ([audio-8](../docs/findings/audio.md#audio-8)) would make
-at 32 if it scaled evenly, and for 20 a second on windows, each about 4.4 times a short clip's
-mean of 6.6 s. A level whose streams send faster ends when the rows do, and its duration says
-so. GuideLLM 0.8.1's scenario takes no parameter for the
+repeats the earlier levels' first rows: in one run of the six levels, 74% of the short-clip
+requests' audio hit the row's multimodal cache, and 51% of their prompt tokens its prefix cache
+([audio-capacity-short](../docs/findings/audio.md#audio-capacity-short)). A cell therefore runs
+each level on its own, on its own slice of the rows, against a row whose caches hold none of them,
+as [Running a cell](#running-a-cell) gives. Each level's slice leaves room over its 90 s for over
+1.2 times the rate the row reached there at cap 32: from 4.4 requests a second at 4 streams to
+15.6 at 32 on short clips, against 3.1 and 9.1, and from 1.7 to 5.6 on windows, against 0.7 and
+1.8 ([audio-capacity-short](../docs/findings/audio.md#audio-capacity-short),
+[audio-capacity-30s](../docs/findings/audio.md#audio-capacity-30s)). A level whose streams send
+faster ends when its rows do, and its duration says so. GuideLLM 0.8.1's scenario takes no parameter for the
 window length, so each length is its own file.
 
 Each reply is at most 256 tokens on short clips and 512 on windows: a transcript runs roughly 3 to
@@ -162,6 +166,33 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://framework:8002 \
   --tokenizer kind=huggingface_auto,model=google/gemma-4-E4B-it \
   --output kind=json,path=.state/bench/<cell>.json
 ```
+
+A cell runs the levels one at a time instead, so that no level repeats another's audio: each
+level's streams and its own slice of the rows override the scenario's, the slices taken in order
+and sized for the level's throughput, 400, 600, 800, 1,000, 1,200 and 1,400 of the short rows and
+150, 200, 250, 300, 400 and 500 of the window rows. It starts on a row restarted since its last
+audio-capacity run, `docker restart vllm-audio` on the host, which empties its caches: before the
+first level, the row's `/metrics` reads `vllm:mm_cache_queries_total` and
+`vllm:prefix_cache_queries_total` at 0. The short clips, writing one JSON a level:
+
+```sh
+first=1
+for level in 4:400 8:600 12:800 16:1000 24:1200 32:1400; do
+  streams=${level%:*} last=$((first + ${level#*:} - 1))
+  sed -n "$first,${last}p" .state/bench/audio/short.jsonl >.state/bench/audio/short-$streams.jsonl
+  GUIDELLM__SPEC__BACKEND__TARGET=http://framework:8002 \
+    MISE_ENV=bench mise exec -- guidellm run -c bench/audio-capacity.yaml \
+    --profile kind=concurrent,streams=$streams \
+    --data kind=json_file,path=.state/bench/audio/short-$streams.jsonl \
+    --backend kind=openai_http,model=audio \
+    --tokenizer kind=huggingface_auto,model=google/gemma-4-E4B-it \
+    --output kind=json,path=.state/bench/<cell>-$streams.json
+  first=$((last + 1))
+done
+```
+
+The windows run the same loop with `audio-capacity-30s.yaml`, `windows-30.jsonl` and the window
+slices. The row's caches still hold the short clips' audio, which no window row repeats.
 
 `audio-clips.sh scenarios --output <dir>` writes the files elsewhere, but the scenarios read
 `.state/bench/audio/`. `audio-clips.sh probe <dir>` writes single clips for probing the row by
