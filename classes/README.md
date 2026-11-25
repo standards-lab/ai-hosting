@@ -106,8 +106,8 @@ reads a profile validates it first. It reports every error at once, one line eac
 - an alias outside the four;
 - an alias, port, or container that an earlier row already has;
 - a fraction over 1;
-- a queue limit under the cap, one that isn't twice the cap without `queue_limit_reason`, and
-  `queue_limit_reason` on a row whose queue limit is twice the cap or that has none;
+- a queue limit under the cap, a queue limit other than twice the cap without
+  `queue_limit_reason`, and `queue_limit_reason` on a row with no queue limit or one twice the cap;
 - a context over the card's;
 - a missing reason: for the cap, context, or fraction, or for free flags;
 - a free flag that a typed field or the suite sets: `--host`, `--port`, `--served-model-name`,

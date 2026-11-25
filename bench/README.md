@@ -1,9 +1,9 @@
 # The bench
 
 The bench measures a host's rows from a client on the hosts' LAN, the laptop at home: GuideLLM
-drives load against a row, and MTEB scores an embedding row's retrieval. It is not part of the suite, and no host installs it. The
-`embedding` task's measurements run on it; the repeatable measuring convention is the `upgrades`
-task's ([host-classes.md](../context/host-classes.md)).
+drives load against a row, and MTEB scores an embedding row's retrieval. It is not part of the
+suite, and no host installs it. The cells in `docs/findings/` run on it; a repeatable measuring
+convention is planned for the `upgrades` task ([host-classes.md](../context/host-classes.md)).
 
 ## The environment
 
@@ -33,7 +33,7 @@ them on the command line.
 | [`embedding-rate-sweep.yaml`](embedding-rate-sweep.yaml) | GuideLLM's sweep: synchronous, throughput, then 14 constant rates between them, 90 s a level, sixteen levels in one run | The highest rate the embedding row keeps |
 | [`audio.yaml`](audio.yaml) | 4 concurrent streams for 240 s | The audio row at 4 streams |
 | [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at a cap of 8 |
-| [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run | The vision row's request latency against its floor, run once for each image budget the row is given |
+| [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run | The vision row's throughput and request latency at each image budget it is given |
 
 Each embedding request is 510 synthetic tokens to `/v1/embeddings`: with the 2 special tokens an
 XLM-R tokenizer adds, 512, the embedding row's context. `scripts/lint-bench.sh`, which the check
@@ -67,10 +67,10 @@ rows, with the prompt listed 1,752 times: room for 7.3 requests a second over 24
 are the same clips and prompt as `audio.yaml`'s, so its cells compare with the 4-stream ones.
 
 Each vision request is one synthetic 1440p JPEG beside 200 synthetic text tokens, sent to
-`/v1/chat/completions`, each reply exactly 100 tokens; GuideLLM's vision extra draws the images.
-The requests and the 90 s level are spike-model-layout's vision cells'
-(`bench/vllm-layout-vision-capacity.yaml`, which ran 8 and 16 streams); this scenario adds a level
-at 4. A level stops at 90 s, and the requests then in flight count as incomplete.
+`/v1/chat/completions`, each reply exactly 100 tokens; GuideLLM's vision extra generates the
+images. The requests and the 90 s level match spike-model-layout's vision cells
+(`bench/vllm-layout-vision-capacity.yaml`, which ran 8 and 16 streams), and the scenario adds a
+level at 4. A level stops at 90 s, and the requests still in flight count as incomplete.
 
 ## Running a cell
 
@@ -80,7 +80,7 @@ alias), and its model's tokenizer, and writes GuideLLM's JSON into the untracked
 A cell runs from a client on the LAN, its `tailscale ping` to the host answering direct, never
 over a DERP relay: a relayed path limits the uploads and times out GuideLLM's fixed 5 s writes,
 so it measures the path, not the row ([audio-8](../docs/findings/audio.md#audio-8)). Clients off
-the LAN reach the rows through the gateway, whose task owns that path.
+the LAN reach the rows through the gateway.
 
 The embedding stream sweep on framework-2:
 

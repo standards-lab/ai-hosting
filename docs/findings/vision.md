@@ -1,13 +1,15 @@
 # Vision findings
 
 The measurements behind the gb10 profile's vision row, which serves
-`nvidia/Gemma-4-26B-A4B-NVFP4` alone on gb10-2, and behind its image budget, Gemma 4's
-`max_soft_tokens`, the most soft tokens an image's span may take. Each section is one cell: its
-command, its time in UTC, its figures, and the tool versions it ran on. The profile's reasons cite
-the cells by their section; the row's settings live in
-[the profile](../../classes/gb10/profile.toml). The capacity cells at 560 and 1120 are preliminary,
-the row alone rather than beside the layout's other rows; 560 is an interim budget on the way to
-1120.
+`nvidia/Gemma-4-26B-A4B-NVFP4` alone on gb10-2, and behind its image budget: Gemma 4's
+`max_soft_tokens`, the most soft tokens one image may take. Each section is one cell: its command,
+its time in UTC, its figures, and the tool versions it ran on. The profile's reasons cite the cells
+by their section; the row's settings live in [the profile](../../classes/gb10/profile.toml).
+
+The capacity cells at 560 and 1120 are preliminary: they ran the row alone, not beside the
+layout's other rows. 560 is an interim budget, measured before 1120. Each table's Floor column, and
+"the 10 s floor" below, is `levels.jq`'s vision verdict, a request latency median of at most 10 s;
+the row's cap follows its throughput peak instead, as the profile's `cap_reason` says.
 
 ## Tools
 
@@ -79,16 +81,16 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://gb10-2:8001 \
 | 8 | 2026-11-25T13:42:06Z | 112/0/8 | 1.244 | 2,123 | 41.48 | 6.23 | 6.26 | 5.98 | 112/112 | 596 | 90 | meets |
 | 16 | 2026-11-25T13:43:42Z | 144/0/16 | 1.600 | 2,981 | 64.08 | 9.33 | 9.46 | 8.07 | 140/144 | 766 | 90 | meets |
 
-- **Cap 16 meets vision's floor at 280**, a request latency median of 9.33 s against 10 s, as the
+- **Cap 16 meets the 10 s floor at 280**, a request latency median of 9.33 s against 10 s, as the
   spike's cell did on vLLM v0.33.0 beside an idle audio row: 6.11 s at 8 streams and 9.64 s at 16,
   133 of 144 in 10 s, TTFT median 3,049 ms (spike-model-layout `docs/findings/vllm-layout.md`,
   E.5, cell vllm-layout-g2-vision-capacity).
 
 ## capacity-560
 
-Preliminary. The row at a budget of 560, the same three levels starting 2026-11-25T13:46:38Z,
-right after [probe-560](#probe-560). Each request took 741 or 742 prompt tokens, 263 more than at
-280. `tailscale ping gb10-2`, right before the run, answered direct, 2 ms.
+The row at a budget of 560, the same three levels starting 2026-11-25T13:46:38Z, right after
+[probe-560](#probe-560). Each request took 741 or 742 prompt tokens, 263 more than at 280.
+`tailscale ping gb10-2`, right before the run, answered direct, 2 ms.
 
 ```sh
 GUIDELLM__SPEC__BACKEND__TARGET=http://gb10-2:8001 \
@@ -108,7 +110,7 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://gb10-2:8001 \
 
 The row's `/metrics` after the run, counting the probes: 211 requests finished, 0 preemptions.
 
-- **Cap 16 misses vision's floor at 560**: a request latency median of 16.05 s at 16 streams, no
+- **Cap 16 misses the 10 s floor at 560**: a request latency median of 16.05 s at 16 streams, no
   request within 10 s. 8 streams meet it, 9.60 s, with 8 of 72 requests over 10 s.
 - The cost is out of proportion to the tokens: 55 % more prompt tokens a request bring 0.56 times
   the requests a second at 16 streams, and an ITL median of 116.80 ms against 64.08 ms.
@@ -131,11 +133,10 @@ The same requests at 2026-11-25T14:00:23Z, without load, the row restarted with
 
 ## capacity-1120
 
-Preliminary. The row at a budget of 1120, the same three levels starting 2026-11-25T14:00:40Z,
-right after [probe-1120](#probe-1120), then 1 and 2 streams in a further run starting
-2026-11-25T14:05:49Z, since 4 streams missed the floor. Each request took 1,314 or 1,315 prompt
-tokens, 573 more than at 560. `tailscale ping gb10-2`, right before each run, answered direct, 1 ms
-and 2 ms.
+The row at a budget of 1120, the same three levels starting 2026-11-25T14:00:40Z, right after
+[probe-1120](#probe-1120), then 1 and 2 streams in a further run starting 2026-11-25T14:05:49Z,
+since 4 streams missed the 10 s floor. Each request took 1,314 or 1,315 prompt tokens, 573 more
+than at 560. `tailscale ping gb10-2`, right before each run, answered direct, 1 ms and 2 ms.
 
 ```sh
 GUIDELLM__SPEC__BACKEND__TARGET=http://gb10-2:8001 \
@@ -160,16 +161,16 @@ The further run used an uncommitted copy of the scenario with `streams: [1, 2]`,
 
 The row's `/metrics` after both runs, counting the probes: 141 requests finished, 0 preemptions.
 
-- **4 streams miss vision's floor at 1120**: a request latency median of 10.89 s, no request within
-  10 s. 2 streams meet it, 6.37 s, and 1 stream, 5.06 s.
-- Requests a second stop growing past 4 streams, 0.356 at 4 and at 8, 0.322 at 16, and the prompt
-  throughput holds near 468 tokens a second from 4 streams up.
+- **Throughput peaks at 4 streams**: requests a second stop growing past 4, at 0.356 at 4 and at
+  8 and 0.322 at 16, and the prompt throughput holds near 468 tokens a second from 4 streams up.
+- 4 streams miss the 10 s floor at 1120, with a request latency median of 10.89 s and no request
+  within 10 s. 2 streams meet it, 6.37 s, and 1 stream, 5.06 s.
 
 ## Comparison
 
-Each budget's request size in [`bench/vision-capacity.yaml`](../../bench/vision-capacity.yaml) and
-its request latency median at each level, against vision's floor of 10 s; a dash is a level the
-budget did not run.
+The table gives each budget's request size in
+[`bench/vision-capacity.yaml`](../../bench/vision-capacity.yaml) and its request latency median at
+each level against the 10 s floor. A dash marks a level the budget didn't run.
 
 | Budget | Prompt tokens a request | 1 stream | 2 streams | 4 streams | 8 streams | 16 streams |
 | --- | --- | --- | --- | --- | --- | --- |

@@ -292,9 +292,9 @@ retry proof (behaviors 6–8)").
 
 ### Row refusals, retry, and health
 
-Each row's vLLM answers 503 once its queue limit is full: twice its cap unless the profile gives a
-reason, both settings in its [class profile](../classes/README.md#a-rows-keys).
-The gateway acts on that refusal:
+Each row's vLLM answers 503 once its queue limit is full. The row's
+[class profile](../classes/README.md#a-rows-keys) sets the limit, twice the row's cap unless the
+profile gives a reason. The gateway acts on that refusal:
 
 - **Retry.** Each route retries a 503 or a failed connection, `attempts: 2`, so a request is sent
   at most three times, each retry after a 20 ms backoff. The provider is chosen again on each
