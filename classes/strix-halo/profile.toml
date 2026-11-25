@@ -11,14 +11,14 @@ image = "ai-hosting/vllm-openai-rocm-audio"
 context = 8192
 card_context = 131072
 context_reason = "8,192 tokens a request, the length every capability row was measured at (spike-model-layout docs/findings/capability-vllm.md); the row runs alone on its host and was measured at this context with 8 streams of short LibriSpeech clips, about 200 prompt tokens each (docs/findings/audio.md#audio-8)."
-cap = 8
-cap_reason = "8 requests at once: the row runs alone on its host, with no embedding row beside it to share the GPU, and is measured at 8 streams (docs/findings/audio.md#audio-8); on the LAN beside the earlier embedding row at 34 requests a second it held an RTFx median of 4.94 at 8 streams, just under audio's floor of 5, in cell vllm-layout-fw-stress-a8r34 (spike-model-layout docs/findings/vllm-layout.md, F.5; standards-lab context/ai-hosting.md, \"The layout\")."
-queue_limit = 16
-fraction = 0.18
-fraction_reason = "0.18: its KV cache held 106,065 tokens, 12.95 requests of 8,192, over the cap of 8; the row runs alone on its host (spike-model-layout docs/findings/vllm-layout.md, F.6; standards-lab context/ai-hosting.md, \"The layout\")."
+cap = 32
+cap_reason = "32 requests at once, an interim setting the audio capacity sweeps run at: the highest of their levels, so the row serves each level's streams at once (bench/README.md, \"The scenarios\")."
+queue_limit = 64
+fraction = 0.28
+fraction_reason = "0.28, an interim setting the audio capacity sweeps run at, sized for 32 requests of 8,192 tokens, 262,144: at audio-8's settings the row reserved 20.16 GiB, its weights took 15.22 and its KV cache held 80,401 tokens, so scaling the 4.94 GiB above the weights to hold 262,144 reserves 31.33 GiB of the GPU's 112.0, 0.28 (docs/findings/audio.md#audio-probe)."
 flags = ["--kv-cache-dtype", "bfloat16", "--reasoning-parser", "gemma4", "--enable-auto-tool-choice", "--tool-call-parser", "gemma4"]
 flags_reason = "A BF16 KV cache, which every Gemma 4 row keeps (spike-model-engines host/vllm-rows), and Gemma 4's own reasoning and tool-call parsers."
-measured_vllm = "v0.33.0"
+measured_vllm = "v0.34.0"
 
 [rows.load]
 target = "8 streams"

@@ -50,3 +50,39 @@ preemption. Both errors were GuideLLM's `WriteTimeout`: its write timeout is fix
 (`FALLBACK_TIMEOUT` in `guidellm/backends/openai/common.py`). That run measured the path, not the
 row, so bench cells run from a LAN client; success off the LAN belongs to the `gateway` and
 `acceptance` tasks.
+
+## audio-probe
+
+Preliminary. The row alone on `framework` as the profile rendered it at audio-8's settings: cap 8,
+queue limit 16, fraction 0.18, context 8,192, on vLLM v0.34.0 in the image
+`ai-hosting/vllm-openai-rocm-audio:v0.34.0`. Its start, 2026-11-25T00:11:08Z, read the 0.18 back
+as 20.16 GiB of the GPU's 112.0, its weights took 15.22 GiB, and its KV cache held 80,401 tokens,
+9.81 requests of 8,192.
+
+Each of the four clips `bench/audio-clips.sh probe` writes went once, from the laptop on the LAN
+(`tailscale ping framework` direct, 1 ms), with no other load, at 2026-11-25T15:24:52Z: the
+scenarios' transcription prompt, then the clip as a base64 WAV, as GuideLLM orders them, to
+`/v1/chat/completions` with `max_tokens` 1,024 and the model's default sampling. A text-only
+request with the same prompt took 31 prompt tokens; a clip's audio tokens are its prompt tokens
+less those 31. The transcript is scored against the clip's reference `.txt` by difflib's ratio
+over lower-cased words, with punctuation and apostrophes dropped and "mr" read as "mister", and by
+whether the reference's last five words appear in it.
+
+| Clip | Audio s | Status | Prompt tokens | Audio tokens | Audio tokens / s | Completion tokens | Finish | Latency s | Word ratio | Reaches reference word | Last 5 words |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 10s | 9.90 | 200 | 281 | 250 | 25.25 | 30 | stop | 1.41 | 0.958 | 24 of 24 | yes |
+| 30s | 29.40 | 200 | 768 | 737 | 25.07 | 81 | stop | 3.75 | 0.896 | 68 of 68 | yes |
+| 60s | 56.60 | 200 | 783 | 752 | 13.29 | 86 | stop | 4.04 | 0.676 | 72 of 134 | no |
+| 120s | 115.36 | 200 | 783 | 752 | 6.52 | 85 | stop | 4.18 | 0.430 | 75 of 269 | no |
+
+- **Audio past 30 s is dropped without an error.** The row takes 25 audio tokens a second up to
+  30 s, and 752 audio tokens, 30 s, for any longer clip. The 60 s and 120 s clips each answered
+  200, finished on `stop` well under `max_tokens`, and transcribed only their first 30 s: the 60 s
+  transcript stops at "linell's pictures are a sort of", 72 of the reference's 134 words. The
+  failure starts past 29.40 s and by 56.60 s, and a client that needs a longer recording
+  transcribed sends it in windows of 30 s or less.
+- **Up to 30 s the transcript is whole.** The 10 s and 30 s transcripts reach the reference's last
+  word. Their misses are spellings of names and compounds ("linell's", "upguards", "burket",
+  "callier"). No reply looped, refused, or answered in another language.
+
+The replies are the session's, outside the repository.
