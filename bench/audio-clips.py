@@ -1,9 +1,10 @@
 """Writes the audio bench's speech from the LibriSpeech dummy set for bench/audio-clips.sh, which
-validates the arguments first: the audio capacity scenarios' clips, 30 s windows and JSONL rows,
-or the probe's clips of about 10, 30, 60 and 120 s. See bench/README.md.
+validates the arguments first: the audio capacity scenarios' clips, 30 s windows, JSONL rows and
+each row's own WAV, or the probe's clips of about 10, 30, 60 and 120 s. See bench/README.md.
 """
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -23,6 +24,7 @@ SHORT_ROWS = 5400
 WINDOW = (28, 30)
 WINDOW_ROWS = 1800
 PROBE_SECONDS = (10, 30, 60, 120)
+GAIN_STEP = 1 / 4096
 WINDOWS_JQ = Path(__file__).with_name("audio-windows.jq")
 
 
@@ -48,24 +50,40 @@ def windows(clips, lo, hi):
     return [[clips[i] for i in window] for window in json.loads(result.stdout)]
 
 
-def write(path, window):
-    pcm = np.concatenate([clip["pcm"] for clip in window])
+def write_wav(path, pcm):
     with wave.open(str(path), "wb") as out:
         out.setnchannels(1)
         out.setsampwidth(2)
         out.setframerate(RATE)
         out.writeframes(pcm.tobytes())
+
+
+def write(path, window):
+    pcm = np.concatenate([clip["pcm"] for clip in window])
+    write_wav(path, pcm)
     path.with_suffix(".txt").write_text(" ".join(clip["text"] for clip in window) + "\n")
     seconds = len(pcm) / RATE
     print(f"{path} {seconds:.2f} s, {len(window)} clips from {window[0]['id']} to {window[-1]['id']}")
-    return path.resolve()
+    return {"path": path.resolve(), "pcm": pcm}
 
 
-def write_rows(path, wavs, count):
+def write_rows(path, sources, count, seen, first_cycle):
+    directory = path.parent / f"rows-{path.stem}"
+    directory.mkdir(parents=True, exist_ok=True)
     with path.open("w") as out:
         for i in range(count):
-            out.write(json.dumps({"prompt": PROMPT, "audio": str(wavs[i % len(wavs)])}) + "\n")
-    print(f"{path} {count} rows over {len(wavs)} files")
+            source = sources[i % len(sources)]
+            gain = 1 + (first_cycle + i // len(sources)) * GAIN_STEP
+            pcm = np.clip(np.rint(source["pcm"] * gain), -32768, 32767).astype("<i2")
+            digest = hashlib.sha256(pcm.tobytes()).digest()
+            if digest in seen:
+                raise RuntimeError(f"row {i} repeats an earlier row's audio, from {source['path']}")
+            seen.add(digest)
+            wav = directory / f"{i:05d}.wav"
+            write_wav(wav, pcm)
+            out.write(json.dumps({"prompt": PROMPT, "audio": str(wav.resolve())}) + "\n")
+    print(f"{path} {count} rows over {len(sources)} files, each row its own WAV under {directory}")
+    return first_cycle + -(-count // len(sources))
 
 
 def scenarios(clips, output):
@@ -76,8 +94,9 @@ def scenarios(clips, output):
             for i, window in enumerate(windows(clips, *WINDOW))]
     if not long:
         raise RuntimeError(f"no window of {WINDOW[0]} to {WINDOW[1]} s in {DATASET}")
-    write_rows(output / "short.jsonl", short, SHORT_ROWS)
-    write_rows(output / "windows-30.jsonl", long, WINDOW_ROWS)
+    seen = set()
+    cycle = write_rows(output / "short.jsonl", short, SHORT_ROWS, seen, 0)
+    write_rows(output / "windows-30.jsonl", long, WINDOW_ROWS, seen, cycle)
 
 
 def probe(clips, output):

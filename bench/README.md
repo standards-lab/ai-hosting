@@ -78,8 +78,15 @@ clip instead, so the 8 minutes of the set make 11 windows, one of them the set's
 clip. The grouping is [`audio-windows.jq`](audio-windows.jq). Each WAV has its reference
 transcript beside it, as a `.txt` of the same name. It then writes the rows: `short.jsonl`, 5,400
 rows cycling through the 73 clips, and `windows-30.jsonl`, 1,800 rows cycling through the 11
-windows, each row the card's transcription prompt and one WAV's path. With the prompt in the same
-row, the scenario reads one source, and each level reads the file again from its first row. The
+windows, each row the card's transcription prompt and the path of its own WAV, under
+`rows-short/` or `rows-windows-30/`. A row's WAV is its clip or window at a gain of 1 + n/4096,
+where n counts the times the rows have cycled through the clips, and the window rows' count
+carries on from the short rows' last, so no two rows of either file send the same audio, and the
+writer stops on a repeat. The gains run from 1 to about 1.06, half a decibel, which leaves the
+speech and its transcript unchanged; distinct audio keeps vLLM's prefix and multimodal caches
+from reusing one request's work for another within a level. With the prompt in the same row, the
+scenario reads one source, and each level reads the file again from its first row, so a level
+repeats the earlier levels' first rows. The
 rows leave room for 60 requests a second over a 90 s level on short clips, over twice the 26 a
 second that the row's 6.5 at 8 streams ([audio-8](../docs/findings/audio.md#audio-8)) would make
 at 32 if it scaled evenly, and for 20 a second on windows, each about 4.4 times a short clip's
