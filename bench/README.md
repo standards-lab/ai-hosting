@@ -32,7 +32,7 @@ them on the command line.
 | [`embedding-rate.yaml`](embedding-rate.yaml) | A constant rate, given per run, for 240 s | The embedding row at one rate; [e5-pair](../docs/findings/embedding.md#e5-pair) ran it beside audio, when the two shared `framework` |
 | [`embedding-rate-sweep.yaml`](embedding-rate-sweep.yaml) | GuideLLM's sweep: synchronous, throughput, then 14 constant rates between them, 90 s a level, sixteen levels in one run | The highest rate the embedding row keeps |
 | [`audio.yaml`](audio.yaml) | 4 concurrent streams for 240 s | The audio row at 4 streams |
-| [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at a cap of 8 |
+| [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at 8 streams |
 | [`audio-capacity.yaml`](audio-capacity.yaml) | 4, 8, 12, 16, 24 and 32 concurrent streams, 90 s a level, six levels in one run; a cell runs them one at a time | The audio row's throughput and RTFx on short clips |
 | [`audio-capacity-30s.yaml`](audio-capacity-30s.yaml) | The same six levels | The audio row's throughput and RTFx on 30 s windows of speech |
 | [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run; a cell runs them one at a time | The vision row's throughput and request latency at each image budget it is given |
@@ -70,37 +70,41 @@ are the same clips and prompt as `audio.yaml`'s, so its cells compare with the 4
 
 The audio capacity scenarios read their requests from local files that
 [`audio-clips.sh`](audio-clips.sh) writes, so a run needs no Hugging Face download. It takes the
-same 73 LibriSpeech clips, 16 kHz, and writes each as a WAV under the untracked
-`.state/bench/audio/clips/`; it joins consecutive clips, in the split's order and across speakers
-and chapters alike, into windows of 28 to 30 s of real speech, written under `windows-30/`. A
-window never overlaps the next, and a clip that would carry one past 30 s drops the window's first
-clip instead, so the 8 minutes of the set make 11 windows, one of them the set's single 29.4 s
-clip. The grouping is [`audio-windows.jq`](audio-windows.jq). Each WAV has its reference
-transcript beside it, as a `.txt` of the same name. It then writes the rows: `short.jsonl`, 5,400
-rows cycling through the 73 clips, and `windows-30.jsonl`, 1,800 rows cycling through the 11
-windows, each row the card's transcription prompt and the path of its own WAV, under
-`rows-short/` or `rows-windows-30/`. A row's WAV is its clip or window at a gain of 1 + n/4096,
-where n counts the times the rows have cycled through the clips, and the window rows' count
-carries on from the short rows' last, so no two rows of either file send the same audio, and the
-writer stops on a repeat. The gains run from 1 to about 1.06, half a decibel, which leaves the
-speech and its transcript unchanged; distinct audio keeps vLLM's prefix and multimodal caches
-from reusing one request's work for another within a level. With the prompt in the same row, the
-scenario reads one source, and each level reads the file again from its first row, so a level
-repeats the earlier levels' first rows: in one run of the six levels, 74% of the short-clip
-requests' audio hit the row's multimodal cache, and 51% of their prompt tokens its prefix cache
-([audio-capacity-short](../docs/findings/audio.md#audio-capacity-short)). A cell therefore runs
-each level on its own, on its own slice of the rows, against a row whose caches hold none of them,
-as [Running a cell](#running-a-cell) gives. Each level's slice leaves room over its 90 s for over
-1.2 times the rate the row reached there at cap 32: from 4.4 requests a second at 4 streams to
-15.6 at 32 on short clips, against 3.1 and 9.1, and from 1.7 to 5.6 on windows, against 0.7 and
-1.8 ([audio-capacity-short](../docs/findings/audio.md#audio-capacity-short),
-[audio-capacity-30s](../docs/findings/audio.md#audio-capacity-30s)). A level whose streams send
-faster ends when its rows do, and its duration says so. GuideLLM 0.8.1's scenario takes no
-parameter for the window length, so each length is its own file.
+same 73 LibriSpeech clips, 1.6 to 29.4 s long and 6.6 s on average, and writes each as a 16 kHz WAV
+under the untracked `.state/bench/audio/clips/`. It joins consecutive clips, in the split's order
+and across speakers and chapters alike, into windows of 28 to 30 s of real speech, written under
+`windows-30/`. A window never overlaps the next, and a clip that would carry one past 30 s drops the
+window's first clip instead, so the 8 minutes of the set make 11 windows, one of them the set's
+single 29.4 s clip. The grouping is [`audio-windows.jq`](audio-windows.jq). Each WAV has its
+reference transcript beside it, as a `.txt` of the same name.
 
-Each reply is at most 256 tokens on short clips and 512 on windows: a transcript runs roughly 3 to
-5 tokens a second of speech, after about 25 prompt tokens, so 30 s of speech needs about 150 and
-the cap leaves room for a full transcript. These are bench settings, sized so that a cut-off
+It then writes the rows: `short.jsonl`, 5,400 rows cycling through the 73 clips, and
+`windows-30.jsonl`, 1,800 rows cycling through the 11 windows, each row the card's transcription
+prompt and the path of its own WAV, under `rows-short/` or `rows-windows-30/`. A row's WAV is its
+clip or window at a gain of 1 + n/4096, where n counts the times the rows have cycled through the
+clips, and the window rows' count carries on from the short rows' last, so no two rows of either
+file send the same audio, and the writer stops on a repeat. The gains run from 1 to about 1.06, half
+a decibel, which leaves the speech and its transcript unchanged; distinct audio keeps vLLM's prefix
+and multimodal caches from reusing one request's work for another within a level.
+
+With the prompt in the same row, the scenario reads one source, and each level reads the file again
+from its first row, so a level repeats the earlier levels' first rows: in one run of the six levels,
+74% of the short-clip requests' audio hit the row's multimodal cache, and 51% of their prompt tokens
+its prefix cache ([audio-capacity-short](../docs/findings/audio.md#audio-capacity-short)). A cell
+therefore runs each level on its own, on its own slice of the rows, against a row whose caches hold
+none of them, as [Running a cell](#running-a-cell) gives.
+
+Each level's slice leaves room over its 90 s for over 1.2 times the rate the row reached there at
+cap 32: from 4.4 requests a second at 4 streams to 15.6 at 32 on short clips, against 3.1 and 9.1,
+and from 1.7 to 5.6 on windows, against 0.7 and 1.8
+([audio-capacity-short](../docs/findings/audio.md#audio-capacity-short),
+[audio-capacity-30s](../docs/findings/audio.md#audio-capacity-30s)). A level whose streams send
+faster ends when its rows do, and its duration says so. GuideLLM 0.8.1's scenario takes no parameter
+for the window length, so each length is its own file.
+
+Each reply is at most 256 tokens on short clips and 512 on windows: the 30 s probe clip's whole
+transcript took 81 tokens ([audio-probe](../docs/findings/audio.md#audio-probe)), so either cap
+leaves room for a full transcript. These are bench settings, sized so that a cut-off
 transcript doesn't lower a level's cost; they are not advice to a client on `max_tokens`.
 
 Each vision request is one synthetic 1440p JPEG beside 200 synthetic text tokens, sent to
@@ -244,14 +248,15 @@ earlier pair cell was two runs started together, `audio.yaml` against the audio 
 
 [`levels.jq`](levels.jq) turns a result JSON into one table a file, one row a level: its streams,
 `rate <r>` on a constant-rate level, its rate to two places, or `synchronous` or `throughput` on a
-sweep's first two levels; requests ok, errored, and incomplete; requests a second;
-the TTFT median; the ITL median; the request latency's median, p90, and minimum; for vision, the
-count of requests that finished in 10 s or less; prompt tok/s; for audio, the RTFx median and
-minimum and the count of requests at RTFx 5 or more (each request's clip seconds over its request
-time); and the level's floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's an
-RTFx median of 5, vision's a request latency median of at most 10 s; a level with no successful
-request misses. A sweep's table starts with the knee GuideLLM concluded. Medians and percentiles
-interpolate linearly between the two nearest ranks.
+sweep's first two levels; requests ok, errored, and incomplete; requests a second; the TTFT median;
+the ITL median; the request latency's median, p90, and minimum; for vision, the count of requests
+that finished in 10 s or less; prompt tok/s; for audio, the RTFx median and minimum and the count of
+requests at RTFx 5 or more (each request's clip seconds over its request time); and the level's
+floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's an RTFx median of 5,
+vision's a request latency median of at most 10 s; a level with no successful request misses. The
+verdict doesn't set a cap: the vision and audio rows' caps follow their throughput peaks, as their
+profiles' `cap_reason` says. A sweep's table starts with the knee GuideLLM concluded. Medians and
+percentiles interpolate linearly between the two nearest ranks.
 
 ```sh
 jq -r --arg purpose embed -f bench/levels.jq .state/bench/<cell>.json

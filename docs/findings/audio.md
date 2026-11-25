@@ -5,9 +5,13 @@ alone on its host. Each section is one cell: its command, its time in UTC, its f
 tool versions it ran on. The profile's reasons cite the cells by their section; the row's settings
 live in [the profile](../../classes/strix-halo/profile.toml).
 
+Each table's Floor and RTFx ≥ 5 columns, and "the floor" below, are `levels.jq`'s audio verdict,
+an RTFx median of at least 5. The row's cap follows its throughput peak instead, as the profile's
+`cap_reason` says, and the cells report RTFx beside it.
+
 ## audio-8
 
-The row alone on `framework`, as the profile renders it: cap 8 (`--max-num-seqs 8`,
+The row alone on `framework` at its earlier setting: cap 8 (`--max-num-seqs 8`,
 `--max-num-queued-reqs 16`), fraction 0.18, context 8,192, on vLLM v0.34.0 in the image
 `ai-hosting/vllm-openai-rocm-audio:v0.34.0`. The client is the laptop on the LAN, running
 GuideLLM 0.8.1 in the bench environment ([bench/README.md](../../bench/README.md)) with Gemma 4
@@ -34,10 +38,10 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://framework:8002 \
 The row's `/metrics` after both runs: 3,130 requests finished, 0 preemptions, and the KV cache
 never full.
 
-Its rows cycle the same 73 clips, and its caches weren't read, so its figures may hold the cache
-reuse that [audio-capacity-short](#audio-capacity-short) measured.
+The scenarios cycle the same 73 clips, and the row's caches weren't read, so these figures may
+hold the cache reuse that [audio-capacity-short](#audio-capacity-short) measured.
 
-- **Cap 8 meets audio's floor**: an RTFx median of 5.32, over the floor of 5, at 1.74 times the
+- **8 streams meet the floor**: an RTFx median of 5.32, over 5, at 1.74 times the
   4-stream throughput. Beside granite, the earlier embedding row, the 8-stream cell held 4.94
   (spike-model-layout `docs/findings/vllm-layout.md`, F.5).
 - At 4 streams the median is 6.10, so the fourth to eighth streams cost 0.78 of RTFx median and
@@ -56,8 +60,8 @@ row, so bench cells run from a LAN client; success off the LAN belongs to the `g
 
 ## audio-probe
 
-Preliminary. The row alone on `framework` as the profile rendered it at audio-8's settings: cap 8,
-queue limit 16, fraction 0.18, context 8,192, on vLLM v0.34.0 in the image
+Preliminary. The row alone on `framework` at [audio-8](#audio-8)'s setting: cap 8, queue limit
+16, fraction 0.18, context 8,192, on vLLM v0.34.0 in the image
 `ai-hosting/vllm-openai-rocm-audio:v0.34.0`. Its start, 2026-11-25T00:11:08Z, read the 0.18 back
 as 20.16 GiB of the GPU's 112.0, its weights took 15.22 GiB, and its KV cache held 80,401 tokens,
 9.81 requests of 8,192.
@@ -89,7 +93,7 @@ whether the reference's last five words appear in it.
   The probe's own log went with that container, so it was not read. The 60 s and 120 s clips each
   answered 200, finished on `stop` well under `max_tokens`, and transcribed only their first 30 s:
   the 60 s transcript stops at "linell's pictures are a sort of", 72 of the reference's 134 words.
-  The failure starts past 29.40 s and by 56.60 s, and a client that needs a longer recording
+  The probe places the cut past 29.40 s and by 56.60 s. A client that needs a longer recording
   transcribed sends it in windows of 30 s or less.
 - **Up to 30 s the transcript is whole.** The 10 s and 30 s transcripts reach the reference's last
   word. Their misses are spellings of names and compounds ("linell's", "upguards", "burket",
@@ -99,19 +103,20 @@ The replies are the session's, outside the repository.
 
 ## audio-capacity-short
 
-Preliminary, at the interim setting the sweeps ran at, which the row then took but for its
-queue limit, now 128: cap 32 (`--max-num-seqs 32`, `--max-num-queued-reqs 64`), fraction 0.28, context 8,192, on vLLM v0.34.0
-in the image `ai-hosting/vllm-openai-rocm-audio:v0.34.0`, the row alone on `framework`. Its
-start, `hosting engine update audio` at 2026-11-25T15:33:11Z, read the 0.28 back as 31.36 GiB of
-the GPU's 112.0; its weights took 15.22 GiB, and its KV cache held 372,696 tokens, 45.50 requests
-of 8,192, against the 262,144 the fraction was sized for ([audio-probe](#audio-probe)). Sampled
-every 10 s over ssh through the start, the host's lowest MemAvailable was 80.79 GiB and its lowest
+Preliminary. The row alone on `framework` at the setting both sweeps ran at, which the profile
+keeps but for the queue limit, now 128: cap 32 (`--max-num-seqs 32`, `--max-num-queued-reqs 64`),
+fraction 0.28, context 8,192, on vLLM v0.34.0 in the image
+`ai-hosting/vllm-openai-rocm-audio:v0.34.0`. Its start, `hosting engine update audio` at
+2026-11-25T15:33:11Z, read the 0.28 back as 31.36 GiB of the GPU's 112.0; its weights took 15.22
+GiB, and its KV cache held 372,696 tokens, 45.50 requests of 8,192, against the 262,144 the
+fraction was sized for ([audio-probe](#audio-probe)). Sampled every 10 s over ssh through the
+start, the host's lowest MemAvailable was 80.79 GiB and its lowest
 GTT available 81.50 GiB, against the Framework's floors of 12.5 and 11.2 (spike-model-layout
 `docs/findings/vllm-layout.md`, "Reading the figures").
 
 The client is the laptop on the LAN, GuideLLM 0.8.1 in the bench environment with Gemma 4 E4B's
-tokenizer; `tailscale ping framework` answered direct, 1 ms, before each run. The rows are
-`bench/audio-clips.sh scenarios`', each with its own audio
+tokenizer; `tailscale ping framework` answered direct, 1 ms, before each run. The requests are the
+rows `bench/audio-clips.sh scenarios` writes, each with its own audio
 ([bench/README.md](../../bench/README.md)).
 
 **The caches in one run.** [`bench/audio-capacity.yaml`](../../bench/audio-capacity.yaml) as
@@ -120,9 +125,7 @@ the first: of 4,530 requests' audio, 3,346 hit the multimodal cache, 73.9%, and 
 tokens, 454,016 hit the prefix cache, 50.5% (`vllm:mm_cache_*_total` and
 `vllm:prefix_cache_*_total` from 0 after the start). It reached 12.800 requests a second at 32
 streams and an RTFx median of 4.67 at 8. Those are the earlier levels' requests served again from
-the caches, so the cell below runs each level on rows no other level sends. audio-8 cycled the
-same 73 clips for 240 s and its caches weren't read, so its 6.479 at 8 streams may hold the same
-reuse.
+the caches, so the cell below runs each level on rows no other level sends.
 
 **The cell.** The row restarted at 2026-11-25T15:51:42Z, `docker restart vllm-audio`, which
 emptied its caches (both counters at 0 before the first level), then each level on its own, as
@@ -146,14 +149,14 @@ client didn't open in time, not an answer from the row.
 
 - **Throughput rises to 32 streams without a plateau**: 9.13 requests a second at 32, 3.0 times
   the 4-stream rate, each step adding less (8.54 to 9.13 from 24 to 32).
-- **Only 4 streams meet audio's floor** of an RTFx median of 5; at 8 the median is 4.23, and it
-  falls to 1.89 at 32 as latency grows from 1.06 s to 3.10.
+- **The RTFx median falls as streams rise**: 5.26 at 4 streams, the only level that meets the
+  floor, 4.23 at 8, and 1.89 at 32, as the latency median grows from 1.06 s to 3.10.
 
 ## audio-capacity-30s
 
-Preliminary, at the same interim setting and start as
-[audio-capacity-short](#audio-capacity-short), right after it with no restart: no window row's
-audio repeats a short row's. Each level on its own with
+Preliminary. The row at the same setting and start as [audio-capacity-short](#audio-capacity-short),
+right after it with no restart, since no window row's audio repeats a short row's. Each level ran
+on its own with
 [`bench/audio-capacity-30s.yaml`](../../bench/audio-capacity-30s.yaml), writing
 `.state/bench/audio-capacity-30s-levels-framework-lan-<streams>.json`; `tailscale ping framework`
 direct, 1 ms. Across the six levels, 0 of 842 requests' audio hit the multimodal cache and 0 of
@@ -176,7 +179,9 @@ sampled every 10 s. The error at 24 streams is again GuideLLM's `ConnectTimeout`
   32, while the latency median grows from 9.51 s to 15.59. In seconds of speech a second, about
   29 times the request rate, the row clears about 22 at 4 streams and about 52 at 32, against
   about 20 and 60 on short clips.
-- **Only 4 streams meet the floor**, at an RTFx median of 5.77; the window rows ran out at no level.
+- **The RTFx median falls as streams rise**: 5.77 at 4 streams, the only level that meets the
+  floor, to 1.87 at 32.
+- No level ran out of window rows.
 
 No sweep ran on clips longer than 30 s: the row keeps only the first 30 s of a longer clip
 ([audio-probe](#audio-probe)).

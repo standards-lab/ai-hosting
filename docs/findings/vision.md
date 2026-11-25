@@ -29,8 +29,8 @@ budget each cell names. The client is the laptop on the LAN.
 
 ## synthetic-data
 
-What GuideLLM 0.8.1's synthetic sources send, read from its source in the bench environment
-(paths under its `guidellm` package); not a cell.
+What GuideLLM 0.8.1's synthetic sources send, read from its code in the bench environment, with
+paths under its `guidellm` package. This section is not a cell.
 
 - **Every image is fixed by its source's seed and its row.** `synthetic_image` draws each image
   from `seed=self.config.seed` and `row_index=row_index * self.config.images_per_request + img_idx`
@@ -203,12 +203,12 @@ The row's `/metrics` after both runs, counting the probes: 141 requests finished
 
 ## capacity-1120-clean
 
-[capacity-1120](#capacity-1120) again at 4 and 8 streams, on requests no earlier request sent
-([synthetic-data](#synthetic-data)): each level its own run of
+[capacity-1120](#capacity-1120) run again at 4 and 8 streams, on requests no earlier request sent
+([synthetic-data](#synthetic-data)). Each level is its own run of
 [`bench/vision-capacity.yaml`](../../bench/vision-capacity.yaml) with its streams as both seeds,
 as [bench/README.md](../../bench/README.md#running-a-cell) gives, on a row with empty caches. The
-row restarted at cap 16, `hosting engine update vision` at 2026-11-25T16:30:14Z, its start
-reporting a KV cache of 158,611 tokens, 19.36 requests of 8,192. Each request took 1,314 or 1,315
+row restarted at cap 16 through `hosting engine update vision` at 2026-11-25T16:30:14Z, and its
+start reported a KV cache of 158,611 tokens, 19.36 requests of 8,192. Each request took 1,314 or 1,315
 prompt tokens, as at capacity-1120. `tailscale ping gb10-2`, right before each run, answered
 direct, 1 ms and 2 ms.
 
