@@ -295,6 +295,12 @@ jq -r --arg purpose audio -f bench/levels.jq .state/bench/<cell>.json
 jq -r --arg purpose vision -f bench/levels.jq .state/bench/<cell>.json
 ```
 
+## Preliminary cells
+
+A findings cell labeled preliminary ran its row alone, before `acceptance`'s standing layout cell
+re-measures it beside the layout's other rows. Its figures are the row's alone until that cell
+runs.
+
 ## Scoring retrieval
 
 [`retrieval.sh`](retrieval.sh) runs MTEB's BelebeleRetrieval against an embedding row's

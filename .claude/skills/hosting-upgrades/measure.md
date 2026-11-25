@@ -33,10 +33,29 @@ cite its findings, and from each cited section the cell as it ran: its scenario,
 its accuracy measure. Those are the cells the pass runs again
 ([the convention](../../../docs/upgrades.md#what-triggers-a-measure)).
 
+A row that `bin/hosting profile stale` lists is re-measured on the pin as a settings check with no
+profile change: the incumbent's cells only, on the default branch, each compared with the figures
+its findings section holds. It cuts no branch and has no change part.
+
+### What a pass can't run
+
+The pass pauses with a proposal, and runs none of the cell, when a cell it would run again:
+
+- **isn't a bench load**, such as a cold-start memory cell: the KV cache at a start and the host's
+  MemAvailable low-water during it, as the fraction's cell in spike-model-layout's E.1 reads them.
+  `bench/cell.sh` runs loads only, so the cell is outside it. The proposal names the cell and the
+  steps it took.
+- **has inputs or a command the repository doesn't hold**, such as the vision probe's pages
+  ([probe-1120](../../../docs/findings/vision.md#probe-1120)). The proposal names what is missing.
+- **needs a file staged into the row's container**, such as a chat template the row's model
+  doesn't ship. There is no staging route yet; the proposal names the file and where the row would
+  read it.
+
 ## 3. The run noise
 
-Read the descriptor's "Run noise". When it gives none, the pass adds the incumbent's peak level run
-again, from a restarted row, as [the verdict](../../../docs/upgrades.md#the-verdict) says.
+Read the descriptor's "Run noise". When it gives none, or gives one measured on another engine than
+vLLM, the pass adds the incumbent's peak level run again, from a restarted row, as
+[the verdict](../../../docs/upgrades.md#the-verdict) says.
 
 ## 4. Each step
 
@@ -88,7 +107,7 @@ Then the incumbent's cells again on the changed row, each from a restart, with t
 `<cell>-<release, field, or model>`.
 
 A candidate screen first re-reads the policy's gates on the candidate, as
-[survey.md](survey.md#3-the-items), item 5, reads them, and loads nothing that fails one. An agent
+[survey.md](survey.md#3-the-items), item 6, reads them, and loads nothing that fails one. An agent
 candidate stops after the gates and the capacity cell, at "needs `model-evaluation`'s tiers".
 
 **The return** to the default branch, which ends every pass and the measure:

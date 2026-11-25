@@ -60,11 +60,11 @@ row, so bench cells run from a LAN client; success off the LAN belongs to the `g
 
 ## audio-probe
 
-Preliminary. The row alone on `framework` at [audio-8](#audio-8)'s setting: cap 8, queue limit
-16, fraction 0.18, context 8,192, on vLLM v0.34.0 in the image
-`ai-hosting/vllm-openai-rocm-audio:v0.34.0`. Its start, 2026-11-25T00:11:08Z, read the 0.18 back
-as 20.16 GiB of the GPU's 112.0, its weights took 15.22 GiB, and its KV cache held 80,401 tokens,
-9.81 requests of 8,192.
+[Preliminary](../../bench/README.md#preliminary-cells). The row alone on `framework` at
+[audio-8](#audio-8)'s setting: cap 8, queue limit 16, fraction 0.18, context 8,192, on vLLM v0.34.0
+in the image `ai-hosting/vllm-openai-rocm-audio:v0.34.0`. Its start, 2026-11-25T00:11:08Z, read the
+0.18 back as 20.16 GiB of the GPU's 112.0, its weights took 15.22 GiB, and its KV cache held 80,401
+tokens, 9.81 requests of 8,192.
 
 Each of the four clips `bench/audio-clips.sh probe` writes went once, from the laptop on the LAN
 (`tailscale ping framework` direct, 1 ms), with no other load, at 2026-11-25T15:24:52Z: the
@@ -103,16 +103,16 @@ The replies are the session's, outside the repository.
 
 ## audio-capacity-short
 
-Preliminary. The row alone on `framework` at the setting both sweeps ran at, which the profile
-keeps but for the queue limit, now 128: cap 32 (`--max-num-seqs 32`, `--max-num-queued-reqs 64`),
-fraction 0.28, context 8,192, on vLLM v0.34.0 in the image
-`ai-hosting/vllm-openai-rocm-audio:v0.34.0`. Its start, `hosting engine update audio` at
+[Preliminary](../../bench/README.md#preliminary-cells). The row alone on `framework` at the setting
+both sweeps ran at, which the profile keeps but for the queue limit, now 128: cap 32
+(`--max-num-seqs 32`, `--max-num-queued-reqs 64`), fraction 0.28, context 8,192, on vLLM v0.34.0 in
+the image `ai-hosting/vllm-openai-rocm-audio:v0.34.0`. Its start, `hosting engine update audio` at
 2026-11-25T15:33:11Z, read the 0.28 back as 31.36 GiB of the GPU's 112.0; its weights took 15.22
-GiB, and its KV cache held 372,696 tokens, 45.50 requests of 8,192, against the 262,144 the
-fraction was sized for ([audio-probe](#audio-probe)). Sampled every 10 s over ssh through the
-start, the host's lowest MemAvailable was 80.79 GiB and its lowest
-GTT available 81.50 GiB, against the Framework's floors of 12.5 and 11.2 (spike-model-layout
-`docs/findings/vllm-layout.md`, "Reading the figures").
+GiB, and its KV cache held 372,696 tokens, 45.50 requests of 8,192, against the 262,144 the fraction
+was sized for ([audio-probe](#audio-probe)). Sampled every 10 s over ssh through the start, the
+host's lowest MemAvailable was 80.79 GiB and its lowest GTT available 81.50 GiB, against the
+Framework's floors of 12.5 and 11.2 (spike-model-layout `docs/findings/vllm-layout.md`, "Reading the
+figures").
 
 The client is the laptop on the LAN, GuideLLM 0.8.1 in the bench environment with Gemma 4 E4B's
 tokenizer; `tailscale ping framework` answered direct, 1 ms, before each run. The requests are the
@@ -154,9 +154,9 @@ client didn't open in time, not an answer from the row.
 
 ## audio-capacity-30s
 
-Preliminary. The row at the same setting and start as [audio-capacity-short](#audio-capacity-short),
-right after it with no restart, since no window row's audio repeats a short row's. Each level ran
-on its own with
+[Preliminary](../../bench/README.md#preliminary-cells). The row at the same setting and start as
+[audio-capacity-short](#audio-capacity-short), right after it with no restart, since no window row's
+audio repeats a short row's. Each level ran on its own with
 [`bench/audio-capacity-30s.yaml`](../../bench/audio-capacity-30s.yaml), writing
 `.state/bench/audio-capacity-30s-levels-framework-lan-<streams>.json`; `tailscale ping framework`
 direct, 1 ms. Across the six levels, 0 of 842 requests' audio hit the multimodal cache and 0 of

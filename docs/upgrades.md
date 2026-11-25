@@ -62,13 +62,17 @@ A measure takes the host's last survey to bench cells. It runs when that survey:
 - gives verify to an engine move: a vLLM release the rows should run;
 - gives verify to a row's settings: a flag the release notes change, a key a finding left owed, or
   a value a watch entry's parity frees;
-- lists a candidate model that passes the policy's gates, which no card settles.
+- gives verify to a candidate model: one that passes every gate, the policy's three, vLLM's
+  support at the pin, and its size in the row's share, and whose card reports a gain for the role
+  or which no card settles. A candidate whose card reports no gain is skip: it gains the row
+  nothing.
 
 `hosting profile stale` lists, read-only, each row whose `measured_vllm` is older than the pin in
 `lib/vllm.env`, by class and alias, and exits 0 whether it lists any or none. A listed row's
 settings rest on measurements of an older release than the one it runs, so it is due
-re-measurement on the pin: the cells its reasons cite run again, through the cell runner, and its
-`measured_vllm` moves when they hold.
+re-measurement on the pin: a settings check with no profile change, in which the incumbent's cells
+its reasons cite run again, through the cell runner, and are compared with the figures their
+findings hold. Its `measured_vllm` moves when they hold.
 
 ## Measure's three passes
 
@@ -125,7 +129,9 @@ An engine move is adopted only when every row passes both tests:
 - **Throughput holds**: the row's throughput peak is within the host's run noise of the
   incumbent's, or ahead of it. The run noise is the widest within-session spread the host's
   descriptor gives. A host whose descriptor gives none has its incumbent's peak level run again,
-  from a restarted row, in the same measure, and that spread stands as its run noise.
+  from a restarted row, in the same measure, and that spread stands as its run noise. gb10-2's
+  descriptor gives a spread from llama.cpp's anchors, not from a row on vLLM, so a measure there
+  replaces it by the same rule: the incumbent's peak run again.
 
 Otherwise the move is held, and the measure writes a finding that says which row failed which test,
 with the figures. The pin moves only when the move holds on all four hosts. The architect may

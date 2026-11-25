@@ -44,6 +44,10 @@ survey_rules() {
   printf '%s\n' "Bash(mise run currency)" "Bash(mise run watch)" "Bash(bin/hosting profile stale)" \
     "Bash(gh release list *)" "Bash(gh release view *)" "Bash(gh search issues *)" \
     "Bash(gh search prs *)" "Bash(gh issue view *)" "Bash(gh pr view *)" \
+    "Bash(curl -s https://huggingface.co/*)" "Bash(curl -s https://hub.docker.com/*)" \
+    "Bash(curl -s https://raw.githubusercontent.com/*)" \
+    "Bash(curl -s https://changelogs.ubuntu.com/*)" "Bash(curl -s https://ubuntu.com/*)" \
+    "Bash(curl -s https://archlinux.org/*)" "Bash(jq *)" \
     "WebFetch" "WebSearch" "Edit(.state/upgrades/**)"
 }
 

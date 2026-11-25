@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Tests for the hosting-upgrades skill's scripts, on a copy of the skill and the host descriptors
 # with ssh stubbed: what probe.sh refuses before it reaches a host, the ssh command it runs and the
-# tailnet identifiers it redacts, and how setup.sh marks each mode's rules present or missing
-# against the settings files without writing any.
+# tailnet identifiers it redacts, what probe-host.sh reads with docker and the GPU tools stubbed,
+# and how setup.sh marks each mode's rules present or missing against the settings files without
+# writing any.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 
@@ -18,6 +19,16 @@ probe() {
   copy_skill
   write_stub ssh "cat >$(printf %q "$tmp/stdin"); ${ssh_body:-}"
   run "$clone/$skill/scripts/probe.sh" "$@"
+}
+
+probe_host() {
+  write_stub docker "${docker_body:-exit 1}"
+  write_stub apt
+  write_stub checkupdates 'exit 2'
+  write_stub fwupdmgr
+  write_stub systemctl
+  write_stub mise 'shift 2; exec "$@"'
+  run bash "$repo/$skill/scripts/probe-host.sh"
 }
 
 setup() {
@@ -105,6 +116,56 @@ test_probe_exits_with_ssh_status() {
   assert_equal status "$status" 255
 }
 
+test_probe_host_lists_the_images_no_container_uses_by_image_id() {
+  docker_body='case "$*" in
+    "version --format"*) echo "docker: 29.0.0" ;;
+    "ps -aq") printf "%s\n" c1 c2 ;;
+    "inspect --format {{.Image}} c1 c2") printf "%s\n" sha256:aaa sha256:bbb ;;
+    "image ls -f dangling=false --no-trunc"*)
+      printf "%s\n" "sha256:aaa gateway-grafana:latest 1.89GB" \
+        "sha256:bbb vllm/vllm-openai:v0.34.0 20GB" \
+        "sha256:ccc cr.agentgateway.dev/agentgateway:v1.7.0 142MB" ;;
+  esac'
+  probe_host
+  assert_contains stdout "$out" "images no container uses:
+  cr.agentgateway.dev/agentgateway:v1.7.0 142MB"
+  [[ $out != *gateway-grafana* && $out != *"vllm/vllm-openai:v0.34.0 20GB"* ]] ||
+    fail "an image a container uses is listed: $out"
+}
+
+test_probe_host_prints_each_rows_start_warnings_without_health() {
+  mkdir -p "$HOME/ai-hosting/bin"
+  printf '#!/usr/bin/env bash\necho "hosting $*"\n' >"$HOME/ai-hosting/bin/hosting"
+  chmod +x "$HOME/ai-hosting/bin/hosting"
+  docker_body='case "$*" in
+    "version --format"*) echo "docker: 29.0.0" ;;
+    "ps -a --filter label=ai-hosting.row"*) echo "vision vllm-vision" ;;
+    "inspect vllm-vision --format"*) echo "container /vllm-vision: running" ;;
+    "inspect --format {{.Image}} vllm-vision") echo sha256:aaa ;;
+    "inspect --format {{.State.StartedAt}} vllm-vision") echo 2026-11-25T00:00:00Z ;;
+    "logs --since 2026-11-25T00:00:00Z vllm-vision")
+      printf "%s\n" "INFO starting" "WARNING the cache is cold" \
+        "INFO Application startup complete." "ERROR after the start" ;;
+  esac'
+  probe_host
+  assert_contains stdout "$out" "-- row vision --"
+  assert_contains stdout "$out" "  start warnings:
+    WARNING the cache is cold"
+  [[ $out != *"ERROR after the start"* ]] || fail "a warning after the start is listed: $out"
+  [[ $out != *"  health "* ]] || fail "the probe prints docker's health: $out"
+}
+
+test_probe_host_prints_the_nvidia_driver_and_cuda_version() {
+  write_stub nvidia-smi 'case "$*" in
+    *--query-gpu*) echo 580.95.05 ;;
+    *) echo "| NVIDIA-SMI 580.95.05   Driver Version: 580.95.05   CUDA Version: 13.0 |" ;;
+  esac'
+  probe_host
+  assert_contains stdout "$out" "== gpu ==
+driver: 580.95.05
+cuda: 13.0"
+}
+
 test_setup_marks_rules_present_by_exact_prefix_glob_and_bare_tool() {
   copy_skill
   allow settings.json "Bash(mise run:*)" "Edit(.state/**)"
@@ -112,7 +173,7 @@ test_setup_marks_rules_present_by_exact_prefix_glob_and_bare_tool() {
     "Bash(.claude/skills/hosting-upgrades/scripts/probe.sh gb10-1)"
   setup survey
   assert_equal status "$status" 0
-  assert_contains stdout "$out" "Survey's rules: 6 of 16 present."
+  assert_contains stdout "$out" "Survey's rules: 6 of 23 present."
   assert_contains stdout "$out" '  present  "Bash(mise run currency)"'
   assert_contains stdout "$out" '  present  "Edit(.state/upgrades/**)"'
   assert_contains stdout "$out" '  present  "WebFetch"'
@@ -134,7 +195,7 @@ test_setup_skips_the_template_and_names_hosts_by_short_name() {
 
 test_setup_measure_prints_survey_rules_then_its_own() {
   setup measure
-  assert_contains stdout "$out" "Survey's rules, which measure needs too: 0 of 16 present."
+  assert_contains stdout "$out" "Survey's rules, which measure needs too: 0 of 23 present."
   assert_contains stdout "$out" "Measure's own rules: 0 of 5 present."
 }
 

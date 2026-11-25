@@ -73,4 +73,5 @@ answer as the architect's; it never invents one ([the policy](../../../docs/poli
 - **Pauses.** A run stops and asks when the probe contradicts the descriptor, two sources
   disagree on a verdict, a policy value is missing, the host can't serve, or a step falls outside
   the convention. It states what it found, cites where, gives the options with its default, and
-  waits.
+  waits. In a delegated or unattended run, where no one answers, the pause is recorded in
+  the report as a hold with its default and a proposal, and the run goes on.

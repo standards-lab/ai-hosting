@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # probe-host runs on one host, fed over ssh by probe.sh, and prints the host's state in labeled
-# sections (== name ==), read-only and without root: the system, the ai-hosting clone, the rows
-# through the suite's read-only verbs, each row container's running image and arguments beside the
-# command its profile renders, pending package and firmware updates, failed units, and docker's
-# disk. It never calls sudo, never installs a tool, and never fetches. A read whose command is
-# absent prints "skipped:", and the last section lists every skip.
+# sections (== name ==), read-only and without root: the system, the GPU driver and its CUDA or
+# ROCm version, the ai-hosting clone, the rows through the suite's read-only verbs, each row
+# container's running image and arguments beside the command its profile renders and its start's
+# warnings, pending package and firmware updates, failed units, and docker's disk with the images
+# no container uses, compared by image ID. It never calls sudo, never installs a tool, and changes
+# no system state: apt reads its cached lists, and Arch's checkupdates syncs into a temporary
+# database of its own, leaving pacman's untouched. A read whose command is absent prints
+# "skipped:", and the last section lists every skip.
 # See .claude/skills/hosting-upgrades/survey.md
 set -u
 export GIT_OPTIONAL_LOCKS=0 MISE_EXEC_AUTO_INSTALL=0
@@ -53,6 +56,25 @@ print_system() {
   fi
 }
 
+print_gpu() {
+  section gpu
+  if have nvidia-smi; then
+    printf 'driver: %s\n' "$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>&1 |
+      sort -u | paste -sd ' ')"
+    printf 'cuda: %s\n' "$(nvidia-smi 2>/dev/null | grep -o 'CUDA Version: [0-9.]*' |
+      head -n 1 | cut -d ' ' -f 3)"
+    [[ -r /proc/driver/nvidia/version ]] && head -n 1 /proc/driver/nvidia/version
+  elif [[ -d /sys/module/amdgpu ]]; then
+    printf 'amdgpu: %s\n' \
+      "$(cat /sys/module/amdgpu/version 2>/dev/null || echo "in-tree, kernel $(uname -r)")"
+    [[ -r /opt/rocm/.info/version ]] && printf 'rocm: %s\n' "$(</opt/rocm/.info/version)"
+    have pacman && pacman -Q rocm-core hip-runtime-amd linux-firmware-amdgpu 2>/dev/null |
+      sed 's/^/package: /'
+  else
+    skip "gpu: no nvidia-smi or amdgpu module"
+  fi
+}
+
 print_clone() {
   section clone
   if ! git -C "$clone" rev-parse --git-dir >/dev/null 2>&1; then
@@ -68,12 +90,14 @@ print_clone() {
 
 print_container() {
   docker inspect "$1" --format 'container {{.Name}}: {{.State.Status}}
-  health {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}
   started {{.State.StartedAt}}, restart policy {{.HostConfig.RestartPolicy.Name}}
   image {{.Config.Image}} ({{.Image}})
   args {{json .Args}}' 2>&1
   docker image inspect "$(docker inspect --format '{{.Image}}' "$1")" \
     --format '  image created {{.Created}}, digests {{json .RepoDigests}}' 2>&1
+  echo "  start warnings:"
+  docker logs --since "$(docker inspect --format '{{.State.StartedAt}}' "$1")" "$1" 2>&1 |
+    sed '/Application startup complete/q' | grep -iE 'warn|error' | tail -n 10 | sed 's/^/    /'
 }
 
 print_rows() {
@@ -103,7 +127,7 @@ print_rows() {
 
 print_updates() {
   section updates
-  local lines=() out rc
+  local lines=() out rc synced='checkupdates, synced into a temporary database'
   if have apt; then
     printf 'apt lists: refreshed %s; the probe never refreshes them\n' \
       "$(date -r /var/lib/apt/lists '+%F %T' 2>/dev/null || echo never)"
@@ -116,10 +140,10 @@ print_updates() {
     case $rc in
       0)
         mapfile -t lines <<<"$out"
-        printf 'pending: %d packages (checkupdates, a fresh sync)\n' "${#lines[@]}"
+        printf 'pending: %d packages (%s)\n' "${#lines[@]}" "$synced"
         printf 'update: %s\n' "${lines[@]}"
         ;;
-      2) echo "pending: 0 packages (checkupdates, a fresh sync)" ;;
+      2) echo "pending: 0 packages ($synced)" ;;
       *) skip "updates: checkupdates failed (exit $rc): $(head -n 1 <<<"$out")" ;;
     esac
   else
@@ -162,11 +186,13 @@ print_docker_disk() {
   printf 'dangling images: %s\n' \
     "$(docker image ls -q -f dangling=true 2>/dev/null | sort -u | wc -l)"
   local used
-  used=$(docker ps -a --format '{{.Image}}' 2>/dev/null | sort -u)
+  used=$(docker ps -aq 2>/dev/null | xargs -r docker inspect --format '{{.Image}}' 2>/dev/null |
+    sort -u)
   echo "images no container uses:"
-  docker image ls -f dangling=false --format '{{.Repository}}:{{.Tag}} {{.Size}}' 2>/dev/null |
-    while read -r ref size; do
-      grep -qxF "$ref" <<<"$used" || printf '  %s %s\n' "$ref" "$size"
+  docker image ls -f dangling=false --no-trunc \
+    --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}' 2>/dev/null |
+    while read -r id ref size; do
+      grep -qxF "$id" <<<"$used" || printf '  %s %s\n' "$ref" "$size"
     done
 }
 
@@ -181,6 +207,7 @@ print_skipped() {
 
 {
   print_system
+  print_gpu
   print_clone
   print_rows
   print_updates
