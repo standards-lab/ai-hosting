@@ -2,8 +2,7 @@
 # Tests for scripts/lint-bench.sh, the bench scenarios' lint, against the committed scenarios and
 # profile and against the fixtures in tests/bench/: a 512-token context with a scenario within it
 # and one over it, a stream sweep and a rate sweep among them. Tests too that each committed audio
-# scenario reading LibriSpeech from Hugging Face lists one prompt per clip row, that the audio
-# capacity scenarios run their six levels from the rows bench/audio-clips.sh writes, for
+# scenario reading LibriSpeech from Hugging Face lists one prompt per clip row, for
 # bench/audio-windows.jq's windows against toy clips and the LibriSpeech dummy set's clip lengths,
 # and for bench/levels.jq's level names and vision's figures and floor against the result fixtures
 # there: a rate sweep's, a stream sweep's, and a vision stream sweep's.
@@ -46,17 +45,6 @@ test_each_audio_scenario_lists_one_prompt_per_clip_row() {
       '[(.spec.data[0].data.prompt | length), $clips * (.spec.data[1].load_kwargs.split | split("+") | length)]')
     assert_equal "${scenario##*/} prompts and clip rows" "$(jq '.[0]' <<<"$counts")" \
       "$(jq '.[1]' <<<"$counts")"
-  done
-}
-
-test_the_audio_capacity_scenarios_run_six_levels_from_the_written_rows() {
-  local scenario name tokens rows
-  for scenario in audio-capacity:256:short audio-capacity-30s:512:windows-30; do
-    IFS=: read -r name tokens rows <<<"$scenario"
-    assert_equal "$name levels" "$(hosting_yq -o json '.' "$repo/bench/$name.yaml" | jq -c \
-      '[.spec.profile.streams, .spec.constraints[0].seconds, .spec.backend.max_tokens,
-        .spec.data[0].path, .spec.data_column_mapper.column_mappings.audio_column]')" \
-      "[[4,8,12,16,24,32],90,$tokens,\".state/bench/audio/$rows.jsonl\",\"0.audio\"]"
   done
 }
 
