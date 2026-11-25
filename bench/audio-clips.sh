@@ -2,8 +2,9 @@
 # audio-clips writes the audio bench's speech from the LibriSpeech dummy set, in the bench
 # environment, with the Python of its GuideLLM: for the audio capacity scenarios, each clip and each
 # 28 to 30 s window of consecutive clips as a 16 kHz WAV, and the JSONL rows the scenarios read,
-# each row with its own WAV, under the output directory; for the probe, clips of about 10, 30, 60 and 120 s into the directory
-# given. Each WAV has its reference transcript beside it. It exits 2 on a refusal.
+# each row with its own WAV, under the output directory; for the probe, clips of about 10, 30, 60
+# and 120 s into the directory given. Each WAV has its reference transcript beside it. It exits 2
+# on a refusal.
 #
 #   bench/audio-clips.sh scenarios [--output <dir>]
 #   bench/audio-clips.sh probe <dir>

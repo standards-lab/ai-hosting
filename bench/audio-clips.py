@@ -7,7 +7,6 @@ import argparse
 import hashlib
 import json
 import subprocess
-import sys
 import wave
 from pathlib import Path
 
@@ -109,7 +108,7 @@ def probe(clips, output):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog="bench/audio-clips.py")
     parser.add_argument("what", choices=["scenarios", "probe"])
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -121,4 +120,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

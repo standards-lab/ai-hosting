@@ -95,8 +95,8 @@ as [Running a cell](#running-a-cell) gives. Each level's slice leaves room over 
 15.6 at 32 on short clips, against 3.1 and 9.1, and from 1.7 to 5.6 on windows, against 0.7 and
 1.8 ([audio-capacity-short](../docs/findings/audio.md#audio-capacity-short),
 [audio-capacity-30s](../docs/findings/audio.md#audio-capacity-30s)). A level whose streams send
-faster ends when its rows do, and its duration says so. GuideLLM 0.8.1's scenario takes no parameter for the
-window length, so each length is its own file.
+faster ends when its rows do, and its duration says so. GuideLLM 0.8.1's scenario takes no
+parameter for the window length, so each length is its own file.
 
 Each reply is at most 256 tokens on short clips and 512 on windows: a transcript runs roughly 3 to
 5 tokens a second of speech, after about 25 prompt tokens, so 30 s of speech needs about 150 and
