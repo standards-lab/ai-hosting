@@ -35,7 +35,7 @@ them on the command line.
 | [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at a cap of 8 |
 | [`audio-capacity.yaml`](audio-capacity.yaml) | 4, 8, 12, 16, 24 and 32 concurrent streams, 90 s a level, six levels in one run; a cell runs them one at a time | The audio row's throughput and RTFx on short clips |
 | [`audio-capacity-30s.yaml`](audio-capacity-30s.yaml) | The same six levels | The audio row's throughput and RTFx on 30 s windows of speech |
-| [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run | The vision row's throughput and request latency at each image budget it is given |
+| [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run; a cell runs them one at a time | The vision row's throughput and request latency at each image budget it is given |
 
 Each embedding request is 510 synthetic tokens to `/v1/embeddings`: with the 2 special tokens an
 XLM-R tokenizer adds, 512, the embedding row's context. `scripts/lint-bench.sh`, which the check
@@ -210,6 +210,29 @@ GUIDELLM__SPEC__BACKEND__TARGET=http://gb10-2:8001 \
   --backend kind=openai_http,model=vision \
   --tokenizer kind=huggingface_auto,model=google/gemma-4-26B-A4B-it \
   --output kind=json,path=.state/bench/<cell>.json
+```
+
+A vision cell runs the levels one at a time too. GuideLLM 0.8.1 draws each synthetic image from
+the image source's `seed`, 42 unless given, and the request's row number, which starts again at 0
+at every level, so each level of a one-run sweep, and every run, sends the same images in the same
+order. Each synthetic text starts with the level's count and the row's and is drawn from the run's
+`--seed`, so it differs between the levels of one run but repeats between runs of one seed
+([synthetic-data](../docs/findings/vision.md#synthetic-data)). Each level therefore gives both
+seeds its own value, its streams, on a row whose caches are empty, restarted or updated since its
+last vision cell:
+
+```sh
+for streams in 4 8; do
+  GUIDELLM__SPEC__BACKEND__TARGET=http://gb10-2:8001 \
+    MISE_ENV=bench mise exec -- guidellm run -c bench/vision-capacity.yaml \
+    --profile kind=concurrent,streams=$streams \
+    --data kind=synthetic_text,prompt_tokens=200 \
+    --data kind=synthetic_image,resolution=1440p,format=jpeg,output_tokens=100,seed=$streams \
+    --seed kind=static,value=$streams \
+    --backend kind=openai_http,model=vision \
+    --tokenizer kind=huggingface_auto,model=google/gemma-4-26B-A4B-it \
+    --output kind=json,path=.state/bench/<cell>-$streams.json
+done
 ```
 
 The rate scenario takes its rate from the environment too,

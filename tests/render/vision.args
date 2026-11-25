@@ -34,7 +34,7 @@ nvidia/Gemma-4-26B-A4B-NVFP4
 --served-model-name
 vision
 --max-num-seqs
-4
+16
 --max-model-len
 8192
 --gpu-memory-utilization

@@ -26,6 +26,40 @@ The row ran alone on gb10-2, the gateway's stack beside it and no other row, at 
 (`--max-num-seqs 16`, `--max-num-queued-reqs 32`), fraction 0.40, and context 8,192, with the
 budget each cell names. The client is the laptop on the LAN.
 
+## synthetic-data
+
+What GuideLLM 0.8.1's synthetic sources send, read from its source in the bench environment
+(paths under its `guidellm` package); not a cell.
+
+- **Every image is fixed by its source's seed and its row.** `synthetic_image` draws each image
+  from `seed=self.config.seed` and `row_index=row_index * self.config.images_per_request + img_idx`
+  (`data/deserializers/synthetic_image.py`, lines 85 and 86), through
+  `np.random.SeedSequence([int(seed) & 0xFFFFFFFF, int(row_index)])` (`utils/vision.py`, line
+  302). The seed is 42 unless the source gives one (`schemas/data/deserializers/synthetic_image.py`,
+  lines 62 to 65), and the row starts at `row_index = 0` each time the source is read
+  (`data/deserializers/synthetic_image.py`, line 61). The run's `--seed` doesn't reach it.
+- **Each level reads the sources again.** Each level iterates the request loader anew
+  (`self.requests = iter(requests)`, `scheduler/worker_group.py`, line 120), and each iteration
+  raises the loader's epoch (`data/loaders/torch.py`, lines 173 to 176). So each level of a
+  one-run sweep sends the first level's images again, in the same order, and every run with the
+  scenario's seed sends the same images.
+- **The text differs between levels, not between runs.** `synthetic_text` seeds its words with
+  `faker.seed_instance(iter_random_seed)`, where `iter_random_seed = self.random_seed +
+  self.iteration_count` (`data/deserializers/synthetic.py`, lines 75 and 79), and starts each
+  prompt with `f"{self.iteration_count} {samples_count} m{turn_idx} "` (line 288): the level's
+  count and the row's. Its `random_seed` comes from the run's `--seed` (`data/entrypoints.py`,
+  lines 51 and 65). The text, sent before the image (`backends/openai/request_handlers.py`, line
+  1043), differs between rows and levels, so a request's prefix can match another's only in the
+  chat template's tokens before it; but the first level of a run repeats the first level of any
+  other run of the same seed, text and image alike.
+
+So in [capacity-280](#capacity-280), [capacity-560](#capacity-560) and
+[capacity-1120](#capacity-1120) the first level, 4 streams, sent images no earlier request had,
+and each later level resent the earlier levels' first images, which the row's multimodal cache
+could serve again. capacity-1120's second run, at 1 and 2 streams, sent the first run's requests
+again: its 1-stream level the 4-stream level's, text and image, and its 2-stream level the
+8-stream level's.
+
 ## probe-280
 
 The row at a budget of 280, the one it ran without `--mm-processor-kwargs.max_soft_tokens`, at
