@@ -3,7 +3,7 @@
 Each host class, `gb10` or `strix-halo`, has one profile, which lists every row the class can serve
 and is each row's one home. [classes/README.md](../classes/README.md) defines the layout, the
 schema, and what `hosting profile validate` refuses; each class's runbook sits beside its profile.
-This note keeps the reasoning behind the profiles and what later tasks add to them.
+This note keeps the reasoning behind the profiles and what they took from spike-model-hosting.
 
 ## Why the profiles take this shape
 
@@ -55,19 +55,24 @@ the rows an upgrade re-measures ([hosting-suite.md](hosting-suite.md)).
 Each alias's go-ai profile, with the evidence for each refusal it declares, is in
 [go-ai/README.md](../go-ai/README.md).
 
-## What later tasks take from spike-model-hosting
+## What was taken from spike-model-hosting
 
 The validator, `lib/profile.jq`, ports spike-model-hosting's `hosting/profile/profile.go`
 (`Parse` and `Validate`) at `aac0764` to jq over vLLM rows. The source tables of the `agent`,
 `vision`, and `audio` rows come from the spike's `devices/strix-halo/profile.toml` entries for
 gpt-oss-120b, Gemma 4 26B-A4B, and Gemma 4 E4B, with each card's context moved to the row. The rest
 of the spike's profile package is not carried: its Go code, llama.cpp's fields and templates, model
-sets, the decode-ceiling fields, and the evaluation tooling. Two tasks take parts of it:
+sets, the decode-ceiling fields, and the evaluation tooling. Two tasks took parts of it:
 
 - **embedding**: the strix-halo runbook's embedding section states e5's `query: ` and
   `passage: ` prefixes (`hosting/profile/profile.go:340-343`).
-- **architecture**: its "sizing a vLLM row" page takes the decode-ceiling method
-  (`memory_bandwidth_gb_s`, `active_params_b`, `bits_per_weight`); its "reading a model card" page
-  takes `docs/model-cards.md`'s first two sections, "What each value means" and "Why a model runs
-  at its card's values", rewritten for a served checkpoint in place of a GGUF; and it states the
-  rule that only a row whose checkpoint another publisher's card describes sets `sampling`.
+- **architecture**: `architecture/principles/model-cards.md`, "Reading a model card", rewrites
+  the spike's `docs/model-cards.md` first two sections, "What each value means" and "Why a model
+  runs at its card's values", for a served checkpoint in place of a GGUF, and adds the rule for
+  when a row takes sampling from a base model's card.
+  `architecture/principles/tool-call-reliability.md`, "Tool-call reliability", states the spike's
+  tool-call reliability layers.
+
+Sizing a row and placing rows stay ai-hosting's. A row is sized by measurement on its host, by
+[the tuning rule](../docs/policy.md#the-tuning-rule), not by the spike's decode-ceiling method, and
+rows are placed by [the placement rule](../docs/policy.md#placement).

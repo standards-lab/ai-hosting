@@ -89,8 +89,9 @@ One route per alias on the `consumer` gateway, and embedding's tokenize route
 prefix to `/v1`, and sends the request to one `ai` backend whose first priority group is the
 alias's row: a custom provider at the row's host and port, over plain HTTP on the tailnet, listing
 Chat Completions, Messages, Responses, and embeddings. The provider keeps the client's model, the
-alias, which each row serves as its only model name. Nothing fails over between hosts: an alias's
-backend holds its row and at most its own Azure deployment.
+alias, which each row serves as its only model name. Nothing fails over between hosts
+([placement](policy.md#placement)): an alias's backend holds its row and at most its own Azure
+deployment.
 
 The map from alias to host has one home, the template's `hostOverride` on each row provider
 (`gb10-1`, `gb10-2`, `framework`, `framework-2`); the render appends each row's port from the class

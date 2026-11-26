@@ -333,7 +333,9 @@ and
   later, with `gfx115128.HIP.fdb.txt` readable under its MIOpen's `share/miopen/db`.
 - **Action:** on the pin's move to that release, build the audio image without
   `MIOPEN_FIND_MODE=FAST` and rerun the audio row's probe on audio of 10 s or more; if it passes,
-  drop the setting from the image and from [engines](../context/engines.md#the-audio-image).
+  drop the setting from the image and from [engines](../context/engines.md#the-audio-image). If it
+  fails, keep FAST and report the failure upstream in `ROCm/rocm-libraries`, with the image, the
+  probe, and MIOpen's error, then add the report's upstream line here.
 - **State:** watching.
 - **Last checked:** 2026-11-25T18:50Z, `mise run watch`: as recorded; vLLM v0.34.0, the latest
   release, builds on `ROCM_SDK_VERSION=10.0.0`, and `therock-10.2`, the latest TheRock tag,
