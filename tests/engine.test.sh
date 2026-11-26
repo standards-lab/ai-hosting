@@ -162,7 +162,7 @@ test_install_refuses_fractions_over_one_with_the_record_before_docker() {
   record agent
   engine gb10 install vision
   assert_equal status "$status" 1
-  assert_equal stderr "$err" "hosting: the rows that would stand on this host reserve more than all its GPU's memory: agent 0.80, vision 0.40 sum to 1.2, over 1"
+  assert_equal stderr "$err" "hosting: the rows that would stand on this host reserve more than all its GPU's memory: agent 0.80, vision 0.55 sum to 1.35, over 1"
   assert_equal calls "$(calls)" ""
   assert_equal record "$(recorded)" agent
 }

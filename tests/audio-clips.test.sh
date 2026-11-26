@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Tests for bench/audio-clips.sh, the audio bench's speech writer's argument handling, with
 # guidellm and its Python stubbed: what it hands the Python, what it refuses before running
-# anything, and that the committed scenarios reading local rows read them from where it writes.
+# anything, and that the committed audio capacity scenarios read their rows from where it writes.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 # shellcheck source=lib/profile.sh
@@ -29,7 +29,7 @@ test_the_scenarios_reading_local_rows_read_them_from_the_default_output() {
   run_clips scenarios
   local output scenario path read=0
   output=$(calls | sed -n 's/.*--output=//p')
-  for scenario in "$repo"/bench/*.yaml; do
+  for scenario in "$repo"/bench/audio-capacity*.yaml; do
     [[ $(hosting_yq '.spec.data[0].kind' "$scenario") == json_file ]] || continue
     path=$(hosting_yq '.spec.data[0].path' "$scenario")
     assert_equal "${scenario##*/} rows directory" "$repo/$(dirname "$path")" "$output"

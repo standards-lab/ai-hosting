@@ -2,7 +2,7 @@
 # hosting:summary=Stops the gateway's stack and drops its volumes
 # `hosting gateway reset`: refuses a host whose class isn't gb10, gb10-2's, before it touches
 # Docker; then stops and removes the stack's containers and network and drops its volumes:
-# Postgres's budgets and request log, and the telemetry stores. hosting gateway down keeps them.
+# Postgres's request log and the telemetry stores. hosting gateway down keeps them.
 # See docs/gateway.md.
 set -euo pipefail
 

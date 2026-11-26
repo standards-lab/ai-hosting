@@ -183,7 +183,7 @@ and
   Completions, Messages, Responses, and embeddings), and to the `llm` form if the gateway moves to
   it. On the release carrying it, re-check the gateway's body handling on every alias: the formats
   each provider lists, whether streams still gain `include_usage`, and whether usage is still read
-  for the access log and for the budgets; then decide `passthrough` per model.
+  for the access log and the request log; then decide `passthrough` per model.
 - **State:** watching.
 - **Last checked:** 2026-11-24T23:16Z, `mise run watch`: as recorded; v1.7.0, the latest
   release, doesn't carry the merge.
@@ -215,28 +215,6 @@ and
   ([`gateway.md`](gateway.md#the-ui-and-grafana)).
 - **State:** watching.
 - **Last checked:** 2026-11-24T23:16Z, `mise run watch`: as recorded, at v1.7.0.
-
-## agentgateway budgets over a sliding window
-
-- **Kind:** capability.
-- **Dependency:** agentgateway, `agentgateway/agentgateway`, as above.
-- **Wants:** a token budget over a sliding window, so a key's spend is counted over the last hour
-  whenever it is read. At v1.7.0 `rolling: 1h` is a fixed window, aligned to the Unix epoch, so
-  each UTC clock hour: a count starts again at each hour, a key can spend twice its budget across
-  an hour's boundary, and a Block's `Retry-After` is the time to the next hour
-  ([`gateway.md`](gateway.md#the-fixed-budget-window)).
-- **Evidence:** the spike's budget probes: bulk's Block answered `retry-after: 2609`, the seconds
-  left in the clock hour, and the walkthrough's step 4 found bulk's count started again at the
-  hour (priority.md, "bulk's budget Block (behavior 15)" and "Results"). The architect decided at
-  the spike's review that a sliding window is a want, and this goal kept the fixed UTC hour,
-  rejecting shorter fixed windows.
-- **Upstream:** no upstream item. A search of agentgateway's issues and pull requests at the
-  spike's review found none asking for a sliding budget window; #3970 (merged) added budgets that
-  never refresh, a different change.
-- **Parity:** a release whose budget takes a sliding window, read in its schema and notes.
-- **Action:** weigh moving the budgets to it, and update [`gateway.md`](gateway.md).
-- **State:** watching.
-- **Last checked:** 2026-11-24T23:16Z, `mise run watch`: the entry listed, with no line to read.
 
 ## agentgateway eviction growth without a cap
 

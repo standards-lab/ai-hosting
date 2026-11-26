@@ -57,16 +57,30 @@ and that attestation differs on every build. With it, even a fully cached rebuil
 ID, and `engine update`, which replaces a row whose image ID differs, would replace the audio row
 on every run.
 
-- `acceptance` will measure audio RTFx and embedding throughput under FAST. The embedding row
-  takes no MIOpen setting: its long-input probe, 512 tokens, passed on the stock ROCm image
-  ([findings](../docs/findings/embedding.md#e5-probes)).
+- Every audio cell ran in the audio image, under FAST, and the row's cap follows its throughput on
+  docinfer's windows, with RTFx reported beside it ([audio findings](../docs/findings/audio.md)).
+  The embedding row runs the stock ROCm image and takes no MIOpen setting: its long-input probe,
+  512 tokens, passed on it ([findings](../docs/findings/embedding.md#e5-probes)).
 - A report upstream is deferred to the backlog. The watch register's gfx1151 entry checks each
   vLLM ROCm image for a gfx1151 find database, and its action drops FAST
   ([watch.md](../docs/watch.md#a-gfx1151-miopen-find-database-in-vllms-rocm-image)).
 
 ## The vLLM release
 
-`lib/vllm.env` pins the release current when `hosts` built, with the rows' flags unchanged;
-`acceptance` will rerun the layout's floors on it and read the Framework's start log for the
-KV-cache fallback. A candidate release runs off the pin from a branch that moves it, checked out on
-the host ([upgrades.md](../docs/upgrades.md#measures-three-passes)).
+`lib/vllm.env` pins v0.34.0, the release current when `hosts` built, with the rows' flags
+unchanged. The four rows ran together on it, each matching its row alone except vision at 32
+streams, which decoded no slower yet finished 3–4% fewer pages in the second half ([the layout
+cell](../docs/findings/vision.md#layout)).
+
+The Framework's gfx1151 runs v0.34.0's extensible KV cache, which sizes a row's KV cache from the
+memory free after warmup, and doesn't take the fallback to the profiling estimate that a driver
+without virtual memory support takes (spike-model-engines `docs/engines/vllm/update.md` at
+`90fac78`, "v0.34.0's KV cache"). The audio row's start on `framework` at 2026-11-26T12:53:19Z
+logged `16472 KV cache blocks (16.09 GiB) fit within the requested 33.6 GiB` and then `Extended KV
+cache to 16472 blocks (16.09 GiB)`; the container's log holds four starts from 10:15:56Z, each with
+the same line and none with a line disabling the extensible cache. The embedding row on
+framework-2 logs `Disabling the extensible KV cache: the model has no KV cache` at each start, its
+last at 2026-11-26T10:56:59Z: an encoder model's estimate, not the driver's fallback.
+
+A candidate release runs off the pin from a branch that moves it, checked out on the host
+([upgrades.md](../docs/upgrades.md#measures-three-passes)).

@@ -30,13 +30,20 @@ them on the command line.
 | --- | --- | --- |
 | [`embedding-sweep.yaml`](embedding-sweep.yaml) | 1, 4, 16, 32, 64 and 128 concurrent streams, 30 s a level, six levels in one run | The embedding row's knee and plateau, and the cap |
 | [`embedding-rate.yaml`](embedding-rate.yaml) | A constant rate, given per run, for 240 s | The embedding row at one rate; [e5-pair](../docs/findings/embedding.md#e5-pair) ran it beside audio, when the two shared `framework` |
+| [`embedding-target.yaml`](embedding-target.yaml) | A constant rate, given per level, at most 16 requests in flight, for 240 s | The embedding row at its load target, 78 requests a second at 16 in flight, alone and in the standing layout cell |
 | [`embedding-rate-sweep.yaml`](embedding-rate-sweep.yaml) | GuideLLM's sweep: synchronous, throughput, then 14 constant rates between them, 90 s a level, sixteen levels in one run | The highest rate the embedding row keeps |
 | [`audio.yaml`](audio.yaml) | 4 concurrent streams for 240 s | The audio row at 4 streams |
 | [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at 8 streams |
 | [`audio-capacity.yaml`](audio-capacity.yaml) | 4, 8, 12, 16, 24 and 32 concurrent streams, 90 s a level, six levels in one run; a cell runs them one at a time | The audio row's throughput and RTFx on short clips |
 | [`audio-capacity-30s.yaml`](audio-capacity-30s.yaml) | The same six levels | The audio row's throughput and RTFx on 30 s windows of speech |
 | [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run; a cell runs them one at a time | The vision row's throughput and request latency at each image budget it is given |
+| [`vision-dense.yaml`](vision-dense.yaml) | 2, 4 and 8 concurrent streams, 10 min a level, and any other streams a cell gives; a cell runs them one at a time | The vision row's throughput, in images a minute, on docinfer's dense pages as docinfer sends them |
+| [`audio-real-30s.yaml`](audio-real-30s.yaml) | 8, 16, 24, 32 and 48 concurrent streams, 90 s a level; a cell runs them one at a time | The audio row's throughput on docinfer's real windows of 28 to 30 s as docinfer sends them |
+| [`agent-sessions.yaml`](agent-sessions.yaml) | 4 and 12 concurrent sessions, 110 s a level; a cell runs them one at a time | The agent row's inter-token latency, time to first token and output tokens a second under multi-turn sessions |
 | [`agent-capacity.yaml`](agent-capacity.yaml) | 8 concurrent streams, one request each, at most 570 s | Whether the agent row holds 8 long sessions at once, and its inter-token latency, time to first token and output tokens a second while it does |
+| [`agent-overflow.yaml`](agent-overflow.yaml) | 4 concurrent sessions, at most 90 s and 300 requests | The agent alias's overflow to Azure with its row stopped, through the gateway |
+| [`vision-overflow.yaml`](vision-overflow.yaml) | 32 concurrent streams, at most 90 s and 300 requests | The vision alias's overflow to Azure with its row stopped, through the gateway |
+| [`audio-overflow.yaml`](audio-overflow.yaml) | 48 concurrent streams, at most 90 s and 300 requests | The audio alias's overflow to Azure with its row stopped, through the gateway |
 
 Each embedding request is 510 synthetic tokens to `/v1/embeddings`: with the 2 special tokens an
 XLM-R tokenizer adds, 512, the embedding row's context. `scripts/lint-bench.sh`, which the check
@@ -125,6 +132,78 @@ sessions at once. The requests match spike-model-layout's agent capacity cell
 took 225 s on a GB10. A level stops at 570 s, and the requests still in flight then count as
 incomplete. The row's context must hold the 65,792 tokens of a prompt and its reply; the agent
 row's 131,072 does.
+
+Each agent session is spike-model-layout's S-agent session, unchanged
+(`bench/role-split-agent-split.yaml`, which its `vllm-layout-agent.yaml` ran at 4 and 12 sessions,
+and its `docs/findings/agent-vllm.md`, F): GuideLLM's multi-turn synthetic conversation of 4
+turns, the first 8,192 prompt tokens and the next three 512 each, every turn exactly 512 output
+tokens, each turn sent when the last one's reply ends. A later turn carries the earlier ones as
+history, so a session reads 11,776 tokens by its last reply, well inside the agent row's 131,072.
+The levels are the spike's agent target of 4 sessions and the row's cap of 12, 110 s a level, the
+sessions in flight at its end counted incomplete; `agent-sessions.yaml` runs them as a concurrent
+profile, which the cell runner takes one level at a time, where the spike's S-agent swept a knee
+profile in one run.
+
+## docinfer's inputs
+
+`vision-dense.yaml` and `audio-real-30s.yaml` send what docinfer sends the rows, read from local
+files that [`docinfer-inputs.sh`](docinfer-inputs.sh) writes from the local docproc run docinfer
+read, `~/runs/docproc/final`. The pages and windows are from documents that may not be
+redistributed, so only the builder, its page list, and its manifest are committed; the inputs it
+writes stay in the untracked `.state/bench/docinfer/`.
+
+- **The dense pages.** [`dense-pages.txt`](dense-pages.txt) names, by their sha256 in the run, the
+  110 real pages whose replies ran past `max_tokens` in docinfer's first acceptance run, 95 of them
+  CFR pages, the set docinfer's `docs/acceptance.md` re-probes at 1,120 image tokens, with replies
+  running to about 2,048 tokens. The builder writes 440 rows, cycling through the 110 in sha256
+  order. Each row's page is bounded as docinfer bounds it: a page over 2,580,480 pixels, Gemma 4's
+  1,120 soft tokens × 9 patches × 16², is downscaled by area average, keeping its aspect, to
+  docinfer's size for it; a page that is neither grayscale nor RGB is converted to RGB. Each row
+  carries docinfer's prompt, `Transcribe the text in this picture. If it has no text, describe it
+  in one sentence.`, which GuideLLM sends before the page, as docinfer does.
+- **The windows.** Every distinct audio window of 28 to 30 s in the run's record, 657 of the 1,208
+  windows docinfer transcribed, the heaviest requests the audio row transcribes whole. The builder
+  writes 2,000 rows, cycling through them in sha256 order, each a 16 kHz mono WAV as docproc cut it,
+  with the model card's transcription instruction as go-ai sends it with no language given:
+  `Transcribe the following speech segment in its original language into text.`, then the card's
+  formatting instructions.
+
+Each row has its own file, under `dense-pages/` or `windows-30/`, and no two rows send the same
+page or audio, which the builder checks on the bytes GuideLLM sends and stops on a repeat: a row's
+cycle n through its sources scales a page's pixels by 1 − n/128, at most 3/128 darker, and
+adds n to each of a window's samples, an offset of at most 3 in 32,768. A gain can't vary the run's
+silent windows, which an offset does. The row files are `dense-pages.jsonl` and `windows-30.jsonl`,
+each row naming its file, its source's sha256, and its file's sha256.
+
+The scenarios send docinfer's request shape. A vision request asks for at most 2,048 tokens with
+Gemma 4's card sampling, `temperature` 1.0, `top_p` 0.95 and `top_k` 64; an audio request for at
+most 512 at `temperature` 0. Neither sets `ignore_eos`, so a reply ends where the model ends it, as
+docinfer's do. GuideLLM 0.8.1 re-encodes each page as a JPEG before it sends it, where docinfer
+sends the PNG, and streams each reply, where docinfer doesn't; a level's token counts are the
+same either way.
+
+[`docinfer-inputs.sha256`](docinfer-inputs.sha256) is the manifest: the sha256 of each row file,
+its paths taken relative to the output directory, so it holds wherever the inputs lie. With each
+row's file checked against the sha256 its row gives, it checks every file the builder wrote. The
+inputs were built and checked with the bench environment's Pillow 13.0.0; a Pillow that encodes a
+PNG differently fails the check on the pages, though their pixels match. A deliberate change to
+the builder ends with its new manifest committed, `docinfer-inputs.sh manifest` printing it.
+
+From the repository root, building them once, then checking them, which needs only jq and
+`sha256sum`:
+
+```sh
+MISE_ENV=bench mise exec -- bench/docinfer-inputs.sh build
+bench/docinfer-inputs.sh check
+```
+
+`build --docproc <run dir>` reads another docproc run directory, which must hold one run; `--pages
+<file>` another page list; and `--output <dir>`, which `check` and `manifest` take too, writes
+elsewhere, but the scenarios read `.state/bench/docinfer/`. Before writing anything, the builder
+refuses a page the list names that the run's record lacks, a run with no window of 28 to 30 s, a
+source missing from the run's `content/`, and a run outside the bench environment. `check` exits 1
+and names each file that differs or is missing. The tests are
+[`tests/docinfer-inputs.test.sh`](../tests/docinfer-inputs.test.sh).
 
 ## Running a cell
 
@@ -231,6 +310,34 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
   --scenario bench/vision-capacity.yaml --cell <cell> 4 8
 ```
 
+The vision row on docinfer's dense pages, after building them, each level on its own slice of
+the 440 rows, sized for at least 1.2 times the 5.44 images a minute docinfer's re-probe reached at
+4 streams, and more for 8:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell <cell> 2:60 4:100 8:160
+```
+
+The levels past 8, 16, 32 and 64 streams, each ran as a cell of its own from its own start, at a
+cap of at least its streams, with rows sized the same way, `16:200`, `32:280` and `64:400`
+([dense-1120-high](../docs/findings/vision.md#dense-1120-high)).
+
+The audio row on docinfer's windows, each level on its own slice of the 2,000 rows, as the
+LibriSpeech windows' slices are sized:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework --alias audio \
+  --scenario bench/audio-real-30s.yaml --cell <cell> 8:200 16:300 24:400 32:500 48:600
+```
+
+The agent row's sessions on gb10-1, each level drawing its text from a seed of its streams:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
+  --scenario bench/agent-sessions.yaml --cell <cell> 4 12
+```
+
 The agent row's capacity cell on gb10-1, its one level drawing its text from a seed of 8 the same
 way:
 
@@ -239,28 +346,82 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
   --scenario bench/agent-capacity.yaml --cell <cell> 8
 ```
 
-The rate scenario takes its rate from the environment too,
+The embedding row at its load target, a constant 78 requests a second with at most 16 in flight,
+a rate scenario's level being its rate:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
+  --scenario bench/embedding-target.yaml --cell <cell> 78
+```
+
+Without the bound on requests in flight, `embedding-rate.yaml` at 78 a second queues past the row's
+16 and falls behind ([e5-target](../docs/findings/embedding.md#e5-target)).
+
+The overflow scenarios send each alias's load target and inputs as Azure's deployment takes them:
+the agent's S-agent sessions with each turn at most 512 output tokens rather than exactly 512,
+since Azure refuses the `ignore_eos` GuideLLM sends for a fixed output; the dense pages with the
+reply bound as `max_completion_tokens` and no `top_p` or `top_k`, which gpt-5-mini refuses; and
+docinfer's windows as `audio-real-30s.yaml` sends them. Each is unstreamed, since GuideLLM's
+streamed request carries `stream_options.continuous_usage_stats`, which gpt-audio-mini refuses
+([gateway-overflow-shapes](../docs/findings/gateway.md#gateway-overflow-shapes)). The gateway
+also drops those fields on overflow
+([gateway-overflow-rewrite](../docs/findings/gateway.md#gateway-overflow-rewrite)); the scenarios
+keep the shape the overflow cells ran. Each runs through the gateway with the row stopped:
+
+```sh
+fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
+  --scenario bench/agent-overflow.yaml --cell <cell> --gateway gb10-2 --row-down 4
+fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-overflow.yaml --cell <cell> --gateway gb10-2 --row-down 32:300
+fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host framework --alias audio \
+  --scenario bench/audio-overflow.yaml --cell <cell> --gateway gb10-2 --row-down 48:300
+```
+
+Run by hand, the rate scenario takes its rate from the environment,
 `GUIDELLM__SPEC__PROFILE__RATE=<requests a second>`; with none set, GuideLLM refuses to start. The
 earlier pair cell was two runs started together, `audio.yaml` against the audio row and
 `embedding-rate.yaml` against the embedding row, each writing its own JSON.
 
 ### The cell runner
 
-[`cell.sh`](cell.sh) runs one concurrent scenario against one row, one level at a time, each
-level a GuideLLM run of its own. It runs from the repository root in the bench environment:
+[`cell.sh`](cell.sh) runs one concurrent or constant-rate scenario against one row, one level at
+a time, each level a GuideLLM run of its own. It runs from the repository root in the bench
+environment:
 
 ```sh
 MISE_ENV=bench mise exec -- bench/cell.sh --host <host> --alias <alias> --scenario <file> \
-  --cell <cell> [--output <dir>] <streams>[:<rows>]...
+  --cell <cell> [--output <dir>] [--seconds <n>] [--requests <n>] \
+  [--gateway <host> [--row-down]] <level>[:<rows>]...
 ```
 
 The host goes by its short name, and the alias names the row in the class profiles, which give
 its port and its model's tokenizer, the base model's when the profile names one. Each level is a
-count of streams, given in the order the levels run, with no count twice. For a scenario that reads
-a JSON file, a level also gives the count of rows it takes, `<streams>:<rows>`: each level takes
-the rows after the previous level's, written to `<dir>/<cell>-<streams>.jsonl`. Every level draws
-its synthetic text and images from seeds set to its streams. Each level writes GuideLLM's JSON to
-`<dir>/<cell>-<streams>.json`; `<dir>` defaults to the untracked `.state/bench/`.
+whole number, a count of streams on a concurrent scenario and requests a second on a constant one,
+given in the order the levels run, with no level twice. For a scenario that reads a JSON file, a
+level also gives the count of rows it takes, `<level>:<rows>`: each level takes the rows after the
+previous level's, written to `<dir>/<cell>-<level>.jsonl`. Every level draws its synthetic text
+and images from seeds set to its level. Each level writes GuideLLM's JSON to
+`<dir>/<cell>-<level>.json`; `<dir>` defaults to the untracked `.state/bench/`. `--seconds <n>`
+runs each level for at most `n` seconds in place of the scenario's duration, keeping its other
+constraints, so rows run beside another row's longer levels hold their load as long
+([the standing layout cell](../docs/findings/vision.md#layout)). `--requests <n>` sets each
+level's request count the same way, in place of the scenario's `max_requests`.
+
+`--gateway <host>` sends the load through the gateway on that host instead of to the row: to
+`http://<host>:3000/<alias>`, with the key in the environment's `AI_GATEWAY_TOKEN`, which the
+runner hands GuideLLM through its environment, never on a command line. Before the first level it
+asks the gateway's `/<alias>/v1/models` with the key and refuses unless it answers, so GuideLLM's
+own health check, which asks `/health` under the target, a path no route serves, is turned off.
+The row's cache counters are still read on `--host`, the row's own host. Run with a consumer's
+key from its `fnox.toml`, ai-hosting's own bulk key with `fnox exec --`:
+
+```sh
+fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell <cell> --gateway gb10-2 32:280
+```
+
+`--row-down` runs a cell with the row stopped, for an [overflow cell](../docs/findings/gateway.md):
+it needs `--gateway`, refuses a row whose `/metrics` answers, and so reads no cache counter.
 
 A cell starts on a row restarted since its last cell, since a restart empties the row's caches.
 Before the first level, the runner reads the row's `/metrics` and refuses to start unless
@@ -271,24 +432,65 @@ read 0; a counter the row doesn't expose reads 0. The runner doesn't restart the
 Before its first request, the runner exits 2 on any of these: a missing or malformed argument,
 an alias that names no row or more than one in the class profiles, a scenario that isn't a
 concurrent profile or reads data other than synthetic text, synthetic images, and one JSON file,
-levels taking more rows than the file holds, a level whose result JSON exists, or a run outside the
-bench environment. It stops at the first level GuideLLM fails, exiting with GuideLLM's status. Its
-tests are [`tests/cell.test.sh`](../tests/cell.test.sh).
+levels taking more rows than the file holds, a level whose result JSON exists, `--gateway` with
+no key or a key its gateway doesn't answer, `--row-down` without `--gateway` or with the row
+answering, or a run outside the bench environment. It stops at the first level GuideLLM fails,
+exiting with GuideLLM's status. Its tests are [`tests/cell.test.sh`](../tests/cell.test.sh).
+
+## The vision probe
+
+[`vision-probe.sh`](vision-probe.sh) reads how many prompt tokens the vision row gives a page at
+its image budget, the vision row's accuracy measure
+([probe-1120](../docs/findings/vision.md#probe-1120)), with no other load on the row:
+
+```sh
+bench/vision-probe.sh --host gb10-2
+```
+
+It sends the text `Transcribe this page.` alone, then each of the two pages in
+[`probe/`](probe/) whole, as a PNG data URL before the same text, each request with `max_tokens` 1,
+and prints the findings' table: each request's prompt tokens, and each page's image span, its
+prompt tokens less the text-only request's. `--alias <alias>` probes another row. It refuses a
+missing or malformed argument and an alias that names no row or more than one before its first
+request, and exits 1 when a request fails. Its tests are
+[`tests/vision-probe.test.sh`](../tests/vision-probe.test.sh).
+
+The pages are page 95 of the 2024 Code of Federal Regulations, Title 32, volume 1, a US government
+work (17 USC 105), from govinfo
+(`https://www.govinfo.gov/content/pkg/CFR-2024-title32-vol1/pdf/CFR-2024-title32-vol1.pdf`, sha256
+`a1946ff2e79347cc55adf80a0b0618e071d45d36ed367c7ddd979bdb3560e660`), rendered in grayscale at the
+two sizes probe-280, probe-560 and probe-1120 sent, 1240×1754 and 3705×4934, by Ghostscript
+10.08.0:
+
+```sh
+gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pnggray -g<width>x<height> -dPDFFitPage \
+  -dFirstPage=95 -dLastPage=95 -o bench/probe/cfr-<width>x<height>.png CFR-2024-title32-vol1.pdf
+```
+
+Gemma 4's processor fits a page to the budget's patches by its size, not its content, so these
+pages take the sizes of the pages the probes first sent, which came from docproc's run and aren't
+redistributable.
 
 ## Reading the results
 
 [`levels.jq`](levels.jq) turns a result JSON into one table a file, one row a level: its streams,
 `rate <r>` on a constant-rate level, its rate to two places, or `synchronous` or `throughput` on a
-sweep's first two levels; requests ok, errored, and incomplete; requests a second; the TTFT median;
-the ITL median; the request latency's median, p90, and minimum; for vision, the count of requests
-that finished in 10 s or less; prompt tok/s; output tok/s; for audio, the RTFx median and
-minimum and the count of requests at RTFx 5 or more (each request's clip seconds over its request
-time); and the level's floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's
-an RTFx median of 5, vision's a request latency median of at most 10 s, and the agent's an
-inter-token latency median of at most 100 ms; a level with no successful request misses. The
-verdict doesn't set a cap: the vision and audio rows' caps follow their throughput peaks, as their
-profiles' `cap_reason` says. A sweep's table starts with the knee GuideLLM concluded. Medians and
-percentiles interpolate linearly between the two nearest ranks.
+sweep's first two levels; requests ok, errored, and incomplete; requests a second; the second-half
+rate, the requests that finished in the level's second half over that half; the TTFT median; the ITL
+median; the request latency's median, p90, and minimum; for vision, the count of requests that
+finished in 10 s or less and the images a minute, its second-half rate times 60 at one image a
+request; prompt tok/s; output tok/s; for audio, the RTFx median and minimum and the count of
+requests at RTFx 5 or more (each request's clip seconds over its request time); and the level's
+floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's an RTFx median of 5,
+vision's a request latency median of at most 10 s, and the agent's an inter-token latency median of
+at most 100 ms; a level with no successful request misses. The verdict doesn't set a cap: the vision
+and audio rows' caps follow their throughput peaks, as their profiles' `cap_reason` says, read on
+the second-half rate. Requests a second count only the requests that finished within the level, so a
+level whose requests are long against its duration reads low: its streams start together, and the
+requests in flight at its end don't count. At 48 streams of 30 s windows, a latency median of 25 s
+in a 90 s level, requests a second read 1.656 against a second-half rate of 2.133
+([audio-real-30s](../docs/findings/audio.md#audio-real-30s)). A sweep's table starts with the knee
+GuideLLM concluded. Medians and percentiles interpolate linearly between the two nearest ranks.
 
 ```sh
 jq -r --arg purpose embed -f bench/levels.jq .state/bench/<cell>.json
@@ -297,11 +499,15 @@ jq -r --arg purpose audio -f bench/levels.jq .state/bench/<cell>.json
 jq -r --arg purpose vision -f bench/levels.jq .state/bench/<cell>.json
 ```
 
-## Preliminary cells
+## Rows alone and together
 
-A findings cell labeled preliminary ran its row alone, not beside the layout's other rows. Its
-figures stand for the row alone until `acceptance`'s standing layout cell (planned) re-measures
-the row beside the others.
+A findings cell runs its row alone on its host unless it says otherwise. The standing layout cell
+([layout](../docs/findings/vision.md#layout)) runs the four rows together, each on its own host, and
+reads each against its row-alone cell. Agent, audio, and embedding matched their rows alone within
+their hosts' run noise. Vision matched at 2, 4, and 8 streams; at 32 it decoded no slower, its
+total output and ITL median matching, while the pages finished inside the second half read 3–4%
+under, past gb10-2's 1.5% ([dense-noise-32](../docs/findings/vision.md#dense-noise-32)). So a
+row-alone cell stands for the row's rate in the layout.
 
 ## Scoring retrieval
 

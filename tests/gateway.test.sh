@@ -95,24 +95,15 @@ test_the_tokenize_route_follows_the_embedding_row_host_and_port() {
   assert_equal host "$(route embedding-tokenize '[.backends[].host] | join(" ")')" framework-2:9103
 }
 
-# Prints the budgets of the template's key of the class given, as compact JSON.
-template_budgets() {
-  hosting_gateway_template | jq -c --arg class "$1" \
-    '.gateways.consumer.apiKey.keys[] | select(.metadata.class == $class) | .budgets'
-}
-
-test_each_key_carries_its_hash_consumer_and_its_class_budget() {
+test_each_key_carries_its_hash_consumer_and_class() {
   use_fixtures
   write_keys
   render
   assert_equal status "$status" 0
   assert_equal keys "$(jq -r '.gateways.consumer.apiKey.keys[]
-    | [.keyHash, .metadata.name, .metadata.class, (.budgets | tojson)] | join(" ")' \
-    <<<"$config")" \
-    "sha256:$(hash_of "$interactive_key") cerebro interactive $(template_budgets interactive)
-sha256:$(hash_of "$bulk_key") batch bulk $(template_budgets bulk)"
-  [[ $(template_budgets interactive) != "$(template_budgets bulk)" ]] ||
-    fail "the classes' budgets are alike, so the assertion can't tell them apart"
+    | [.keyHash, .metadata.name, .metadata.class] | join(" ")' <<<"$config")" \
+    "sha256:$(hash_of "$interactive_key") cerebro interactive
+sha256:$(hash_of "$bulk_key") batch bulk"
 }
 
 test_an_empty_key_list_renders_no_key() {

@@ -2,7 +2,8 @@
 # Tests for scripts/lint-bench.sh, the bench scenarios' lint, against the committed scenarios and
 # profiles and against the fixtures in tests/bench/: a 512-token embedding context and a 1,024-token
 # agent context, each with a scenario within it and one over it, a stream sweep and a rate sweep
-# among them. Tests too that each committed audio
+# among them, and bench/agent-sessions.yaml's 4-turn session against agent contexts of its own
+# length and one token less. Tests too that each committed audio
 # scenario reading LibriSpeech from Hugging Face lists one prompt per clip row, for
 # bench/audio-windows.jq's windows against toy clips and the LibriSpeech dummy set's clip lengths,
 # and for bench/levels.jq's level names and the agent and vision figures and floors against the
@@ -106,6 +107,20 @@ test_an_agent_session_over_the_agent_rows_context_fails() {
   assert_equal stderr "$err" "FAIL: $fixtures/agent-session-1025.yaml: a session of 1025 tokens exceeds the agent row's context in $fixtures/context-512.toml, 1024"
 }
 
+test_the_session_scenario_fits_an_agent_context_of_its_11776_tokens() {
+  printf '[[rows]]\nalias = "agent"\ncontext = 11776\n' >"$tmp/agent.toml"
+  run_lint "$tmp/agent.toml" "$repo/bench/agent-sessions.yaml"
+  assert_equal status "$status" 0
+  assert_equal stderr "$err" ""
+}
+
+test_the_session_scenario_over_an_agent_context_of_11775_fails() {
+  printf '[[rows]]\nalias = "agent"\ncontext = 11775\n' >"$tmp/agent.toml"
+  run_lint "$tmp/agent.toml" "$repo/bench/agent-sessions.yaml"
+  assert_equal status "$status" 1
+  assert_equal stderr "$err" "FAIL: $repo/bench/agent-sessions.yaml: a session of 11776 tokens exceeds the agent row's context in $tmp/agent.toml, 11775"
+}
+
 test_an_agent_scenario_against_a_profile_with_no_agent_row_fails() {
   run_lint "$fixtures/no-embedding-row.toml" "$fixtures/agent-session-1024.yaml" \
     "$fixtures/agent-session-1025.yaml"
@@ -157,7 +172,7 @@ run_levels() {
 test_levels_names_a_rate_sweeps_synchronous_throughput_and_constant_levels() {
   run_levels "$fixtures/sweep-result.json"
   assert_equal status "$status" 0
-  assert_equal levels "$(cut -d '|' -f 1-3,16 <<<"$out")" "## sweep-result.json
+  assert_equal levels "$(cut -d '|' -f 1-3,18 <<<"$out")" "## sweep-result.json
 level | ok/err/inc | req/s | floor
 synchronous | 2/0/1 | 9.250 | meets
 throughput | 2/1/0 | 70.500 | meets
@@ -173,17 +188,29 @@ test_levels_names_a_stream_sweeps_level_by_its_streams() {
 test_levels_judges_each_vision_level_by_its_latency_median() {
   run jq -r --arg purpose vision -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
   assert_equal status "$status" 0
-  assert_equal levels "$(cut -d '|' -f 1,2,4-9,16 <<<"$out")" "## vision-result.json
+  assert_equal levels "$(cut -d '|' -f 1,2,5-10,18 <<<"$out")" "## vision-result.json
 level | ok/err/inc | TTFT med ms | ITL med ms | lat med s | lat p90 s | lat min s | lat<=10s | floor
 4 | 3/0/4 | 812 | 31.26 | 4.00 | 4.80 | 3.00 | 3/3 | meets
 8 | 3/1/8 | 2400 | 70.00 | 9.50 | 11.50 | 8.00 | 2/3 | meets
 16 | 2/0/16 | 6100 | 95.50 | 11.00 | 12.60 | 9.00 | 1/2 | MISSES"
 }
 
+test_levels_gives_a_vision_levels_images_a_minute_from_its_second_half_and_no_other_purposes() {
+  run jq -r --arg purpose vision -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
+  assert_equal status "$status" 0
+  assert_equal "vision" "$(cut -d '|' -f 1,4,11 <<<"$out")" "## vision-result.json
+level | 2nd half req/s | img/min 
+4 | 0.067 | 4.00 
+8 | 0.044 | 2.67 
+16 | - | - "
+  run_levels "$fixtures/streams-result.json"
+  assert_equal "embed" "$(sed -n 3p <<<"$out" | cut -d '|' -f 11)" " - "
+}
+
 test_levels_judges_each_agent_level_by_its_itl_median() {
   run jq -r --arg purpose agent -f "$repo/bench/levels.jq" "$fixtures/agent-result.json"
   assert_equal status "$status" 0
-  assert_equal levels "$(cut -d '|' -f 1,2,4,5,11,16 <<<"$out")" "## agent-result.json
+  assert_equal levels "$(cut -d '|' -f 1,2,5,6,13,18 <<<"$out")" "## agent-result.json
 level | ok/err/inc | TTFT med ms | ITL med ms | out tok/s | floor
 4 | 4/0/0 | 61235 | 49.13 | 5.61 | meets
 12 | 2/0/10 | 250000 | 100.50 | 0.90 | MISSES

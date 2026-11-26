@@ -2,13 +2,22 @@
 
 ai-hosting specifies how the organization's local model hosts serve models: the settings the two
 Framework desktops and the two GB10 workstations use, stated generally enough that another host of
-the same class follows them. Its secrets, the `hosting` suite, and each class's profile and
-runbook are built, and each host serves its rows from its clone. One gateway on gb10-2 fronts the
-rows, each alias at its own base URL behind an issued key, with overflow to Azure AI Foundry
-([docs/gateway.md](../docs/gateway.md)). go-ai and docinfer hold its keys; Pi sessions, Claude
-Code subagents, and the capstone's services are to reach the rows through it with keys the tasks
-that build them issue. ai-hosting is low-level infrastructure outside the five tiers, beside the
+the same class follows them. Its secrets, the `hosting` suite, and each class's profile and runbook
+are built, and each host serves its rows from its clone. One gateway on gb10-2 fronts the rows, each
+alias at its own base URL behind an issued key, with overflow to Azure AI Foundry
+([docs/gateway.md](../docs/gateway.md)). go-ai and docinfer hold its keys; Pi sessions, Claude Code
+subagents, and the capstone's services are to reach the rows through it with keys the tasks that
+build them issue. ai-hosting is low-level infrastructure outside the five tiers, beside the
 harness repositories, and is the one hosting repository on each workstation.
+
+The `acceptance` task proved the layout on vLLM v0.34.0. The four rows ran together
+([layout](../docs/findings/vision.md#layout)): agent, audio, and embedding matched their rows alone
+within their hosts' run noise, and vision matched at 2, 4, and 8 streams; at 32 it decoded no
+slower, while the pages finished inside the second half read 3–4% under, past gb10-2's 1.5%. Each
+row's cap and load target follow its cells. Overflow to Azure works live for agent, vision, and
+audio ([gateway findings](../docs/findings/gateway.md)), and go-ai's, tools/infer's, and docinfer's
+live tiers pass through the gateway under their own keys
+([client-tiers](../docs/findings/gateway.md#client-tiers)).
 
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.
@@ -38,12 +47,13 @@ record holds the tasks and their order.
   memory, read-only ([engines.md](engines.md)).
 - **Model files** (built): the `model` group lists, pulls, and prunes the host's model store
   ([hosting-suite.md](hosting-suite.md)).
-- **The gateway** (built): agentgateway's compose stack on gb10-2, with keys, priority, budgets,
+- **The gateway** (built): agentgateway's compose stack on gb10-2, with keys, priority, buckets,
   overflow, and telemetry; the `gateway` group runs it and the `key` group issues consumers' keys
   ([docs/gateway.md](../docs/gateway.md), [gateway.md](gateway.md)). The embedding route has no
   cloud fallback.
-- **Secrets** (built): the Foundry key and account, age-encrypted in ai-hosting's committed
-  `fnox.toml`, each described, and checked by `scripts/lint-secrets.sh` ([secrets.md](secrets.md)).
+- **Secrets** (built): the Foundry key and account and ai-hosting's bulk gateway key,
+  age-encrypted in ai-hosting's committed `fnox.toml`, each described, and checked by
+  `scripts/lint-secrets.sh` ([secrets.md](secrets.md)).
 - **Runbooks** (built): one per host class, `classes/<class>/runbook.md`: the root steps, the
   suite's install, and each row's commands ([gb10](../classes/gb10/runbook.md),
   [strix-halo](../classes/strix-halo/runbook.md)).
@@ -55,8 +65,10 @@ record holds the tasks and their order.
 - **Findings** (built): the measurements behind a row's settings, each cell with its command,
   time, figures, and tool versions, which the profile's reasons cite: the embedding row's in
   [docs/findings/embedding.md](../docs/findings/embedding.md), the audio row's in
-  [docs/findings/audio.md](../docs/findings/audio.md), and the vision row's image budget and cap in
-  [docs/findings/vision.md](../docs/findings/vision.md).
+  [docs/findings/audio.md](../docs/findings/audio.md), the vision row's image budget and cap in
+  [docs/findings/vision.md](../docs/findings/vision.md), the agent row's in
+  [docs/findings/agent.md](../docs/findings/agent.md), and the standing layout cell, the four rows
+  together, in [docs/findings/vision.md](../docs/findings/vision.md#layout).
 - **Upgrade evaluation** (built): the convention for evaluating a vLLM release, a row's settings,
   or a replacement model ([docs/upgrades.md](../docs/upgrades.md)), the policy every candidate
   meets ([docs/policy.md](../docs/policy.md)), one descriptor a host

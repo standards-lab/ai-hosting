@@ -34,12 +34,14 @@ The requirements come from the coordinator's AI hosting note (standards-lab
    routing ([Keys](#keys)).
 3. **Serving endpoints only.** Only the eight serving paths reach a row, and a path holding a dot
    segment is refused ([Routes](#routes)).
-4. **Priority, buckets, and budgets per key.** Each key gives its requests a vLLM priority, draws
-   on its own request bucket, and spends a token budget per UTC clock hour; embedding is held to
-   78 requests a second ([Limits and priority](#limits-and-priority)).
+4. **Priority and buckets per key.** Each key gives its requests a vLLM priority and draws on its
+   own request bucket; embedding is held to 78 requests a second. The gateway charges no token
+   budget ([Limits and priority](#limits-and-priority)).
 5. **Overflow to Azure AI Foundry** for agent, vision, and audio while the row is down or
    refusing, each reply marked `x-gateway-overflow: azure`; embedding has no cloud fallback, and
-   nothing overflows under IL6 ([Overflow](#overflow)).
+   nothing overflows under IL6 ([Overflow](#overflow)). Cloud spend is governed in Azure, by each
+   deployment's capacity and a Cost Management budget
+   ([Capacity and cloud spend](#capacity-and-cloud-spend)).
 6. **Telemetry with no content.** Traces, metrics, and logs in the stack's own stores, and a
    request log in Postgres holding metadata only ([Telemetry](#telemetry)).
 7. **No secret in the clone's rendered files.** The Foundry key and account come from ai-hosting's
@@ -61,7 +63,7 @@ the observability services.
 | Service | Image | Publishes | Holds |
 | --- | --- | --- | --- |
 | agentgateway | `cr.agentgateway.dev/agentgateway` v1.7.0 | the consumer port, 3000, on gb10-2's tailnet address; the UI, 3001, on gb10-2's loopback | nothing; reads its config from the mounted directory |
-| Postgres | `postgres` 19.0-alpine | nothing | the budgets and the request log |
+| Postgres | `postgres` 19.0-alpine | nothing | the request log |
 | OpenTelemetry Collector | `otel/opentelemetry-collector-contrib` | nothing | nothing |
 | Tempo | `grafana/tempo` | nothing | traces, 24 h |
 | Mimir | `grafana/mimir` | nothing | metrics |
@@ -120,7 +122,10 @@ allow-list sees `/v1/...`. The first conditional direct response whose condition
   one model.
 - **Any path off the allow-list** gets 404. The allow-list is the eight serving paths:
   `/v1/models`, `chat/completions`, `completions`, `messages`, `responses`, `embeddings`,
-  `audio/transcriptions`, and `audio/translations`. vLLM's root routes (`/metrics`, `/health`,
+  `audio/transcriptions`, and `audio/translations`. No row serves the two audio paths today: the
+  audio row, Gemma 4 on vLLM, answers each with its own 404, `{"detail":"Not Found"}`, and its
+  interface is chat completions with the clip as input, as is gpt-audio-mini's on overflow
+  ([client-tiers](findings/gateway.md#client-tiers)). vLLM's root routes (`/metrics`, `/health`,
   `/tokenize`, `/docs`) are among those refused, so no consumer key manages a model; embedding's
   tokenize route alone reaches one, `POST /tokenize` ([Tokenize](#tokenize)). A path under no
   alias is unrouted, and gets 404 too.
@@ -162,11 +167,10 @@ row's root, not under `/v1`. docinfer chunks documents by e5 token counts throug
   missing or unknown key gets 401 here as on every route.
 - **No bucket.** It is outside embedding's two buckets and has none of its own: a tokenize call is
   cheap, and a chunking run makes far more of them than it makes embeddings, so drawing on
-  embedding's buckets would spend them on counting. A bulk consumer bounds its own concurrency, and
-  acceptance may set a bucket if it measures a need.
-- **No charge.** A key's budget is charged only from an LLM reply's usage, which a plain host
-  backend's reply has none of, so a tokenize call charges nothing and raises no error. The check
-  before each request still holds: a key whose Block budget is spent is refused here too.
+  embedding's buckets would spend them on counting. A bulk consumer bounds its own concurrency.
+  The cells measured no need for one: four callers back to back, docinfer's concurrency, made 253
+  tokenize calls a second beside the embedding row at its load target, which held 77.98 requests a
+  second against 77.96 alone ([gateway-tokenize](findings/gateway.md#gateway-tokenize)).
 
 ## Keys
 
@@ -207,18 +211,25 @@ run on any host and commit nothing.
    reloads the keys in place, with no restart: a new key is admitted, and a removed one gets 401
    on its next request while requests already running finish.
 
-go-ai and docinfer hold interactive keys. Every other consumer gets its key from `hosting key
-issue` in the task that builds it.
+go-ai and docinfer hold interactive keys, under which go-ai's live tier, plain and under each
+alias's profile, tools/infer's, and docinfer's pass through the gateway
+([client-tiers](findings/gateway.md#client-tiers)). ai-hosting holds a bulk key, consumer
+`ai-hosting` in its own `fnox.toml`, for the bulk class's priority and bucket checks and for
+upgrade measures through the gateway. Every other consumer gets its key from `hosting key issue` in
+the task that builds it.
 
 ## Limits and priority
 
-Each key's class, in its metadata as `apiKey.class`, sets its priority, its request bucket, and
-its budget.
+Each key's class, in its metadata as `apiKey.class`, sets its priority and its request bucket.
 
-| Key class | Priority (agent, vision) | Request bucket, each chat route | Budget per UTC hour |
-| --- | --- | --- | --- |
-| `interactive` | 0 | 1,200 a minute | 5,000,000 tokens, Audit |
-| `bulk` | 10 | 600 a minute | 1,000,000 tokens, Block |
+| Key class | Priority (agent, vision) | Request bucket, each chat route |
+| --- | --- | --- |
+| `interactive` | 0 | 1,200 a minute |
+| `bulk` | 10 | 600 a minute |
+
+No key has a token budget: the rows' own capacity bounds self-hosted work, and cloud spend is
+governed in Azure ([Capacity and cloud spend](#capacity-and-cloud-spend)). Postgres keeps the
+request log, which records each request's usage.
 
 ### Priority
 
@@ -239,27 +250,13 @@ In the spike, against a capturing mock row, bulk's chat reached the row with `"p
 interactive key's with `0`, the audio row's with none, and bulk's chat sent while the row was
 unreachable reached Azure with none ([priority.md][f-priority], "Answer for this task").
 
-### Budgets
-
-Each key has one budget, `tokens`, charged after each LLM reply with its total tokens, input and
-output. A streamed Chat Completions reply is charged too, since the typed format adds
-`include_usage`. The counter is checked before each request, so the request that crosses the
-limit is answered and charged, and the next is refused: Block answers it 429 with a `Retry-After`
-of the seconds left in the window; Audit only logs `API key budget exceeded` and lets it through.
-The counters live in memory and are written to Postgres's `budget_usage` every 5 s and at
-shutdown, keyed by the key's hash and the budget's name, and read back at start, so a count
-survives a restart, and a reload that changes only a limit keeps it ([priority.md][f-priority],
-"bulk's budget Block (behavior 15)").
-
-- **bulk: 1,000,000 tokens an hour, Block.** Above the spike's benchmarks B and D together, run
-  within one hour: about 760 bulk vision requests at 20 concurrent, about 580 tokens each, some
-  440,000 tokens. Block stops a bulk run that goes past that.
-- **interactive: 5,000,000 tokens an hour, Audit.** Above an embedding run at the route's whole
-  limit: 78 requests a second of 512 tokens for 90 s is about 3,600,000. Audit records an
-  interactive key's overspend without refusing a person's work.
-
-The window is a fixed UTC hour ([The fixed budget window](#the-fixed-budget-window)). A tokenize
-call is checked against the budget and charged nothing ([Tokenize](#tokenize)).
+With the rows full of bulk work through the gateway, an interactive request waited behind no
+bulk one: on vision its first token came in 20 s where a bulk page sent with it waited 137 s, and
+on agent in 0.5 and 2.5 s where bulk's waited 16.6 and 21.9 s. Priority orders vLLM's waiting
+queue and doesn't preempt: the interactive request started only as a running bulk one finished,
+and neither row preempted a request
+([gateway-priority-vision](findings/gateway.md#gateway-priority-vision),
+[gateway-priority-agent](findings/gateway.md#gateway-priority-agent)).
 
 ### Request buckets
 
@@ -271,7 +268,10 @@ heaviest bulk load the spike ran, vision at 20 concurrent, is about 1.9 requests
 a minute, and an interactive key's, the audio overhead cell, 64 requests in about 20 s
 ([agentgateway.md][f-agentgateway], "The cap cells" and "Slice 2 · overhead"). In the spike, bulk
 was refused by its own bucket while another key kept answering on the same alias
-([priority.md][f-priority], "bulk's bucket (behavior 14)").
+([priority.md][f-priority], "bulk's bucket (behavior 14)"). On the live gateway, ai-hosting's bulk
+key got 429 past its 600th request on a route and go-ai's interactive key past its 1,200th, each
+key and each route drawing on its own bucket
+([gateway-buckets](findings/gateway.md#gateway-buckets)).
 
 Embedding has two rules: a global bucket of 78 a second, with no key, which every caller shares,
 and a bucket of 156 a second per key. 78 is the most the embedding row keeps with no error on
@@ -294,7 +294,11 @@ retry proof (behaviors 6–8)").
 
 Each row's vLLM answers 503 once its queue limit is full. The row's
 [class profile](../classes/README.md#a-rows-keys) sets the limit, twice the row's cap unless the
-profile gives a reason. The gateway acts on that refusal:
+profile gives a reason. At v0.34.0 the limit, `--max-num-queued-reqs`, counts the row's unfinished
+requests, running and waiting together, so a row holds its queue limit in flight and its queue
+limit less its cap waiting ([The queue limit counts running
+requests](findings/gateway.md#the-queue-limit-counts-running-requests)). The gateway acts on that
+refusal:
 
 - **Retry.** Each route retries a 503 or a failed connection, `attempts: 2`, so a request is sent
   at most three times, each retry after a 20 ms backoff. The provider is chosen again on each
@@ -311,6 +315,26 @@ profile gives a reason. The gateway acts on that refusal:
   whole load during each row eviction. agentgateway's default for an `ai` backend of several groups
   would evict it on one 5xx or failed connection, for 3 s.
 
+### Route timeouts
+
+agentgateway v1.7.0 sets no request timeout unless a route's `timeout` policy gives one: its
+`requestTimeout` runs from the request's arrival to the reply's headers, and doesn't bound a
+streamed reply's body. A streamed reply's headers come as soon as the row takes the request, so
+the timeout bounds a reply that isn't streamed, as docinfer's pages aren't
+([gateway-dense-page](findings/gateway.md#gateway-dense-page)). Each route is checked against a
+request at its row's limits: the last place of a full queue, which at v0.34.0 holds the queue limit
+less the cap ([Row refusals, retry, and health](#row-refusals-retry-and-health)).
+
+| Route | Timeout | A request at the row's limits |
+| --- | --- | --- |
+| vision | `requestTimeout: 9m` | The last of 32 waiting pages waits about 143 s at the 13.40 images a minute of 32 streams, then runs up to 198 s, the latency p90 there, about 341 s ([dense-1120-high](findings/vision.md#dense-1120-high)); through the gateway at the full 64 in flight, the slowest page took 440 s ([gateway-priority-vision](findings/gateway.md#gateway-priority-vision)). 9 min covers it, and sits inside docinfer's 600 s header timeout, so the gateway ends a page held past it before the client does |
+| audio | none | The last of 144 waiting windows waits about 71 s at 2.04 requests a second, then runs up to 35 s, the latency p90 at 48 streams, about 106 s ([audio-real-30s](findings/audio.md#audio-real-30s)); no timeout cuts it short |
+| agent | none | A turn at 12 sessions runs about 67 s, and 12 waiting add about one such round ahead of it ([agent-sessions](findings/agent.md#agent-sessions)); 8 prompts of 65,536 tokens at once took 214 s ([agent-capacity](findings/agent.md#agent-capacity)), so a queue of long sessions has no bound a timeout could be sized to, and none cuts it short |
+| embedding, `embedding-tokenize` | none | A request takes milliseconds |
+
+Only vision's is set, the one route whose clients send long unstreamed requests at a known bound;
+with no timeout, no other route cuts a queued request short.
+
 ## Overflow
 
 Each of agent, vision, and audio has a second priority group, its own Azure AI Foundry deployment.
@@ -318,24 +342,36 @@ A request goes to the first group with a provider not evicted, so Azure answers 
 is out, and the alias returns to its row once the eviction ends ([priority.md][f-priority], "A row
 down (behaviors 7, 8)").
 
-| Alias | Deployment | Processed | Formats |
-| --- | --- | --- | --- |
-| agent | `gpt-oss-120b`, DataZoneStandard | within the data zone | Chat Completions; Messages translated to it |
-| vision | `gpt-5-mini` 2025-08-07, GlobalStandard | globally | Chat Completions and Responses; Messages translated to Responses |
-| audio | `gpt-audio-mini`, GlobalStandard | globally | Chat Completions, only with audio in or out |
-| embedding | none | | |
+| Alias | Deployment | Capacity | Processed | Formats |
+| --- | --- | --- | --- | --- |
+| agent | `gpt-oss-120b`, DataZoneStandard | 133 | within the data zone | Chat Completions; Messages translated to it |
+| vision | `gpt-5-mini` 2025-08-07, GlobalStandard | 41 | globally | Chat Completions and Responses; Messages translated to Responses |
+| audio | `gpt-audio-mini` 2025-12-15, GlobalStandard | 30 | globally | Chat Completions, only with audio in or out |
+| embedding | none | | | |
 
-- **Embedding has no cloud fallback.** `text-embedding-3-small`'s vectors are in another space, so
-  nothing the row indexed may be searched with them. The route has no Azure group and routes only
-  to the row; the deployment stays, never routed.
+- **Embedding has no cloud fallback.** A cloud model's vectors are in another space, so nothing
+  the row indexed may be searched with them. The route has no Azure group and routes only to the
+  row, and the account holds no embedding deployment
+  ([Capacity and cloud spend](#capacity-and-cloud-spend)).
 - **Never under IL6.** An IL6 deployment keeps only each alias's row group, and a down row answers
   with its failure ([comparison.md][comparison], "IL6").
 - **The overflow switches.** [`overflow.toml`](../compose/agentgateway/overflow.toml) holds one
   switch per alias with an Azure group; `false` drops that alias's group at the next render.
+- **The rewrite.** Each Azure provider's `ai` transformations drop what its deployment refuses, so
+  a client sends the alias the same request whether the row or Azure answers: `agent-azure`
+  removes vLLM's `ignore_eos`; `vision-azure` moves `max_tokens` to `max_completion_tokens`, keeping
+  a client's own `max_completion_tokens`, removes `top_p` and `top_k`, and sets `reasoning_effort`
+  to `minimal`, so the client's bound stays a bound on text; `audio-azure` keeps only
+  `include_usage` in `stream_options`, dropping vLLM's `continuous_usage_stats`. An expression that
+  fails removes its field, which `fail("remove")` does on purpose. They sit on the Azure providers,
+  so a row's request is never rewritten
+  ([gateway-overflow-rewrite](findings/gateway.md#gateway-overflow-rewrite)).
 - **The marker.** Every reply from an Azure provider carries `x-gateway-overflow: azure`, set by
-  its response header policy; a row's reply never does. Each Azure provider sets
-  `providerOverride: azure`, so the access log's `gen_ai.provider.name` reads `azure` there and
-  `custom` on a row's.
+  its response header policy; a row's reply never does. In the overflow cells, every Azure reply
+  carried it, 429s too, and the first request after each row's restart was the row's, without it
+  ([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent) and the cells after it).
+  Each Azure provider sets `providerOverride: azure`, so the access log's `gen_ai.provider.name`
+  reads `azure` there and `custom` on a row's.
 
 Each Azure provider is a custom, OpenAI-compatible provider at
 `<account>.services.ai.azure.com:443` with the path prefix `/openai/v1`, the endpoint each
@@ -349,9 +385,13 @@ What a workload gives up on overflow ([priority.md][f-priority], "Per alias: the
 its parity (behavior 12)"; [answer.md][f-answer], "The revalidation (behaviors 4, 5)"):
 
 - **agent:** a tool-calling request that needs `tool_choice: required` or a named function breaks
-  on Azure, and a Messages request at low effort gives no reasoning item.
-- **vision:** its content leaves the data zone; it refuses `max_tokens` (wanting
-  `max_completion_tokens`) and reasoning effort `none`.
+  on Azure, and a Messages request at low effort gives no reasoning item; a fixed output under
+  `ignore_eos` isn't held, since the rewrite drops it.
+- **vision:** its content leaves the data zone; the rewrite drops a client's `top_p` and `top_k`
+  and replaces its reasoning effort with `minimal`. At its default effort gpt-5-mini spent
+  docinfer's whole 2,048-token bound reasoning on a dense page and returned no text; at minimal it
+  transcribed the page in 971 tokens, matching the row's 952
+  ([gateway-overflow-minimal](findings/gateway.md#gateway-overflow-minimal)).
 - **audio:** its content leaves the data zone; it refuses a text-only chat, and the gateway's own
   typed parser refuses audio inside a Responses request on overflow (400, "failed to parse
   Responses request").
@@ -360,6 +400,110 @@ its parity (behavior 12)"; [answer.md][f-answer], "The revalidation (behaviors 4
   model name succeeds, since the provider sets the deployment as the model.
 
 Each alias's [go-ai profile](../go-ai/README.md) declares only the row's refusals, not Azure's.
+
+### Capacity and cloud spend
+
+Cloud spend is governed in Azure, not by the gateway: each deployment's capacity is the rate
+ceiling on its overflow, and a Cost Management budget alerts on the month's spend. A change to a
+deployment or the budget is made with `az` and recorded here with its commands as run. The commands
+below ran from the laptop's `az` (2.90.0) on 2026-11-25, with `<account>` the Foundry account
+(`AZURE_FOUNDRY_ACCOUNT` in fnox) and `<group>` its resource group.
+
+**Capacity.** A unit of capacity is 1,000 tokens a minute, with a request limit that grows with
+it; Azure answers 429 past either, which the Azure health policy turns into an eviction
+([Row refusals, retry, and health](#row-refusals-retry-and-health)). Each deployment is sized to
+its row's peak, capped by the region's quota. The overflow cells ran at first values of 100 for
+agent, 50 for vision, and 30 for audio; the final capacities, below, follow from those cells and
+the rows' peaks.
+
+```sh
+az cognitiveservices account deployment create --name <account> --resource-group <group> \
+  --deployment-name gpt-oss-120b --model-format OpenAI-OSS --model-name gpt-oss-120b \
+  --model-version 1 --sku-name DataZoneStandard --sku-capacity 100
+az cognitiveservices account deployment create --name <account> --resource-group <group> \
+  --deployment-name gpt-5-mini --model-format OpenAI --model-name gpt-5-mini \
+  --model-version 2025-08-07 --sku-name GlobalStandard --sku-capacity 50
+az cognitiveservices account deployment create --name <account> --resource-group <group> \
+  --deployment-name gpt-audio-mini --model-format OpenAI --model-name gpt-audio-mini \
+  --model-version 2025-12-15 --sku-name GlobalStandard --sku-capacity 30
+```
+
+Each answered `provisioningState` `Succeeded`, at capacity 100, 50, and 30 (from 50, 10, and 10),
+with token limits of 100,000, 50,000, and 30,000 a minute, and request limits of 100 and 50 a
+minute for agent and vision and 30 each 10 s for audio. `az cognitiveservices usage list
+--location eastus2` read the quotas as 5,000 for `gpt-oss-120b` DataZoneStandard, 3,000 for
+`gpt-5-mini` GlobalStandard, and 30 for `gpt-audio-mini` GlobalStandard.
+
+**The budget.** `gateway-overflow`, $50 a month on the Foundry account's resource group, alerts
+the subscription's owners and the architect's address at 80% and 100% of actual spend and at 100%
+of forecast spend. `az consumption budget create-with-rg` takes no forecast threshold, so the
+budget is put through the Consumption API with `az rest`:
+
+```sh
+az rest --method put \
+  --url "https://management.azure.com/subscriptions/<subscription>/resourceGroups/<group>/providers/Microsoft.Consumption/budgets/gateway-overflow?api-version=2023-11-01" \
+  --body @budget.json
+```
+
+with `budget.json`:
+
+```json
+{"properties": {"category": "Cost", "amount": 50, "timeGrain": "Monthly",
+  "timePeriod": {"startDate": "2026-11-01T00:00:00Z", "endDate": "2036-10-31T00:00:00Z"},
+  "notifications": {
+    "actual-80": {"enabled": true, "operator": "GreaterThanOrEqualTo", "threshold": 80,
+      "thresholdType": "Actual", "contactEmails": ["<email>"], "contactRoles": ["Owner"]},
+    "actual-100": {"enabled": true, "operator": "GreaterThanOrEqualTo", "threshold": 100,
+      "thresholdType": "Actual", "contactEmails": ["<email>"], "contactRoles": ["Owner"]},
+    "forecast-100": {"enabled": true, "operator": "GreaterThanOrEqualTo", "threshold": 100,
+      "thresholdType": "Forecasted", "contactEmails": ["<email>"], "contactRoles": ["Owner"]}}}}
+```
+
+It answered the budget `gateway-overflow`, amount 50, `Monthly`, with the three notifications.
+
+**The final capacities.** Each deployment carries its row's throughput peak in Azure's tokens a
+minute: the row's requests a minute at its peak, times a request's tokens on Azure as its overflow
+cell read them, the prompt plus the reply's bound, which Azure counts against the minute as it
+admits the request. Azure's request limit, one a minute per unit for agent and vision and 1 each
+10 s for audio, sits above each row's request rate.
+
+| Alias | Row's peak | Tokens a request on Azure | Tokens a minute | Capacity |
+| --- | --- | --- | --- | --- |
+| agent | 12.89 turns a minute at 12 sessions, 110.03 output tokens a second of 512-token turns ([agent-noise](findings/agent.md#agent-noise)) | 9,728 prompt on average over a session's four turns, 8,192 to 11,264, plus 512 ([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent)) | 132,035 | 133 |
+| vision | 13.40 pages a minute at 32 streams ([dense-1120-high](findings/vision.md#dense-1120-high)) | about 956 prompt plus 2,048 ([gateway-overflow-vision](findings/gateway.md#gateway-overflow-vision)) | 40,254 | 41 |
+| audio | 2.133 windows a second, 128 a minute, at 48 streams ([audio-real-30s](findings/audio.md#audio-real-30s)) | about 368 prompt plus 512 ([gateway-overflow-audio](findings/gateway.md#gateway-overflow-audio)) | 112,600 | 30, the region's quota |
+
+The commands, on 2026-11-26 from the same `az`:
+
+```sh
+az cognitiveservices account deployment create --name <account> --resource-group <group> \
+  --deployment-name gpt-oss-120b --model-format OpenAI-OSS --model-name gpt-oss-120b \
+  --model-version 1 --sku-name DataZoneStandard --sku-capacity 133
+az cognitiveservices account deployment create --name <account> --resource-group <group> \
+  --deployment-name gpt-5-mini --model-format OpenAI --model-name gpt-5-mini \
+  --model-version 2025-08-07 --sku-name GlobalStandard --sku-capacity 41
+```
+
+Each answered `provisioningState` `Succeeded`, at capacity 133 and 41, with token limits of
+133,000 and 41,000 a minute and request limits of 133 and 41 a minute. Audio's deployment stays at
+30, its quota, with no command. In the cells Azure enforced its limits loosely: vision's ran about
+57 pages and 160,000 tokens a minute at capacity 50 with no 429, and audio's 8 windows a second
+at capacity 30 for 32 s before its first 429
+([gateway-overflow-audio](findings/gateway.md#gateway-overflow-audio)); agent's, whose turns read
+8,300 to 9,700 prompt tokens, got its first 429 3.8 s in
+([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent)).
+
+**The embedding deployment, deleted.** The account's `text-embedding-3-small` deployment,
+DataZoneStandard at capacity 10, was never routed: no route's Azure group named it, in the
+template or in gb10-2's rendered config. It was deleted:
+
+```sh
+az cognitiveservices account deployment delete --name <account> --resource-group <group> \
+  --deployment-name text-embedding-3-small
+```
+
+The command printed nothing and exited 0; `az cognitiveservices account deployment list` then
+listed `gpt-oss-120b`, `gpt-5-mini`, and `gpt-audio-mini` alone.
 
 ## Secrets and Postgres
 
@@ -378,7 +522,7 @@ The rendered config holds no secret, and neither does any file the render writes
   only, never every interface.
 - **Postgres** uses a committed development credential, `agentgateway`, in its Dockerfile and the
   config's database URL. It publishes no port, so only the stack reaches it, and it holds request
-  metadata and budgets, no content. The [development-secrets
+  metadata, no content. The [development-secrets
   principle](https://github.com/standards-lab/architecture/blob/main/principles/development-secrets.md)
   lets such a published credential stay committed.
 
@@ -430,7 +574,7 @@ isn't `gb10` before touching Docker.
 | `hosting gateway render` | Renders agentgateway's config from the template, the class profiles, the key list, and the switches, validating each input first; validates a copy with the pinned image; writes the compose override and env file; and only then renames the copy to `compose/agentgateway/config.yaml` |
 | `hosting gateway validate` | Validates the rendered config with the pinned image on no network, changing nothing |
 | `hosting gateway up` | Refuses until the render has written the config, the override, and the env file; reads the Foundry key and account from fnox; builds and starts the stack, waiting for it |
-| `hosting gateway down` | Stops the stack and removes its containers and network, keeping its volumes: the budgets, the request log, and the telemetry stores |
+| `hosting gateway down` | Stops the stack and removes its containers and network, keeping its volumes: the request log and the telemetry stores |
 | `hosting gateway reset` | Stops the stack and drops its volumes |
 | `hosting gateway status` | Each container's state and status, and agentgateway flagged when it is stranded, with the command that recovers it |
 
@@ -445,8 +589,8 @@ consumer port is published. Deriving the hosts from the config
 keeps the alias-to-host map in one home, and the addresses stay in gitignored files, so no tailnet
 identifier is committed. Every `gateway` verb runs compose with both files when they are present.
 
-**Reloads.** agentgateway watches its config and reloads routes, keys, budgets, buckets, and
-switches in place, so a render is all a change to them needs; a reload builds the backends
+**Reloads.** agentgateway watches its config and reloads routes, keys, buckets, and switches in
+place, so a render is all a change to them needs; a reload builds the backends
 again, which clears the rows' eviction counts. Fields under the config's `config` section (the
 database, the admin address, storage) are read once, at start, so a change there takes
 `hosting gateway down`, then `up`.
@@ -479,20 +623,16 @@ The embedding row's running and waiting gauges also read 0 under load, so an adm
 them would see an idle row ([agentgateway.md][f-agentgateway], "The paper inventory";
 [comparison.md][comparison], "Scoring").
 
-### The fixed budget window
-
-v1.7.0's `rolling: 1h` is a fixed window aligned to the Unix epoch, each UTC clock hour, not a
-sliding one: a count starts again at each hour, so a key can spend up to twice its budget across an
-hour's boundary, and a Block's `Retry-After` is the time to the next hour (`retry-after: 2609` in
-the spike). The gateway keeps the fixed UTC hour; shorter fixed windows were rejected, since each
-has the same boundary ([watch register](watch.md#agentgateway-budgets-over-a-sliding-window)).
-
 ### Bulk concurrency
 
 Priority orders only vLLM's waiting queue: interactive vision beside a saturating bulk key jumped
 the queue, then shared the batch with bulk's 20 streams and decoded at their pace, missing 10 s by
 0.47 s with priority, against 1.87 s without ([priority.md][f-priority], "Benchmark D: priority on
-vision (evidence 6)"). Holding interactive latency under bulk load needs a cap on bulk's
+vision (evidence 6)"). On the live gateway with the vision row's dense pages, an interactive page
+beside 60 bulk streams had its first token in 20 s, then took 142 s to its last beside 31 bulk
+pages, with no preemption
+([gateway-priority-vision](findings/gateway.md#gateway-priority-vision)). Holding interactive
+latency under bulk load needs a cap on bulk's
 concurrency. v1.7.0's only in-flight cap, `maxConcurrentRequests`, counts every request on a port,
 whatever its key, so the bulk consumer bounds its own concurrency, and Cerebro's plan sets the
 number ([watch register](watch.md#agentgateway-concurrency-cap-per-key)).
@@ -508,13 +648,20 @@ number ([watch register](watch.md#agentgateway-concurrency-cap-per-key)).
   row can stay out for minutes after it is back; `hosting gateway down`, then `up`, returns it at
   once ([watch register](watch.md#agentgateway-eviction-growth-without-a-cap)).
 - **With both groups evicted,** the load balancer still picks an evicted provider rather than
-  none, so a request can reach a row that is still out.
+  none, so a request can reach a row that is still out. When Azure's 429s evicted its group while
+  the agent row was stopped, the next 72 requests went to the row, each a 503 within 2 s
+  ([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent)).
 - **A body over 64 KiB isn't retried,** since the gateway buffers 64 KiB for a retry: vision images
   and audio clips get the row's 503 until two failures evict it. With a Strix Halo host powered
   down, each of those attempts waited out a connect timeout of about 11 s
   ([priority.md][f-priority], "A row down (behaviors 7, 8)").
 - **The queue limit counts every key alike.** vLLM's `--max-num-queued-reqs` doesn't know a key,
   so a bulk flood also refuses interactive requests, which then overflow.
+- **A streamed request's refusal doesn't reach the gateway.** vLLM can refuse a streamed request
+  inside its stream: the reply's headers read 200, and its one event is the 503 error. The gateway
+  sees a 200, so it neither retries, evicts, nor overflows; the client reads the error from the
+  stream ([The queue limit counts running
+  requests](findings/gateway.md#the-queue-limit-counts-running-requests)).
 
 ## Decisions
 
@@ -527,11 +674,18 @@ What the gateway task settled, beyond what the sections above give:
 - **Issued keys live in each consumer's own `fnox.toml`,** and ai-hosting commits only their
   SHA-256 hashes. ai-hosting is public, so the consumer names in the key list are public. Rejected:
   holding the hashes in ai-hosting's `fnox.toml`.
-- **Postgres uses a committed development credential:** it publishes no port and holds metadata and
-  budgets, no content.
+- **Postgres uses a committed development credential:** it publishes no port and holds metadata,
+  no content.
 - **No off-LAN path.** The gateway serves tailnet peers on their direct path: no peer relay, no
   client timeouts sized for a relayed path.
-- **Embedding has no cloud fallback** ([Overflow](#overflow)).
+- **Embedding has no cloud fallback** ([Overflow](#overflow)); its unrouted Azure deployment is
+  deleted.
+- **Cloud spend is governed in Azure, not by the gateway:** each deployment's capacity is the rate
+  ceiling and a Cost Management budget alerts on spend, so no key has a token budget. Rejected: the
+  per-key token budgets the gateway first charged, among them the bulk class's 1,000,000-token
+  Block; per-key USD budgets (more to maintain, and a spent Block key is refused on the
+  self-hosted rows too); and counting tokens per backend, which needs a rate-limit service
+  ([Capacity and cloud spend](#capacity-and-cloud-spend)).
 - **Tracing samples every request,** as the spike did.
 
 [f-agentgateway]: https://github.com/JaimeStill/spike-model-gateway/blob/2f2e8c1/docs/findings/agentgateway.md

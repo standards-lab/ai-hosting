@@ -10,7 +10,8 @@ backs; `{}` is the spec in every format.
 
 `scripts/lint-go-ai-profiles.sh`, in the check, refuses a file that isn't an object of go-ai's
 formats, a file naming no class profile's alias, and an alias with no file. The `acceptance` task
-is to run go-ai's integration tier with these profiles through `AI_<ROLE>_PROFILE`.
+ran go-ai's integration tier through the gateway with these profiles as `AI_<ROLE>_PROFILE`, with
+no failure ([client-tiers](../docs/findings/gateway.md#client-tiers)).
 
 ## agent
 

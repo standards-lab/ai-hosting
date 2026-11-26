@@ -1,0 +1,29 @@
+# The vision alias's overflow cell at its cap of 32, through the gateway with the row stopped:
+# vision-dense.yaml's pages and prompt in the shape Azure's gpt-5-mini takes, each reply at most
+# 2,048 completion tokens at its only temperature, 1, and not streamed. See bench/README.md.
+spec:
+  backend:
+    kind: openai_http
+    request_format: /v1/chat/completions
+    stream: false
+    extras:
+      body:
+        max_completion_tokens: 2048
+  profile:
+    kind: concurrent
+    streams: [32]
+  data:
+    - kind: json_file
+      path: .state/bench/docinfer/dense-pages.jsonl
+  data_column_mapper:
+    kind: generative_column_mapper
+    column_mappings:
+      text_column: 0.prompt
+      image_column: 0.image
+  data_preprocessors:
+    - kind: encode_media
+  constraints:
+    - kind: max_duration
+      seconds: 90
+    - kind: max_requests
+      count: 300

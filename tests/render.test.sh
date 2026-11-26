@@ -52,7 +52,7 @@ test_a_row_with_a_queue_limit_and_sampling_renders_both_flags() {
     "$clone/classes/gb10/profile.toml"
   render gb10 vision
   assert_equal status "$status" 0
-  assert_contains stdout "$out" $'--max-num-queued-reqs\n32\n'
+  assert_contains stdout "$out" $'--max-num-queued-reqs\n64\n'
   assert_contains stdout "$out" \
     $'--mm-processor-kwargs.max_soft_tokens\n1120\n--override-generation-config\n{"temperature":1.0,"top_k":64}'
 }

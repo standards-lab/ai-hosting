@@ -3,6 +3,7 @@
     {
       "config": { "strategy": { "type_": "concurrent", "rate": null, "streams": 4 } },
       "duration": 90.1,
+      "start_time": -45,
       "metrics": {
         "request_totals": { "successful": 3, "errored": 0, "incomplete": 4 },
         "requests_per_second": { "successful": { "mean": 0.95 } },
@@ -21,6 +22,7 @@
     {
       "config": { "strategy": { "type_": "concurrent", "rate": null, "streams": 8 } },
       "duration": 90,
+      "start_time": -35,
       "metrics": {
         "request_totals": { "successful": 3, "errored": 1, "incomplete": 8 },
         "requests_per_second": { "successful": { "mean": 0.8 } },

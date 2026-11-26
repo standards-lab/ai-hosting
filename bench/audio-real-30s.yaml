@@ -1,0 +1,30 @@
+# The audio row at 8, 16, 24, 32 and 48 concurrent streams, 90 s a level, each request one of
+# docinfer's real windows of 28 to 30 s with the model card's transcription instruction, at
+# temperature 0, read from the rows bench/docinfer-inputs.sh writes. See bench/README.md.
+spec:
+  backend:
+    kind: openai_http
+    request_format: /v1/chat/completions
+    max_tokens: 512
+    extras:
+      body:
+        temperature: 0
+  profile:
+    kind: concurrent
+    streams: [8, 16, 24, 32, 48]
+  data:
+    - kind: json_file
+      path: .state/bench/docinfer/windows-30.jsonl
+  data_column_mapper:
+    kind: generative_column_mapper
+    column_mappings:
+      text_column: 0.prompt
+      audio_column: 0.audio
+  data_preprocessors:
+    - kind: encode_media
+      audio_kwargs:
+        audio_format: wav
+        encode_sample_rate: 16000
+  constraints:
+    - kind: max_duration
+      seconds: 90

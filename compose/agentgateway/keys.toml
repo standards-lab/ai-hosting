@@ -11,3 +11,8 @@ sha256 = "372aa947020e2b2e730a3b7ee717757842984371aaea3f87a8c4001586a50214"
 consumer = "docinfer"
 class = "interactive"
 sha256 = "77a78b67f579cdbf1bfe2930c4be60899d94c58f580a3b3320ee3ff28763ac2a"
+
+[[keys]]
+consumer = "ai-hosting"
+class = "bulk"
+sha256 = "31d7c4504799b5b60ca5dfed76ba17fc98163d6bff0954d9cd33608b6cf4fc93"
