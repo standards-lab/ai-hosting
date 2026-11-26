@@ -130,23 +130,26 @@ routes:
               providerOverride: azure
               formats:
               - type: completions
-          policies: &azure-policies
-            health:
+          policies:
+            health: &azure-health
               unhealthyExpression: '!has(response.code) || response.code == 503 || response.code == 429'
               eviction:
                 consecutiveFailures: 2
                 duration: 5s
             backendTLS: {}
-            backendAuth:
+            backendAuth: &azure-auth
               key:
                 value:
                   file: /run/secrets/azure-foundry-key
                 location:
                   header:
                     name: api-key
-            responseHeaderModifier:
+            responseHeaderModifier: &overflow-marker
               set:
                 x-gateway-overflow: azure
+            ai:
+              transformations:
+                ignore_eos: 'fail("remove")'
 - name: vision
   gateways: consumer
   matches:
@@ -188,7 +191,17 @@ routes:
               formats:
               - type: completions
               - type: responses
-          policies: *azure-policies
+          policies:
+            health: *azure-health
+            backendTLS: {}
+            backendAuth: *azure-auth
+            responseHeaderModifier: *overflow-marker
+            ai:
+              transformations:
+                max_completion_tokens: 'has(llmRequest.max_completion_tokens) ? llmRequest.max_completion_tokens : llmRequest.max_tokens'
+                max_tokens: 'fail("remove")'
+                top_p: 'fail("remove")'
+                top_k: 'fail("remove")'
 - name: audio
   gateways: consumer
   matches:
@@ -226,7 +239,14 @@ routes:
               providerOverride: azure
               formats:
               - type: completions
-          policies: *azure-policies
+          policies:
+            health: *azure-health
+            backendTLS: {}
+            backendAuth: *azure-auth
+            responseHeaderModifier: *overflow-marker
+            ai:
+              transformations:
+                stream_options: 'has(llmRequest.stream_options) ? {"include_usage": true} : fail("remove")'
 - name: embedding
   gateways: consumer
   matches:

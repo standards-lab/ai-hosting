@@ -136,6 +136,28 @@ audio audio-row,audio-azure
 embedding embedding-row"
 }
 
+test_each_azure_provider_drops_what_its_deployment_refuses_and_the_rows_keep_the_request() {
+  use_fixtures
+  render
+  assert_equal status "$status" 0
+  assert_equal transformations "$(jq -r '.routes[] | select(.backends[0].ai)
+    | .backends[0].ai.groups[].providers[]
+    | "\(.name) \(.policies.ai.transformations // {} | to_entries | map("\(.key)=\(.value)") | join(";"))"' \
+    <<<"$config")" "agent-row priority=apiKey.class == \"bulk\" ? 10 : 0
+agent-azure ignore_eos=fail(\"remove\")
+vision-row priority=apiKey.class == \"bulk\" ? 10 : 0
+vision-azure max_completion_tokens=has(llmRequest.max_completion_tokens) ? llmRequest.max_completion_tokens : llmRequest.max_tokens;max_tokens=fail(\"remove\");top_p=fail(\"remove\");top_k=fail(\"remove\")
+audio-row 
+audio-azure stream_options=has(llmRequest.stream_options) ? {\"include_usage\": true} : fail(\"remove\")
+embedding-row "
+  assert_equal "azure policies" "$(jq -r '[.routes[].backends[0].ai.groups[]?.providers[]
+    | select(.name | endswith("-azure")) | .policies
+    | [.health.unhealthyExpression, .backendAuth.key.value.file,
+      .responseHeaderModifier.set["x-gateway-overflow"], (.backendTLS | tostring)] | join(" ")]
+    | unique | .[]' <<<"$config")" \
+    "!has(response.code) || response.code == 503 || response.code == 429 /run/secrets/azure-foundry-key azure {}"
+}
+
 test_the_render_holds_no_secret() {
   use_fixtures
   write_keys
