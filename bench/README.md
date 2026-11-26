@@ -37,7 +37,7 @@ them on the command line.
 | [`audio-capacity.yaml`](audio-capacity.yaml) | 4, 8, 12, 16, 24 and 32 concurrent streams, 90 s a level, six levels in one run; a cell runs them one at a time | The audio row's throughput and RTFx on short clips |
 | [`audio-capacity-30s.yaml`](audio-capacity-30s.yaml) | The same six levels | The audio row's throughput and RTFx on 30 s windows of speech |
 | [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run; a cell runs them one at a time | The vision row's throughput and request latency at each image budget it is given |
-| [`vision-dense.yaml`](vision-dense.yaml) | 2, 4 and 8 concurrent streams, 10 min a level; a cell runs them one at a time | The vision row's throughput, in images a minute, on docinfer's dense pages as docinfer sends them |
+| [`vision-dense.yaml`](vision-dense.yaml) | 2, 4 and 8 concurrent streams, 10 min a level, and any other streams a cell gives; a cell runs them one at a time | The vision row's throughput, in images a minute, on docinfer's dense pages as docinfer sends them |
 | [`audio-real-30s.yaml`](audio-real-30s.yaml) | 8, 16, 24, 32 and 48 concurrent streams, 90 s a level; a cell runs them one at a time | The audio row's throughput on docinfer's real windows of 28 to 30 s as docinfer sends them |
 | [`agent-sessions.yaml`](agent-sessions.yaml) | 4 and 12 concurrent sessions, 110 s a level; a cell runs them one at a time | The agent row's inter-token latency, time to first token and output tokens a second under multi-turn sessions |
 | [`agent-capacity.yaml`](agent-capacity.yaml) | 8 concurrent streams, one request each, at most 570 s | Whether the agent row holds 8 long sessions at once, and its inter-token latency, time to first token and output tokens a second while it does |
@@ -315,6 +315,10 @@ the 440 rows, sized for at least 1.2 times the 5.44 images a minute docinfer's r
 MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
   --scenario bench/vision-dense.yaml --cell <cell> 2:60 4:100 8:160
 ```
+
+The levels past 8, up to the row's load target of 32, each ran as a cell of its own from its own
+start, at a cap of at least its streams, the first rows sized the same way, `16:200`, `32:280` and
+`64:400` ([dense-1120-high](../docs/findings/vision.md#dense-1120-high)).
 
 The audio row on docinfer's windows, each level on its own slice of the 2,000 rows, as the
 LibriSpeech windows' slices are sized:

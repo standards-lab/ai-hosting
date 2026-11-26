@@ -289,6 +289,30 @@ settings.
   cap of 8, against 162,699 tokens on v0.33.0 (spike-model-layout E.1), and MemAvailable stays at
   least 48 GiB above the GB10's floor of 12.2.
 
+## start-1120-055
+
+The row's start at its present settings, cap 32, queue limit 64 and fraction 0.55, the fraction
+raised so the KV cache holds the cap's 32 requests of 8,192, 262,144 tokens, as the audio row's
+does ([audio-start](audio.md#audio-start)). The profile's values were copied into the host's
+clone, uncommitted, then `hosting engine update vision` replaced the row at 2026-11-26T10:55:51Z,
+the host's MemAvailable sampled every second through the start; healthy at 10:56:45Z.
+
+| Start, UTC | How | KV cache, GiB | KV cache, tokens | Requests of 8,192 | Lowest MemAvailable, GiB |
+| --- | --- | --- | --- | --- | --- |
+| 2026-11-26T10:55:51Z | `hosting engine update vision` | 44.91 | 272,661 | 33.28 | 47.54 |
+| 2026-11-26T10:56:57Z | `docker restart vllm-vision`, [layout](#layout)'s round at 32 | | 272,661 | 33.28 | 47.55 |
+
+The weights took 18.13 GiB, as at 0.40. Under [layout](#layout)'s 32 streams of dense pages the
+host's lowest MemAvailable was 45.16 GiB, sampled every 10 s, and `hosting gateway status` read
+the gateway's stack running, Grafana and Postgres healthy.
+
+- **0.55 holds the cap at the row's context**: 33.28 requests of 8,192 against the cap of 32,
+  where 0.40 held 19.3 ([start-1120](#start-1120)). Each 0.01 of the fraction adds about 1.2 GiB
+  of KV cache, about 7,400 tokens, so 0.54 would hold about 32.4, a margin of 1% that a start's
+  variation of about 2,000 tokens could take; 0.55 holds the cap with about 10,500 tokens to spare.
+- MemAvailable stays at least 33 GiB above the GB10's 12.2 GiB floor, with the gateway's stack
+  beside the row.
+
 ## probe-1120-committed
 
 [probe-1120](#probe-1120)'s requests at 2026-11-26T04:14:21Z, from the committed probe pages, the
@@ -425,21 +449,23 @@ Its rows were the cell's first 160, the pages [dense-1120](#dense-1120)'s 2 and 
 ## layout
 
 The standing layout cell: the four rows together, each on its own host, the vision row through
-[dense-1120](#dense-1120)'s levels, the agent row at its target of 4 sessions, the audio row at its
+[dense-1120](#dense-1120)'s levels and at its cap of 32, the agent row at its target of 4 sessions, the audio row at its
 target of 48 streams of docinfer's windows, and the embedding row at 78 requests a second with at
 most 16 in flight. Each row's figures are read against its row-alone cell here and in its
 purpose's findings: [agent](agent.md#layout), [audio](audio.md#layout) and
 [embedding](embedding.md#layout).
 
-The cell is three rounds, one a vision level, since each cell starts on a row restarted since its
+The cell is four rounds, one a vision level, since each cell starts on a row restarted since its
 last ([bench/README.md](../../bench/README.md#running-a-cell)). Each round restarts the four rows
 together, `docker restart` of `vllm-agent` on gb10-1, `vllm-vision` on gb10-2, `vllm-audio` on
 `framework` and `vllm-embed` on `framework-2`, then starts the four cells at once from the laptop
 on the LAN, the other three held for the vision level's 600 s with `--seconds 600`. `tailscale
 ping` to each host answered direct, 0 or 1 ms, before each round. The rows ran as the profiles
-render them, but vision at cap 8 with a queue limit of 64 and audio at cap 48 with a queue limit
-of 192, set by `hosting profile set` in each host's clone, uncommitted, and applied by `hosting
-engine update` before the first round: the values the profiles now hold. The round at 2 streams:
+render them, but in the first three rounds vision at cap 8 with a queue limit of 64, fraction
+0.40, and audio at cap 48 with a queue limit of 192, set by `hosting profile set` in each host's
+clone, uncommitted, and applied by `hosting engine update` before the first round. The round at 32
+streams ran at the vision row's present settings, cap 32, queue limit 64, fraction 0.55
+([start-1120-055](#start-1120-055)), and audio's. The round at 2 streams:
 
 ```sh
 MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
@@ -453,29 +479,34 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
 wait
 ```
 
-The rounds at 4 and 8 streams ran the same with `layout-v4` and `4:100`, and `layout-v8` and
-`8:160`. The rounds ran from 2026-11-26T05:02:38Z to 05:12:58Z, 05:14:07Z to 05:24:28Z, and
-05:25:34Z to 05:35:55Z.
+The rounds at 4, 8 and 32 streams ran the same with `layout-v4` and `4:100`, `layout-v8` and
+`8:160`, and `layout-v32` and `32:280`. The rounds ran from 2026-11-26T05:02:38Z to 05:12:58Z,
+05:14:07Z to 05:24:28Z, 05:25:34Z to 05:35:55Z, and 10:58:02Z to 11:08:23Z.
 
-The vision row, `levels.jq` with `--arg purpose vision`, against [dense-1120](#dense-1120)'s row
-alone:
+The vision row, `levels.jq` with `--arg purpose vision`, against [dense-1120](#dense-1120)'s and
+[dense-1120-high](#dense-1120-high)'s row alone:
 
 | Streams | Start, UTC | ok/err/inc | Second-half req/s | Images a minute | Alone | TTFT median ms | ITL median ms | Latency median s | Latency p90 s | Output tok/s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2 | 2026-11-26T05:02:44Z | 33/0/2 | 0.060 | 3.60 | 3.40 | 1,944 | 32.61 | 33.73 | 49.53 | 54.42 |
 | 4 | 2026-11-26T05:14:13Z | 53/0/4 | 0.090 | 5.40 | 5.80 | 1,953 | 42.38 | 40.23 | 55.23 | 84.18 |
 | 8 | 2026-11-26T05:25:40Z | 75/0/8 | 0.133 | 8.00 | 8.20 | 1,990 | 58.75 | 57.38 | 81.92 | 125.22 |
+| 32 | 2026-11-26T10:58:08Z | 114/0/32 | 0.217 | 13.00 | 13.40 | 2,118 | 140.21 | 135.87 | 198.94 | 183.81 |
 
-Each round's start read a KV cache of 160,253, 158,246 and 159,402 tokens, 19.3 to 19.6 requests
-of 8,192, and the host's lowest MemAvailable was 66.00 GiB through the starts and 64.39 GiB through
-the cells. Across the rounds, 0 of the vision requests' pages hit the multimodal cache, and the
-row finished every request with 0 preemptions; at 4 and 8 streams, 1 and 3 replies reached the
-2,048-token bound.
+The first three rounds' starts read a KV cache of 160,253, 158,246 and 159,402 tokens, 19.3 to
+19.6 requests of 8,192, and the host's lowest MemAvailable was 66.00 GiB through the starts and
+64.39 GiB through the cells. The round at 32 streams, at fraction 0.55, read 272,661 tokens, 33.28
+requests, and MemAvailable fell no lower than 47.55 GiB through its start and 45.16 GiB through
+its cell, with the gateway's stack up and healthy after it. Across the rounds, 0 of the vision
+requests' pages hit the multimodal cache, and the row finished every request with 0 preemptions;
+at 4, 8 and 32 streams, 1, 3 and 3 replies reached the 2,048-token bound.
 
 - **The vision row beside the others matches it alone**: 8.00 images a minute at 8 streams
   against 8.20, within [dense-noise](#dense-noise)'s 2.5%. At 2 and 4 streams, with fewer requests
   in a level's second half, 3.60 and 5.40 against 3.40 and 5.80, one request apart at 2 streams
-  and two at 4.
-- The other rows read the same beside it as alone: the agent's ITL median 49.26 to 49.48 ms at 4
-  sessions against 49.94, audio 2.013 to 2.040 requests a second at 48 streams against 2.044 and
+  and two at 4. At 32 streams, 13.00 against 13.40 alone at fraction 0.40, 3.0% under: 65
+  requests in the second half against 67, while the total output reads 210.5 tokens a second
+  against 209.8.
+- The other rows read the same beside it as alone: the agent's ITL median 49.26 to 49.75 ms at 4
+  sessions against 49.94, audio 2.013 to 2.057 requests a second at 48 streams against 2.044 and
   2.133, and embedding 77.11 to 77.87 against 77.96, as their sections give.

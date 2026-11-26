@@ -656,7 +656,7 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
 ## layout
 
 The embedding row in the standing layout cell ([vision.md#layout](vision.md#layout)): 78 requests
-a second with at most 16 in flight, held for 600 s in each of the cell's three rounds beside the
+a second with at most 16 in flight, held for 600 s in each of the cell's four rounds beside the
 other three rows, each round from a restart:
 
 ```sh
@@ -664,7 +664,7 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
   --scenario bench/embedding-target.yaml --cell layout-v2-embedding-framework-2 --seconds 600 78
 ```
 
-The rounds `layout-v4` and `layout-v8` ran the same. Against [e5-target](#e5-target)'s row alone:
+The rounds `layout-v4`, `layout-v8` and `layout-v32` ran the same. Against [e5-target](#e5-target)'s row alone:
 
 | Round | Start, UTC | ok/err/inc | req/s | Achieved | Latency median s | Latency p90 s | Prompt tok/s | Duration s | Floor |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -672,6 +672,7 @@ The rounds `layout-v4` and `layout-v8` ran the same. Against [e5-target](#e5-tar
 | Vision at 2 | 2026-11-26T05:02:48Z | 46268/0/16 | 77.113 | 98.86% | 0.20 | 0.21 | 39,405 | 600 | meets |
 | Vision at 4 | 2026-11-26T05:14:17Z | 46718/0/16 | 77.863 | 99.82% | 0.20 | 0.21 | 39,788 | 600 | meets |
 | Vision at 8 | 2026-11-26T05:25:44Z | 46722/0/16 | 77.870 | 99.83% | 0.20 | 0.21 | 39,791 | 600 | meets |
+| Vision at 32 | 2026-11-26T10:58:13Z | 46618/0/16 | 77.697 | 99.61% | 0.20 | 0.21 | 39,703 | 600 | meets |
 
 The host's lowest MemAvailable was 110.45 GiB through the starts and 110.34 GiB through the rounds;
 no round erred, and the row read 0 preemptions.

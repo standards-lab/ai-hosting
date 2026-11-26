@@ -28,7 +28,7 @@ test_a_number_field_changes_only_its_line() {
   assert_equal status "$status" 0
   assert_equal stdout "$out" "classes/gb10/profile.toml: set vision's fraction"
   assert_equal stderr "$err" ""
-  assert_equal changed "$(changed_lines)" "< fraction = 0.40
+  assert_equal changed "$(changed_lines)" "< fraction = 0.55
 > fraction = 0.45"
   assert_in_yqs_format
 }

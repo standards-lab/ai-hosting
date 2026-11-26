@@ -111,7 +111,7 @@ The host's lowest MemAvailable over the cell was 14.77 GiB.
 ## layout
 
 The agent row in the standing layout cell ([vision.md#layout](vision.md#layout)): the S-agent
-sessions at the target of 4, held for 600 s in each of the cell's three rounds beside the other
+sessions at the target of 4, held for 600 s in each of the cell's four rounds beside the other
 three rows, each round from a restart:
 
 ```sh
@@ -119,7 +119,7 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
   --scenario bench/agent-sessions.yaml --cell layout-v2-agent-gb10-1 --seconds 600 4
 ```
 
-The rounds `layout-v4` and `layout-v8` ran the same. Against [agent-sessions](#agent-sessions)'
+The rounds `layout-v4`, `layout-v8` and `layout-v32` ran the same. Against [agent-sessions](#agent-sessions)'
 4 sessions alone, whose level ran 110 s:
 
 | Round | Start, UTC | ok/err/inc | TTFT median ms | ITL median ms | Latency median s | Latency p90 s | Output tok/s | Total output tok/s | Duration s | Floor |
@@ -128,13 +128,14 @@ The rounds `layout-v4` and `layout-v8` ran the same. Against [agent-sessions](#a
 | Vision at 2 | 2026-11-26T05:02:47Z | 84/0/4 | 574 | 49.44 | 26.31 | 31.57 | 71.68 | 74.38 | 600 | meets |
 | Vision at 4 | 2026-11-26T05:14:17Z | 84/0/4 | 581 | 49.26 | 26.41 | 31.81 | 71.68 | 74.51 | 600 | meets |
 | Vision at 8 | 2026-11-26T05:25:43Z | 84/0/4 | 574 | 49.48 | 26.28 | 31.66 | 71.68 | 74.55 | 600 | meets |
+| Vision at 32 | 2026-11-26T10:58:12Z | 84/0/4 | 580 | 49.75 | 26.45 | 31.62 | 71.68 | 74.33 | 600 | meets |
 
 Each round's start read the same KV cache, 1,733,249 tokens, and the host's lowest MemAvailable was
 14.86 GiB through the starts and 14.57 GiB through the rounds. The row finished 84 turns a round,
 each at its 512 output tokens, with 0 preemptions.
 
-- **The agent row beside the others matches it alone**: an ITL median of 49.26 to 49.48 ms against
-  49.94, and a total output of 74.38 to 74.55 tokens a second against 74.18, each within
+- **The agent row beside the others matches it alone**: an ITL median of 49.26 to 49.75 ms against
+  49.94, and a total output of 74.33 to 74.55 tokens a second against 74.18, each within
   [agent-noise](#agent-noise)'s spread, against spike-model-layout's 48.13 ms with every host at
   its target on v0.33.0 (J).
 - Output tok/s of finished turns reads higher over 600 s than over 110 s, 71.68 against 55.85,

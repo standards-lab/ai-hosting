@@ -322,7 +322,7 @@ host's MemAvailable fell no lower than 78.15 GiB through the start, sampled ever
 ## layout
 
 The audio row in the standing layout cell ([vision.md#layout](vision.md#layout)): docinfer's
-windows at the target of 48 streams, held for 600 s in each of the cell's three rounds beside the
+windows at the target of 48 streams, held for 600 s in each of the cell's four rounds beside the
 other three rows, each round from a restart, at cap 48 and a queue limit of 192:
 
 ```sh
@@ -330,7 +330,7 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host framework --alias audio \
   --scenario bench/audio-real-30s.yaml --cell layout-v2-audio-framework --seconds 600 48:1500
 ```
 
-The rounds `layout-v4` and `layout-v8` ran the same. Against [audio-real-30s](#audio-real-30s)'
+The rounds `layout-v4`, `layout-v8` and `layout-v32` ran the same. Against [audio-real-30s](#audio-real-30s)'
 and [audio-noise](#audio-noise)'s 48 streams alone, whose levels ran 90 s:
 
 | Round | Start, UTC | ok/err/inc | req/s | Second-half req/s | TTFT median ms | Latency median s | Latency p90 s | Prompt tok/s | RTFx median | RTFx min | Duration s |
@@ -340,14 +340,17 @@ and [audio-noise](#audio-noise)'s 48 streams alone, whose levels ran 90 s:
 | Vision at 2 | 2026-11-26T05:02:44Z | 1185/0/48 | 1.975 | 2.040 | 1,156 | 23.86 | 29.09 | 1,599 | 1.23 | 0.68 | 600 |
 | Vision at 4 | 2026-11-26T05:14:15Z | 1179/0/45 | 1.960 | 2.027 | 1,174 | 23.95 | 29.26 | 1,591 | 1.22 | 0.66 | 600 |
 | Vision at 8 | 2026-11-26T05:25:41Z | 1175/0/48 | 1.958 | 2.013 | 1,241 | 23.98 | 29.25 | 1,586 | 1.21 | 0.67 | 600 |
+| Vision at 32 | 2026-11-26T10:58:09Z | 1193/0/48 | 1.988 | 2.057 | 1,151 | 23.63 | 28.78 | 1,610 | 1.24 | 0.69 | 600 |
 
-Each round's start read a KV cache of 371,231 tokens, and the host's lowest MemAvailable was 80.42
-GiB through the starts and 78.64 GiB through the rounds. Across the rounds 0 requests' audio hit
+The first three rounds ran at fraction 0.28: each start read a KV cache of 371,231 tokens, and the
+host's lowest MemAvailable was 80.42 GiB through the starts and 78.64 GiB through the rounds. The
+round at vision's 32 ran at the present 0.30 ([audio-start](#audio-start)): its start read 431,113
+tokens, and MemAvailable fell no lower than 78.41 GiB through it and 76.37 GiB through the round. Across the rounds 0 requests' audio hit
 the multimodal cache, and the row finished every request on `stop` with 0 preemptions.
 
-- **The audio row beside the others matches it alone**: 2.013 to 2.040 requests a second on the
+- **The audio row beside the others matches it alone**: 2.013 to 2.057 requests a second on the
   second-half rate against 2.044 and 2.133, within [audio-noise](#audio-noise)'s 4.4%. Over 600 s
-  requests a second read 1.958 to 1.975, near the second-half rate, since the start and the end of
+  requests a second read 1.958 to 1.988, near the second-half rate, since the start and the end of
   a level weigh less on it.
 - A first round at 2026-11-26T04:48:18Z ran the audio row at 32 streams, the earlier target, before
   the cap moved to 48 (`.state/bench/layout32-v2-audio-framework-32.json`): 1.887 requests a second,

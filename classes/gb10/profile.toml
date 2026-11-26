@@ -36,19 +36,18 @@ port = 8001
 context = 8192
 card_context = 262144
 context_reason = "8,192 tokens a request, the length every capability row was measured at (spike-model-layout docs/findings/capability-vllm.md): a dense page took 1,135 prompt tokens on average at the row's image budget, with a reply of up to 2,048 (docs/findings/vision.md#dense-1120), and a request of one 1440p image and 200 text tokens 1,314 or 1,315 (docs/findings/vision.md, Tools and capacity-1120)."
-cap = 8
-cap_reason = "8 requests at once, the row's throughput peak among the levels run, since the cap follows the images processed over time rather than a request's latency: on docinfer's dense pages, with replies of up to 2,048 tokens, 8 streams cleared 8.20 images a minute on the second-half rate on the row alone, 41% over 4 streams' 5.80, and 8.00 beside the layout's other rows; the rate still rose at 8, the top level run (docs/findings/vision.md#dense-1120, #layout)."
+cap = 32
+cap_reason = "32 requests at once, the most the KV cache holds at the row's context, since the cap follows the images processed over time rather than a request's latency and the rate found no peak below it: on docinfer's dense pages, with replies of up to 2,048 tokens, images a minute rose from 8.20 at 8 streams to 10.80 at 16, 13.40 at 32 and 15.80 at 64, each step beyond the host's 2.5% run noise, with 0 preemptions; beside the layout's other rows 32 streams cleared 13.00 (docs/findings/vision.md#dense-1120, #dense-1120-high, #dense-noise, #layout). Its queue limit, twice the cap, is 64: at about 13.4 images a minute the 64th queued page waits about 4.8 min and then runs for up to about 3.3 min, the 198 s latency p90 at 32 streams, inside a client's 600 s header timeout (docs/findings/vision.md#dense-1120-high)."
 queue_limit = 64
-queue_limit_reason = "64 requests, eight times the cap: past its queue limit the row answers 503 and the gateway overflows vision to Azure, a different model, so a deeper queue keeps bulk bursts such as docinfer's pages on the local model (docs/gateway.md, \"Row refusals, retry, and health\" and \"Overflow\"). At 8.20 dense pages a minute the 64th request waits about 7.8 min, worked out from that rate rather than measured (docs/findings/vision.md#dense-1120), and priority scheduling still lets interactive requests jump ahead of bulk ones while they wait (docs/gateway.md, \"Bulk concurrency\")."
-fraction = 0.40
-fraction_reason = "0.40: on v0.34.0 its KV cache held 158,246 to 160,496 tokens at each start, 19.3 to 19.6 requests of 8,192, over the cap of 8, and the host's MemAvailable fell no lower than 60.65 GiB during a start and 63.62 GiB through the dense pages, against the 12.2 GiB floor (docs/findings/vision.md#start-1120, #dense-1120, #dense-noise, #layout; spike-model-layout docs/findings/vllm-layout.md, \"Reading the figures\")."
+fraction = 0.55
+fraction_reason = "0.55: on v0.34.0 its KV cache held 272,661 tokens at a cold start, 33.28 requests of 8,192, over the cap of 32, and the host's MemAvailable fell no lower than 47.54 GiB through the start and 45.16 GiB under 32 streams of dense pages beside the layout's other rows, with the gateway's stack running beside the row, against the 12.2 GiB floor (docs/findings/vision.md#start-1120-055, #layout; spike-model-layout docs/findings/vllm-layout.md, \"Reading the figures\")."
 flags = ["--scheduling-policy", "priority", "--kv-cache-dtype", "bfloat16", "--reasoning-parser", "gemma4", "--enable-auto-tool-choice", "--tool-call-parser", "gemma4", "--mm-processor-kwargs.max_soft_tokens", "1120"]
 flags_reason = "Priority scheduling, so the gateway ranks its keys' work (spike-model-gateway docs/findings/priority.md); a BF16 KV cache, since the NVFP4 checkpoint declares a static FP8 one but ships no calibrated k/v scales (spike-model-engines host/vllm-rows); Gemma 4's own reasoning and tool-call parsers; and an image budget of 1120 soft tokens, at which a page's image takes 1,094 to 1,104 prompt tokens, on v0.34.0 as on v0.33.0 (docs/findings/vision.md, probe-1120 and probe-1120-committed)."
 measured_vllm = "v0.34.0"
 
 [rows.load]
-target = "8 requests"
-source = "docs/findings/vision.md#dense-1120 and #layout: docinfer's dense pages at 8 streams, 8.20 images a minute alone and 8.00 beside the layout's other rows, a request latency median of 56.37 s alone and 57.38 s beside them"
+target = "32 requests"
+source = "docs/findings/vision.md#dense-1120-high and #layout: docinfer's dense pages at 32 streams, 13.40 images a minute alone and 13.00 beside the layout's other rows, a request latency median of 136.29 s alone and 135.87 s beside them, p90 198.39 s and 198.94 s"
 
 [rows.source]
 publisher = "NVIDIA"
