@@ -197,11 +197,11 @@ No sweep ran on clips longer than 30 s: the row keeps only the first 30 s of a l
 ## audio-real-30s
 
 The row on docinfer's real windows, [`bench/audio-real-30s.yaml`](../../bench/audio-real-30s.yaml):
-every distinct window of 28 to 30 s in the docproc run docinfer read, as docinfer sends them
-([bench/README.md](../../bench/README.md#docinfers-inputs)), each row its own audio. The row alone
-on `framework` at cap 48, the cell's top level (`--max-num-seqs 48`, `--max-num-queued-reqs 128`),
-fraction 0.28, context 8,192, on vLLM v0.34.0 in the image
-`ai-hosting/vllm-openai-rocm-audio:v0.34.0` at
+every distinct window of 28 to 30 s in the docproc run docinfer read, 657 of them, as docinfer
+sends them ([bench/README.md](../../bench/README.md#docinfers-inputs), whose inputs were since
+rebuilt from docs-corpus v0.2.0), each row its own audio. The row alone on `framework` at cap 48,
+the cell's top level (`--max-num-seqs 48`, `--max-num-queued-reqs 128`), fraction 0.28, context
+8,192, on vLLM v0.34.0 in the image `ai-hosting/vllm-openai-rocm-audio:v0.34.0` at
 `sha256:da0499371911becb1d50c0d96a5cae18cd607b3bdebf02b155cbe44225c319f7`. The cap was raised by
 `hosting profile set audio cap=48` in the host's clone, uncommitted, then `hosting engine update
 audio` at 2026-11-26T04:10:03Z: its weights took 15.22 GiB, its KV cache held 371,231 tokens, 45.32
