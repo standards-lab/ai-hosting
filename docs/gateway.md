@@ -164,8 +164,10 @@ row's root, not under `/v1`. docinfer chunks documents by e5 token counts throug
   missing or unknown key gets 401 here as on every route.
 - **No bucket.** It is outside embedding's two buckets and has none of its own: a tokenize call is
   cheap, and a chunking run makes far more of them than it makes embeddings, so drawing on
-  embedding's buckets would spend them on counting. A bulk consumer bounds its own concurrency, and
-  acceptance may set a bucket if it measures a need.
+  embedding's buckets would spend them on counting. A bulk consumer bounds its own concurrency.
+  Acceptance measured no need for one: four callers back to back, docinfer's concurrency, made 253
+  tokenize calls a second beside the embedding row at its load target, which held 77.98 requests a
+  second against 77.96 alone ([gateway-tokenize](findings/gateway.md#gateway-tokenize)).
 
 ## Keys
 
@@ -243,6 +245,14 @@ In the spike, against a capturing mock row, bulk's chat reached the row with `"p
 interactive key's with `0`, the audio row's with none, and bulk's chat sent while the row was
 unreachable reached Azure with none ([priority.md][f-priority], "Answer for this task").
 
+Live, with the rows full of bulk work through the gateway, an interactive request waited behind no
+bulk one: on vision its first token came in 20 s where a bulk page sent with it waited 137 s, and
+on agent in 0.5 and 2.5 s where bulk's waited 16.6 and 21.9 s. Priority orders vLLM's waiting
+queue and doesn't preempt: the interactive request started only as a running bulk one finished,
+and neither row preempted a request
+([gateway-priority-vision](findings/gateway.md#gateway-priority-vision),
+[gateway-priority-agent](findings/gateway.md#gateway-priority-agent)).
+
 ### Request buckets
 
 On agent, vision, and audio, each key draws on a bucket of its own (`localRateLimit` keyed by
@@ -253,7 +263,9 @@ heaviest bulk load the spike ran, vision at 20 concurrent, is about 1.9 requests
 a minute, and an interactive key's, the audio overhead cell, 64 requests in about 20 s
 ([agentgateway.md][f-agentgateway], "The cap cells" and "Slice 2 · overhead"). In the spike, bulk
 was refused by its own bucket while another key kept answering on the same alias
-([priority.md][f-priority], "bulk's bucket (behavior 14)").
+([priority.md][f-priority], "bulk's bucket (behavior 14)"). Live, ai-hosting's bulk key got 429
+past its 600th request on a route and go-ai's interactive key past its 1,200th, each key and each
+route drawing on its own bucket ([gateway-buckets](findings/gateway.md#gateway-buckets)).
 
 Embedding has two rules: a global bucket of 78 a second, with no key, which every caller shares,
 and a bucket of 156 a second per key. 78 is the most the embedding row keeps with no error on
@@ -276,7 +288,11 @@ retry proof (behaviors 6–8)").
 
 Each row's vLLM answers 503 once its queue limit is full. The row's
 [class profile](../classes/README.md#a-rows-keys) sets the limit, twice the row's cap unless the
-profile gives a reason. The gateway acts on that refusal:
+profile gives a reason. At v0.34.0 the limit, `--max-num-queued-reqs`, counts the row's unfinished
+requests, running and waiting together, so a row holds its queue limit in flight and its queue
+limit less its cap waiting ([The queue limit counts running
+requests](findings/gateway.md#the-queue-limit-counts-running-requests)). The gateway acts on that
+refusal:
 
 - **Retry.** Each route retries a 503 or a failed connection, `attempts: 2`, so a request is sent
   at most three times, each retry after a 20 ms backoff. The provider is chosen again on each
@@ -297,20 +313,21 @@ profile gives a reason. The gateway acts on that refusal:
 
 agentgateway v1.7.0 sets no request timeout unless a route's `timeout` policy gives one: its
 `requestTimeout` runs from the request's arrival to the reply's headers, and doesn't bound a
-streamed reply's body. A streamed reply's headers come once the row takes the request into its
-queue, so the timeout bounds a reply that isn't streamed, which docinfer's pages aren't. Each
-route is sized against its row's limits, a request arriving to the last place of a full queue
-(the [class profiles](../classes/README.md) and the findings they cite):
+streamed reply's body. A streamed reply's headers come as soon as the row takes the request, so
+the timeout bounds a reply that isn't streamed, as docinfer's pages aren't
+([gateway-dense-page](findings/gateway.md#gateway-dense-page)). Each route is checked against a
+request at its row's limits: the last place of a full queue, which at v0.34.0 holds the queue limit
+less the cap ([Row refusals, retry, and health](#row-refusals-retry-and-health)).
 
 | Route | Before | After | A request at the row's limits |
 | --- | --- | --- | --- |
-| vision | none | `requestTimeout: 9m` | The 64th queued page waits about 287 s at the 13.40 images a minute of 32 streams, then runs up to 198 s, the latency p90 there, about 485 s in all ([dense-1120-high](findings/vision.md#dense-1120-high)); 9 min is the next whole minute above it, and sits inside docinfer's 600 s header timeout, so the gateway answers 504 before the client gives up |
-| audio | none | none | The 192nd queued window waits about 94 s at 2.04 requests a second, then runs up to 35 s, the latency p90 at 48 streams, about 130 s ([audio-real-30s](findings/audio.md#audio-real-30s)) |
-| agent | none | none | A session's turn at 12 sessions runs about 67 s, and a queue of 24 adds two such rounds ahead of it ([agent-sessions](findings/agent.md#agent-sessions)); 8 prompts of 65,536 tokens at once took 214 s ([agent-capacity](findings/agent.md#agent-capacity)), so a queue of long sessions has no bound a timeout could be sized to |
+| vision | none | `requestTimeout: 9m` | The last of 32 waiting pages waits about 143 s at the 13.40 images a minute of 32 streams, then runs up to 198 s, the latency p90 there, about 341 s ([dense-1120-high](findings/vision.md#dense-1120-high)); through the gateway at the full 64 in flight, the slowest page took 440 s ([gateway-priority-vision](findings/gateway.md#gateway-priority-vision)). The profile's reading of 64 waiting, about 287 s then 198 s, gives 485 s. 9 min covers each, and sits inside docinfer's 600 s header timeout, so the gateway ends a page held past it before the client does |
+| audio | none | none | The last of 144 waiting windows waits about 71 s at 2.04 requests a second, then runs up to 35 s, the latency p90 at 48 streams, about 106 s ([audio-real-30s](findings/audio.md#audio-real-30s)); no timeout cuts it short |
+| agent | none | none | A turn at 12 sessions runs about 67 s, and 12 waiting add about one such round ahead of it ([agent-sessions](findings/agent.md#agent-sessions)); 8 prompts of 65,536 tokens at once took 214 s ([agent-capacity](findings/agent.md#agent-capacity)), so a queue of long sessions has no bound a timeout could be sized to, and none cuts it short |
 | embedding, `embedding-tokenize` | none | none | A request takes milliseconds |
 
-Only vision's is set: with no timeout, no route cuts a queued request short, and vision's bounds
-a page held past the time its row can take, answering before the client's own timeout.
+Only vision's is set, the one route whose clients send long unstreamed requests at a known bound;
+with no timeout, no other route cuts a queued request short.
 
 ## Overflow
 
@@ -321,8 +338,8 @@ down (behaviors 7, 8)").
 
 | Alias | Deployment | Capacity | Processed | Formats |
 | --- | --- | --- | --- | --- |
-| agent | `gpt-oss-120b`, DataZoneStandard | 100 | within the data zone | Chat Completions; Messages translated to it |
-| vision | `gpt-5-mini` 2025-08-07, GlobalStandard | 50 | globally | Chat Completions and Responses; Messages translated to Responses |
+| agent | `gpt-oss-120b`, DataZoneStandard | 133 | within the data zone | Chat Completions; Messages translated to it |
+| vision | `gpt-5-mini` 2025-08-07, GlobalStandard | 41 | globally | Chat Completions and Responses; Messages translated to Responses |
 | audio | `gpt-audio-mini` 2025-12-15, GlobalStandard | 30 | globally | Chat Completions, only with audio in or out |
 | embedding | none | | | |
 
@@ -335,7 +352,9 @@ down (behaviors 7, 8)").
 - **The overflow switches.** [`overflow.toml`](../compose/agentgateway/overflow.toml) holds one
   switch per alias with an Azure group; `false` drops that alias's group at the next render.
 - **The marker.** Every reply from an Azure provider carries `x-gateway-overflow: azure`, set by
-  its response header policy; a row's reply never does. Each Azure provider sets
+  its response header policy; a row's reply never does. In the overflow cells, every Azure reply
+  carried it, 429s too, and the first request after each row's restart was the row's, without it
+  ([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent) and the cells after it). Each Azure provider sets
   `providerOverride: azure`, so the access log's `gen_ai.provider.name` reads `azure` there and
   `custom` on a row's.
 
@@ -351,10 +370,13 @@ What a workload gives up on overflow ([priority.md][f-priority], "Per alias: the
 its parity (behavior 12)"; [answer.md][f-answer], "The revalidation (behaviors 4, 5)"):
 
 - **agent:** a tool-calling request that needs `tool_choice: required` or a named function breaks
-  on Azure, and a Messages request at low effort gives no reasoning item.
+  on Azure, and a Messages request at low effort gives no reasoning item; vLLM's `ignore_eos` gets
+  400.
 - **vision:** its content leaves the data zone; it refuses `max_tokens` (wanting
-  `max_completion_tokens`) and reasoning effort `none`.
-- **audio:** its content leaves the data zone; it refuses a text-only chat, and the gateway's own
+  `max_completion_tokens`), `top_p`, `top_k`, and reasoning effort `none`, so docinfer's page
+  request as it stands gets 400 ([gateway-overflow-shapes](findings/gateway.md#gateway-overflow-shapes)).
+- **audio:** its content leaves the data zone; it refuses a text-only chat and vLLM's
+  `stream_options.continuous_usage_stats`, and the gateway's own
   typed parser refuses audio inside a Responses request on overflow (400, "failed to parse
   Responses request").
 - **The gateway's translation:** a Responses reply cut off at its limit reports
@@ -373,9 +395,9 @@ below ran from the laptop's `az` (2.90.0) on 2026-11-25, with `<account>` the Fo
 **Capacity.** A unit of capacity is 1,000 tokens a minute, with a request limit that grows with
 it; Azure answers 429 past either, which the Azure health policy turns into an eviction
 ([Row refusals, retry, and health](#row-refusals-retry-and-health)). Each deployment is sized to
-its row's peak, capped by the region's quota: about 100 for agent, 50 for vision, and 30 for
-audio, whose quota in the region is 30. These are first values; acceptance's load cells measure
-the peaks and set the final ones.
+its row's peak, capped by the region's quota. The first values, about 100 for agent, 50 for
+vision, and 30 for audio, ran first; the final ones follow the overflow cells and the rows' peaks
+below.
 
 ```sh
 az cognitiveservices account deployment create --name <account> --resource-group <group> \
@@ -421,6 +443,36 @@ with `budget.json`:
 ```
 
 It answered the budget `gateway-overflow`, amount 50, `Monthly`, with the three notifications.
+
+**The final capacities.** Each deployment carries its row's throughput peak in Azure's tokens a
+minute: the row's requests a minute at its peak, times a request's tokens on Azure as its overflow
+cell read them, the prompt plus the reply's bound, which Azure counts against the minute as it
+admits the request. Azure's request limit, one a minute per unit for agent and vision and 1 each
+10 s for audio, sits above each row's request rate.
+
+| Alias | Row's peak | Tokens a request on Azure | Tokens a minute | Capacity |
+| --- | --- | --- | --- | --- |
+| agent | 12.89 turns a minute at 12 sessions, 110.03 output tokens a second of 512-token turns ([agent-noise](findings/agent.md#agent-noise)) | 9,728 prompt on average over a session's four turns, 8,192 to 11,264, plus 512 ([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent)) | 132,035 | 133 |
+| vision | 13.40 pages a minute at 32 streams ([dense-1120-high](findings/vision.md#dense-1120-high)) | about 956 prompt plus 2,048 ([gateway-overflow-vision](findings/gateway.md#gateway-overflow-vision)) | 40,254 | 41 |
+| audio | 2.133 windows a second, 128 a minute, at 48 streams ([audio-real-30s](findings/audio.md#audio-real-30s)) | about 368 prompt plus 512 ([gateway-overflow-audio](findings/gateway.md#gateway-overflow-audio)) | 112,600 | 30, the region's quota |
+
+The commands, on 2026-11-26 from the same `az`:
+
+```sh
+az cognitiveservices account deployment create --name <account> --resource-group <group> \
+  --deployment-name gpt-oss-120b --model-format OpenAI-OSS --model-name gpt-oss-120b \
+  --model-version 1 --sku-name DataZoneStandard --sku-capacity 133
+az cognitiveservices account deployment create --name <account> --resource-group <group> \
+  --deployment-name gpt-5-mini --model-format OpenAI --model-name gpt-5-mini \
+  --model-version 2025-08-07 --sku-name GlobalStandard --sku-capacity 41
+```
+
+Each answered `provisioningState` `Succeeded`, at capacity 133 and 41, with token limits of
+133,000 and 41,000 a minute and request limits of 133 and 41 a minute. Audio's deployment stays at
+30, its quota, with no command. In the cells Azure enforced its limits loosely: vision's ran about
+57 pages and 160,000 tokens a minute at capacity 50, and audio's 8 windows a second at capacity
+30, with no 429; agent's, whose turns read 8,300 to 9,700 prompt tokens, got its first 429 3.8 s
+in ([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent)).
 
 **The embedding deployment, deleted.** The account's `text-embedding-3-small` deployment,
 DataZoneStandard at capacity 10, was never routed: no route's Azure group named it, in the
@@ -557,7 +609,9 @@ them would see an idle row ([agentgateway.md][f-agentgateway], "The paper invent
 Priority orders only vLLM's waiting queue: interactive vision beside a saturating bulk key jumped
 the queue, then shared the batch with bulk's 20 streams and decoded at their pace, missing 10 s by
 0.47 s with priority, against 1.87 s without ([priority.md][f-priority], "Benchmark D: priority on
-vision (evidence 6)"). Holding interactive latency under bulk load needs a cap on bulk's
+vision (evidence 6)"). Live on the vision row's dense pages, an interactive page beside 60 bulk
+streams had its first token in 20 s, then took 142 s to its last beside 31 bulk pages, with no
+preemption ([gateway-priority-vision](findings/gateway.md#gateway-priority-vision)). Holding interactive latency under bulk load needs a cap on bulk's
 concurrency. v1.7.0's only in-flight cap, `maxConcurrentRequests`, counts every request on a port,
 whatever its key, so the bulk consumer bounds its own concurrency, and Cerebro's plan sets the
 number ([watch register](watch.md#agentgateway-concurrency-cap-per-key)).
@@ -573,13 +627,20 @@ number ([watch register](watch.md#agentgateway-concurrency-cap-per-key)).
   row can stay out for minutes after it is back; `hosting gateway down`, then `up`, returns it at
   once ([watch register](watch.md#agentgateway-eviction-growth-without-a-cap)).
 - **With both groups evicted,** the load balancer still picks an evicted provider rather than
-  none, so a request can reach a row that is still out.
+  none, so a request can reach a row that is still out. When Azure's 429s evicted its group while
+  the agent row was stopped, the next 72 requests went to the row, each a 503 within 2 s
+  ([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent)).
 - **A body over 64 KiB isn't retried,** since the gateway buffers 64 KiB for a retry: vision images
   and audio clips get the row's 503 until two failures evict it. With a Strix Halo host powered
   down, each of those attempts waited out a connect timeout of about 11 s
   ([priority.md][f-priority], "A row down (behaviors 7, 8)").
 - **The queue limit counts every key alike.** vLLM's `--max-num-queued-reqs` doesn't know a key,
   so a bulk flood also refuses interactive requests, which then overflow.
+- **A streamed request's refusal doesn't reach the gateway.** vLLM can refuse a streamed request
+  inside its stream: the reply's headers read 200, and its one event is the 503 error. The gateway
+  sees a 200, so it neither retries, evicts, nor overflows; the client reads the error from the
+  stream ([The queue limit counts running
+  requests](findings/gateway.md#the-queue-limit-counts-running-requests)).
 
 ## Decisions
 

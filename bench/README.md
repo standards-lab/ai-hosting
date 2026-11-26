@@ -41,6 +41,9 @@ them on the command line.
 | [`audio-real-30s.yaml`](audio-real-30s.yaml) | 8, 16, 24, 32 and 48 concurrent streams, 90 s a level; a cell runs them one at a time | The audio row's throughput on docinfer's real windows of 28 to 30 s as docinfer sends them |
 | [`agent-sessions.yaml`](agent-sessions.yaml) | 4 and 12 concurrent sessions, 110 s a level; a cell runs them one at a time | The agent row's inter-token latency, time to first token and output tokens a second under multi-turn sessions |
 | [`agent-capacity.yaml`](agent-capacity.yaml) | 8 concurrent streams, one request each, at most 570 s | Whether the agent row holds 8 long sessions at once, and its inter-token latency, time to first token and output tokens a second while it does |
+| [`agent-overflow.yaml`](agent-overflow.yaml) | 4 concurrent sessions, at most 90 s and 300 requests | The agent alias's overflow to Azure with its row stopped, through the gateway |
+| [`vision-overflow.yaml`](vision-overflow.yaml) | 32 concurrent streams, at most 90 s and 300 requests | The vision alias's overflow to Azure with its row stopped, through the gateway |
+| [`audio-overflow.yaml`](audio-overflow.yaml) | 48 concurrent streams, at most 90 s and 300 requests | The audio alias's overflow to Azure with its row stopped, through the gateway |
 
 Each embedding request is 510 synthetic tokens to `/v1/embeddings`: with the 2 special tokens an
 XLM-R tokenizer adds, 512, the embedding row's context. `scripts/lint-bench.sh`, which the check
@@ -349,6 +352,24 @@ a rate scenario's level being its rate:
 ```sh
 MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
   --scenario bench/embedding-target.yaml --cell <cell> 78
+```
+
+The overflow scenarios send each alias's load target and inputs as Azure's deployment takes them:
+the agent's S-agent sessions with each turn at most 512 output tokens rather than exactly 512,
+since Azure refuses the `ignore_eos` GuideLLM sends for a fixed output; the dense pages with the
+reply bound as `max_completion_tokens` and no `top_p` or `top_k`, which gpt-5-mini refuses; and
+docinfer's windows as `audio-real-30s.yaml` sends them. Each is unstreamed, since GuideLLM's
+streamed request carries `stream_options.continuous_usage_stats`, which gpt-audio-mini refuses
+([gateway-overflow-shapes](../docs/findings/gateway.md#gateway-overflow-shapes)). Each runs through
+the gateway with the row stopped:
+
+```sh
+fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
+  --scenario bench/agent-overflow.yaml --cell <cell> --gateway gb10-2 --row-down 4
+fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-overflow.yaml --cell <cell> --gateway gb10-2 --row-down 32:300
+fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host framework --alias audio \
+  --scenario bench/audio-overflow.yaml --cell <cell> --gateway gb10-2 --row-down 48:300
 ```
 
 Without the bound on requests in flight, `embedding-rate.yaml` at 78 a second queues past the row's

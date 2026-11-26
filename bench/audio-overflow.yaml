@@ -1,0 +1,33 @@
+# The audio alias's overflow cell at its cap of 48, through the gateway with the row stopped:
+# audio-real-30s.yaml's windows and instruction in the shape Azure's gpt-audio-mini takes, each
+# reply at most 512 tokens at temperature 0, not streamed. See bench/README.md.
+spec:
+  backend:
+    kind: openai_http
+    request_format: /v1/chat/completions
+    stream: false
+    max_tokens: 512
+    extras:
+      body:
+        temperature: 0
+  profile:
+    kind: concurrent
+    streams: [48]
+  data:
+    - kind: json_file
+      path: .state/bench/docinfer/windows-30.jsonl
+  data_column_mapper:
+    kind: generative_column_mapper
+    column_mappings:
+      text_column: 0.prompt
+      audio_column: 0.audio
+  data_preprocessors:
+    - kind: encode_media
+      audio_kwargs:
+        audio_format: wav
+        encode_sample_rate: 16000
+  constraints:
+    - kind: max_duration
+      seconds: 90
+    - kind: max_requests
+      count: 300

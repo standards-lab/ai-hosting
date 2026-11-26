@@ -1,0 +1,22 @@
+# The agent alias's overflow cell at its target of 4 sessions, through the gateway with the row
+# stopped: agent-sessions.yaml's sessions in the shape Azure's gpt-oss-120b takes, each turn at
+# most 512 output tokens and not streamed. See bench/README.md.
+spec:
+  backend:
+    kind: openai_http
+    request_format: /v1/chat/completions
+    stream: false
+    max_tokens: 512
+  profile:
+    kind: concurrent
+    streams: [4]
+  data:
+    - kind: synthetic_text
+      turns: 4
+      first_prompt_tokens: 8192
+      prompt_tokens: 512
+  constraints:
+    - kind: max_duration
+      seconds: 90
+    - kind: max_requests
+      count: 300

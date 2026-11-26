@@ -31,11 +31,12 @@ spike-model-gateway at `2f2e8c1`, and go-web-service's at `2e31ca4`.
 - Each file keeps one header and no source comment; the commit messages cite the spike.
 
 What the spike had and ai-hosting dropped: the six probes and the `rows-down` overlay with its
-overlay code (`gateway/agentgateway/probes/`, `scripts/agentgateway-deploy.sh:139-195`), which go
-to `acceptance` if it needs them; `docs/findings/*.md` and `docs/comparison.md`, which the gateway
-document links at `2f2e8c1`; the laptop's deploy, `gateway/compose.sh`, and the spike's
-`gateway:*` and `agentgateway-deploy` mise tasks, replaced by the `gateway` group; `deploy.env`;
-`postgres.env` and the rendered config's secrets; the fixed `container_name`; and the
-`spike.config-section` label.
+overlay code (`gateway/agentgateway/probes/`, `scripts/agentgateway-deploy.sh:139-195`), which
+`acceptance` didn't need: its overflow cells stop the row's container instead ([gateway
+findings](../docs/findings/gateway.md#gateway-overflow-agent)); `docs/findings/*.md` and
+`docs/comparison.md`, which the gateway document links at `2f2e8c1`; the laptop's deploy,
+`gateway/compose.sh`, and the spike's `gateway:*` and `agentgateway-deploy` mise tasks, replaced by
+the `gateway` group; `deploy.env`; `postgres.env` and the rendered config's secrets; the fixed
+`container_name`; and the `spike.config-section` label.
 
 Assumes gb10-2's Compose still drops a service's `provenance: false`, as v5.2.0 did in the spike.
