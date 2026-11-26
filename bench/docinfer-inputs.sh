@@ -48,7 +48,7 @@ case $command in
   *) usage "unknown $command" ;;
 esac
 
-docproc=$HOME/runs/docproc/final
+docproc=$HOME/runs/docs-corpus/baseline/v0.2.0/docproc
 pages=$root/bench/dense-pages.txt
 manifest=$root/bench/docinfer-inputs.sha256
 output=$root/.state/bench/docinfer

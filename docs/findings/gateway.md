@@ -532,7 +532,9 @@ Vision's, `vision.json`, is docinfer's request on row 436 of the bench's `dense-
 audio's, `audio.json`, docinfer's on row 1998 of `windows-30.jsonl`
 ([bench/README.md](../../bench/README.md)). The commands that built them weren't kept; these,
 reconstructed, build the same JSON, checked field by field against the bodies as sent, with
-`body` the function of [gateway-priority-vision](#gateway-priority-vision):
+`body` the function of [gateway-priority-vision](#gateway-priority-vision). The audio body is
+from the inputs as built before their rebuild from docs-corpus v0.2.0, whose row 1998 is another
+window:
 
 ```sh
 body 436 false | jq -c 'del(.stream)' >vision.json

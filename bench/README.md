@@ -147,10 +147,13 @@ profile in one run.
 ## docinfer's inputs
 
 `vision-dense.yaml` and `audio-real-30s.yaml` send what docinfer sends the rows, read from local
-files that [`docinfer-inputs.sh`](docinfer-inputs.sh) writes from the local docproc run docinfer
-read, `~/runs/docproc/final`. The pages and windows are from documents that may not be
-redistributed, so only the builder, its page list, and its manifest are committed; the inputs it
-writes stay in the untracked `.state/bench/docinfer/`.
+files that [`docinfer-inputs.sh`](docinfer-inputs.sh) writes from a local docproc run: by default
+the baseline run over docs-corpus v0.2.0, run `01a218c9-8847-7ec5-b98e-cf5803c6a989` in
+`~/runs/docs-corpus/baseline/v0.2.0/docproc`, as docs-corpus's `docs/baseline.md` records it. Only
+the builder, its page list, and its manifest are committed; the inputs it writes stay in the
+untracked `.state/bench/docinfer/`. They were rebuilt from that run after the measurements in
+`docs/findings/`, which read them built from the docproc run over `~/docs` that docinfer read: the
+same dense pages, byte for byte, and 657 windows in place of today's 595.
 
 - **The dense pages.** [`dense-pages.txt`](dense-pages.txt) names, by their sha256 in the run, the
   110 real pages whose replies ran past `max_tokens` in docinfer's first acceptance run, 95 of them
@@ -161,12 +164,11 @@ writes stay in the untracked `.state/bench/docinfer/`.
   docinfer's size for it; a page that is neither grayscale nor RGB is converted to RGB. Each row
   carries docinfer's prompt, `Transcribe the text in this picture. If it has no text, describe it
   in one sentence.`, which GuideLLM sends before the page, as docinfer does.
-- **The windows.** Every distinct audio window of 28 to 30 s in the run's record, 657 of the 1,208
-  windows docinfer transcribed, the heaviest requests the audio row transcribes whole. The builder
-  writes 2,000 rows, cycling through them in sha256 order, each a 16 kHz mono WAV as docproc cut it,
-  with the model card's transcription instruction as go-ai sends it with no language given:
-  `Transcribe the following speech segment in its original language into text.`, then the card's
-  formatting instructions.
+- **The windows.** Every distinct audio window of 28 to 30 s in the run's record, 595 of its 1,043,
+  the heaviest requests the audio row transcribes whole. The builder writes 2,000 rows, cycling
+  through them in sha256 order, each a 16 kHz mono WAV as docproc cut it, with the model card's
+  transcription instruction as go-ai sends it with no language given: `Transcribe the following
+  speech segment in its original language into text.`, then the card's formatting instructions.
 
 Each row has its own file, under `dense-pages/` or `windows-30/`, and no two rows send the same
 page or audio, which the builder checks on the bytes GuideLLM sends and stops on a repeat: a row's
