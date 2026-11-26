@@ -21,8 +21,14 @@ The `audio` row's `[rows.load]` table in the
 
 ## Run noise
 
-Not measured on vLLM. A measure that needs it runs the incumbent's peak level again
-([the upgrade convention](../upgrades.md#the-verdict)).
+The audio row's 48 streams of docinfer's windows, on vLLM v0.34.0 and kernel 7.2.15-4-omarchy,
+each run from a restarted row, on the second-half rate the row's peak is read on
+([audio-real-30s](../findings/audio.md#audio-real-30s),
+[audio-noise](../findings/audio.md#audio-noise)):
+
+- **Within-session**: 4.4%, 2.133 and 2.044 requests a second; the repeats at 24 and 32 streams
+  read the same rate twice.
+- **Across-days**: not measured.
 
 ## Watch items
 

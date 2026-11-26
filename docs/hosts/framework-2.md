@@ -22,8 +22,14 @@ The `embedding` row's `[rows.load]` table in the
 
 ## Run noise
 
-Not measured on vLLM. A measure that needs it runs the incumbent's peak level again
-([the upgrade convention](../upgrades.md#the-verdict)).
+The embedding row's 4 streams of [`bench/embedding-sweep.yaml`](../../bench/embedding-sweep.yaml),
+its throughput peak, on vLLM v0.34.0 and kernel 7.2.15-4-omarchy, on requests a second
+([e5-noise](../findings/embedding.md#e5-noise)):
+
+- **Within-session**: 2.66%, 82.833 and 85.033, each run from a restarted row.
+- **Across-days**: 3.83%, with [e5-lan-sweep](../findings/embedding.md#e5-lan-sweep)'s and
+  [e5-lan-sweep-16](../findings/embedding.md#e5-lan-sweep-16)'s 4-stream levels on 2026-11-24,
+  82.167 and 81.900; the kernel those ran on was not recorded.
 
 ## Watch items
 
