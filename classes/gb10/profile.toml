@@ -9,19 +9,19 @@ container = "vllm-agent"
 port = 8000
 context = 131072
 card_context = 131072
-context_reason = "131,072 tokens, the agent's session and the model's trained context: the FP8 KV cache, sized in bytes, held 13.23 sessions of it at the start, and the row met the agent's floor at 12 sessions of 131,072 on a GB10 alone (spike-model-layout docs/findings/vllm-layout.md, C.7 and D; standards-lab context/ai-hosting.md, \"The layout\")."
+context_reason = "131,072 tokens, the agent's session and the model's trained context (standards-lab context/ai-hosting.md, \"The layout\"): on v0.34.0 the FP8 KV cache, sized in bytes, held 13.22 sessions of it at the start, and the row met the agent's floor at 12 sessions (docs/findings/agent.md#agent-start, #agent-sessions)."
 cap = 12
-cap_reason = "12 sessions at once, the most at which the row met the agent's floor, an inter-token latency median of at most 100 ms: 99.07 ms at 12 sessions against 49.13 ms at the target of 4, on a GB10 alone (spike-model-layout docs/findings/vllm-layout.md, D; standards-lab context/ai-hosting.md, \"The layout\")."
+cap_reason = "12 sessions at once, the most at which the row met the agent's floor, an inter-token latency median of at most 100 ms: on gb10-1 alone on v0.34.0, 94.30 ms at 12 sessions, and 92.62 ms when run again, against 49.94 ms at the target of 4 (docs/findings/agent.md#agent-sessions, #agent-noise); at 12 sessions on v0.33.0 it read 99.07 ms (spike-model-layout docs/findings/vllm-layout.md, D)."
 queue_limit = 24
 fraction = 0.80
-fraction_reason = "0.80, the row alone on its host: at 12 sessions the host's MemAvailable held 12.96 GiB, 0.76 GiB above the 12.2 GiB floor, and the start from the compile cache after a reboot stayed above it (spike-model-layout docs/findings/vllm-layout.md, C.7, D, and I.3; standards-lab context/ai-hosting.md, \"The layout\")."
+fraction_reason = "0.80, the row alone on its host: on v0.34.0 the host's MemAvailable fell no lower than 14.86 GiB through the row's starts and 14.57 GiB through its cells, 12 sessions and 8 sessions of 65,536 tokens at once among them, 2.3 GiB above the GB10's 12.2 GiB floor (docs/findings/agent.md#agent-start, #agent-sessions, #agent-capacity, #agent-noise, #layout); on v0.33.0 the start from the compile cache after a reboot stayed above it (spike-model-layout docs/findings/vllm-layout.md, I.3)."
 flags = ["--scheduling-policy", "priority", "--kv-cache-dtype", "fp8", "--kv-cache-memory-bytes", "32993476982", "--reasoning-parser", "openai_gptoss", "--enable-auto-tool-choice", "--tool-call-parser", "openai"]
 flags_reason = "Priority scheduling, so the gateway ranks its keys' work (spike-model-gateway docs/findings/priority.md); an FP8 KV cache sized in bytes to llama.cpp's agent pool of 1,179,648 tokens, which showed no significant accuracy loss against BF16 (spike-model-layout docs/findings/vllm-layout.md, C.4); and gpt-oss's own reasoning and tool-call parsers."
-measured_vllm = "v0.33.0"
+measured_vllm = "v0.34.0"
 
 [rows.load]
 target = "4 sessions"
-source = "spike-model-layout docs/findings/vllm-layout.md, D and J: 49.13 ms inter-token latency median at 4 sessions alone, 48.13 ms with every host at its target; standards-lab context/ai-hosting.md, \"The layout\""
+source = "docs/findings/agent.md#agent-sessions and #layout: 49.94 ms inter-token latency median at 4 sessions alone, 49.26 to 49.48 ms with every row at its target, on v0.34.0; standards-lab context/ai-hosting.md, \"The layout\""
 
 [rows.source]
 publisher = "OpenAI"
@@ -35,20 +35,20 @@ container = "vllm-vision"
 port = 8001
 context = 8192
 card_context = 262144
-context_reason = "8,192 tokens a request, the length every capability row was measured at (spike-model-layout docs/findings/capability-vllm.md) and every vision cell ran at, where a request of one 1440p image and 200 text tokens took 1,314 or 1,315 of them at the row's image budget (docs/findings/vision.md, Tools and capacity-1120)."
-cap = 4
-cap_reason = "4 requests at once, the row's throughput peak, since the cap follows the images processed over time rather than a request's latency: on requests no other request had sent and caches that served none of them, 4 streams gave 0.356 req/s at a latency median of 10.87 s, matched at 8 streams with 1.7 times the latency, 19.01 s (docs/findings/vision.md, capacity-1120-clean), and lower at 16, 0.322 req/s (docs/findings/vision.md, capacity-1120)."
-queue_limit = 32
-queue_limit_reason = "32 requests, eight times the cap: past its queue limit the row answers 503 and the gateway overflows vision to Azure, a different model, so a deeper queue keeps bulk bursts such as docinfer's pages on the local model (docs/gateway.md, \"Row refusals, retry, and health\" and \"Overflow\"). At 0.356 req/s the 32nd request waits about 90 s, worked out from that rate rather than measured (docs/findings/vision.md, capacity-1120), and priority scheduling still lets interactive requests jump ahead of bulk ones while they wait (docs/gateway.md, \"Bulk concurrency\")."
+context_reason = "8,192 tokens a request, the length every capability row was measured at (spike-model-layout docs/findings/capability-vllm.md): a dense page took 1,135 prompt tokens on average at the row's image budget, with a reply of up to 2,048 (docs/findings/vision.md#dense-1120), and a request of one 1440p image and 200 text tokens 1,314 or 1,315 (docs/findings/vision.md, Tools and capacity-1120)."
+cap = 8
+cap_reason = "8 requests at once, the row's throughput peak among the levels run, since the cap follows the images processed over time rather than a request's latency: on docinfer's dense pages, with replies of up to 2,048 tokens, 8 streams cleared 8.20 images a minute on the second-half rate on the row alone, 41% over 4 streams' 5.80, and 8.00 beside the layout's other rows; the rate still rose at 8, the top level run (docs/findings/vision.md#dense-1120, #layout)."
+queue_limit = 64
+queue_limit_reason = "64 requests, eight times the cap: past its queue limit the row answers 503 and the gateway overflows vision to Azure, a different model, so a deeper queue keeps bulk bursts such as docinfer's pages on the local model (docs/gateway.md, \"Row refusals, retry, and health\" and \"Overflow\"). At 8.20 dense pages a minute the 64th request waits about 7.8 min, worked out from that rate rather than measured (docs/findings/vision.md#dense-1120), and priority scheduling still lets interactive requests jump ahead of bulk ones while they wait (docs/gateway.md, \"Bulk concurrency\")."
 fraction = 0.40
-fraction_reason = "0.40: its KV cache held 162,699 tokens, 19.86 requests of 8,192, over the cap of 4, and the host's MemAvailable fell no lower than 36.25 GiB during the start, against the 12.2 GiB floor (spike-model-layout docs/findings/vllm-layout.md, E.1; standards-lab context/ai-hosting.md, \"The layout\")."
+fraction_reason = "0.40: on v0.34.0 its KV cache held 158,246 to 160,496 tokens at each start, 19.3 to 19.6 requests of 8,192, over the cap of 8, and the host's MemAvailable fell no lower than 60.65 GiB during a start and 63.62 GiB through the dense pages, against the 12.2 GiB floor (docs/findings/vision.md#start-1120, #dense-1120, #dense-noise, #layout; spike-model-layout docs/findings/vllm-layout.md, \"Reading the figures\")."
 flags = ["--scheduling-policy", "priority", "--kv-cache-dtype", "bfloat16", "--reasoning-parser", "gemma4", "--enable-auto-tool-choice", "--tool-call-parser", "gemma4", "--mm-processor-kwargs.max_soft_tokens", "1120"]
-flags_reason = "Priority scheduling, so the gateway ranks its keys' work (spike-model-gateway docs/findings/priority.md); a BF16 KV cache, since the NVFP4 checkpoint declares a static FP8 one but ships no calibrated k/v scales (spike-model-engines host/vllm-rows); Gemma 4's own reasoning and tool-call parsers; and an image budget of 1120 soft tokens, at which a page's image takes 1,094 to 1,104 prompt tokens (docs/findings/vision.md, probe-1120)."
-measured_vllm = "v0.33.0"
+flags_reason = "Priority scheduling, so the gateway ranks its keys' work (spike-model-gateway docs/findings/priority.md); a BF16 KV cache, since the NVFP4 checkpoint declares a static FP8 one but ships no calibrated k/v scales (spike-model-engines host/vllm-rows); Gemma 4's own reasoning and tool-call parsers; and an image budget of 1120 soft tokens, at which a page's image takes 1,094 to 1,104 prompt tokens, on v0.34.0 as on v0.33.0 (docs/findings/vision.md, probe-1120 and probe-1120-committed)."
+measured_vllm = "v0.34.0"
 
 [rows.load]
-target = "4 requests"
-source = "docs/findings/vision.md, capacity-1120-clean: 10.87 s request latency median at 4 streams alone, 0.356 req/s"
+target = "8 requests"
+source = "docs/findings/vision.md#dense-1120 and #layout: docinfer's dense pages at 8 streams, 8.20 images a minute alone and 8.00 beside the layout's other rows, a request latency median of 56.37 s alone and 57.38 s beside them"
 
 [rows.source]
 publisher = "NVIDIA"

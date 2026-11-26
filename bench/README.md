@@ -455,11 +455,12 @@ jq -r --arg purpose audio -f bench/levels.jq .state/bench/<cell>.json
 jq -r --arg purpose vision -f bench/levels.jq .state/bench/<cell>.json
 ```
 
-## Preliminary cells
+## Rows alone and together
 
-A findings cell labeled preliminary ran its row alone, not beside the layout's other rows. Its
-figures stand for the row alone until `acceptance`'s standing layout cell (planned) re-measures
-the row beside the others.
+A findings cell runs its row alone on its host unless it says otherwise. The standing layout cell
+([layout](../docs/findings/vision.md#layout)) runs the four rows together, each on its own host, and
+reads each against its row-alone cell: each row matched itself alone within its host's run noise,
+so a row-alone cell stands for the row in the layout.
 
 ## Scoring retrieval
 

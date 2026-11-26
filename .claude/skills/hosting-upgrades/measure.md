@@ -94,7 +94,7 @@ The accuracy measures are each purpose's own: embedding's retrieval through `ben
 audio and agent probes as their findings give them.
 
 A cell its findings ran under settings the profile no longer holds, such as vision's cells at cap
-16 where the row now runs cap 4, runs at the current settings as the row's new baseline
+16 where the row now runs cap 8, runs at the current settings as the row's new baseline
 ([the convention](../../../docs/upgrades.md#measures-three-passes)), and the account names it.
 
 **The change**, from a branch the host's clone checks out:

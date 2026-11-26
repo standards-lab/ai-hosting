@@ -6,11 +6,13 @@ The measurements behind the gb10 profile's vision row, which serves
 its time in UTC, its figures, and the tool versions it ran on. The profile's reasons cite the cells
 by their section; the row's settings live in [the profile](../../classes/gb10/profile.toml).
 
-The capacity cells at 560 and 1120, capacity-1120-clean among them, are
-[preliminary](../../bench/README.md#preliminary-cells). 560 is an interim budget, measured before
-1120. Each table's Floor column, and "the 10 s floor" below, is `levels.jq`'s vision verdict, a
-request latency median of at most 10 s; the row's cap follows its throughput peak instead, as the
-profile's `cap_reason` says.
+The capacity cells at 280, 560 and 1120, capacity-1120-clean among them, ran the row alone on
+synthetic pages with 100-token replies, and no longer set its cap: [dense-1120](#dense-1120) and
+the standing layout cell, [layout](#layout), measured it on docinfer's dense pages, alone and beside
+the other rows, and the two matched. 560 is an interim budget, measured before 1120. Each table's
+Floor column, and "the 10 s floor" below, is `levels.jq`'s vision verdict, a request latency median
+of at most 10 s; the row's cap follows its throughput peak instead, as the profile's `cap_reason`
+says.
 
 ## Tools
 
@@ -23,9 +25,11 @@ Every cell ran on the tools below.
 | Tokenizer | `google/gemma-4-26B-A4B-it`'s, through transformers 5.24.1 in GuideLLM's environment |
 | Checkpoint | `nvidia/Gemma-4-26B-A4B-NVFP4` at `a19cfe00be84568a6867111c9a68c9c44fdcffe6` |
 
-The row ran alone on gb10-2, the gateway's stack beside it and no other row, at cap 16
-(`--max-num-seqs 16`, `--max-num-queued-reqs 32`), fraction 0.40, and context 8,192, with the
-budget each cell names. The client is the laptop on the LAN.
+The row ran on gb10-2, the gateway's stack beside it and no other row, at fraction 0.40 and context
+8,192. The cells up to [capacity-1120-clean](#capacity-1120-clean) ran at cap 16
+(`--max-num-seqs 16`, `--max-num-queued-reqs 32`) with the budget each names; the cells from
+[start-1120](#start-1120) on ran at the budget of 1120 and name their cap. The client is the
+laptop on the LAN.
 
 ## synthetic-data
 
@@ -262,3 +266,167 @@ each level against the 10 s floor. A dash marks a level the budget didn't run.
 | 280 | 478 to 479 | - | - | 4.54 s, meets | 6.23 s, meets | 9.33 s, meets |
 | 560 | 741 to 742 | - | - | 6.25 s, meets | 9.60 s, meets | 16.05 s, misses |
 | 1120 | 1,314 to 1,315 | 5.06 s, meets | 6.37 s, meets | 10.89 s, misses | 18.87 s, misses | 36.35 s, misses |
+
+## start-1120
+
+The row's starts on vLLM v0.34.0 at its image budget of 1120, the fraction's cell, read as
+spike-model-layout's E.1 read it (`docs/findings/vllm-layout.md`): the KV cache the start
+reports, and the host's lowest MemAvailable through the start, sampled every second over ssh until
+the row's `/health` answered. Each start replaced or restarted the row on gb10-2, the gateway's
+stack running beside it and no other row.
+
+| Start, UTC | How | Settings | KV cache, tokens | Requests of 8,192 | Lowest MemAvailable, GiB |
+| --- | --- | --- | --- | --- | --- |
+| 2026-11-26T04:13:04Z | `hosting engine update vision` | cap 8, queue limit 32 | 159,158 | 19.43 | 60.65 |
+| 2026-11-26T04:14:32Z | `docker restart vllm-vision` | cap 8, queue limit 32 | 159,280 | 19.44 | 66.06 |
+
+The cap of 8 is the top level of [dense-1120](#dense-1120), set by `hosting profile set vision
+cap=8` in the host's clone, uncommitted, before the first start. Each start's weights took 18.13
+GiB, and its KV cache 26.64 GiB. The starts of [layout](#layout) add their readings at the row's
+settings.
+
+- **The fraction holds on v0.34.0**: at 0.40 the KV cache holds 19.4 requests of 8,192, over the
+  cap of 8, against 162,699 tokens on v0.33.0 (spike-model-layout E.1), and MemAvailable stays at
+  least 48 GiB above the GB10's floor of 12.2.
+
+## probe-1120-committed
+
+[probe-1120](#probe-1120)'s requests at 2026-11-26T04:14:21Z, from the committed probe pages, the
+row just started at cap 8 ([start-1120](#start-1120)), without load:
+
+```sh
+bench/vision-probe.sh --host gb10-2
+```
+
+| Request | Prompt tokens | Image span |
+| --- | --- | --- |
+| Text only | 18 | - |
+| 1240×1754 page | 1,112 | 1,094 |
+| 3705×4934 page | 1,122 | 1,104 |
+
+- **The spans match probe-1120's**, 1,094 and 1,104 tokens: the committed pages, a CFR page at
+  probe-1120's two sizes but not its content, take the same spans, as Gemma 4's processor fits a
+  page by its size ([bench/README.md](../../bench/README.md#the-vision-probe)). There is no
+  difference to note.
+
+## dense-1120
+
+The row alone on docinfer's dense pages, [`bench/vision-dense.yaml`](../../bench/vision-dense.yaml):
+the 110 pages whose replies ran past `max_tokens` in docinfer's first acceptance run, as docinfer
+sends them, each row its own page, with Gemma 4's card sampling and replies of up to 2,048 tokens
+([bench/README.md](../../bench/README.md#docinfers-inputs)). The row at cap 8 (`--max-num-seqs 8`,
+`--max-num-queued-reqs 32`), fraction 0.40, context 8,192, its budget 1120, restarted at
+2026-11-26T04:14:32Z ([start-1120](#start-1120)); `tailscale ping gb10-2` direct, 0 ms. Each level
+ran on its own, 10 min a level, from 2026-11-26T04:15:25Z:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell vision-dense-gb10-2 2:60 4:100 8:160
+```
+
+`levels.jq` with `--arg purpose vision`; images a minute is the second-half rate, the requests
+that finished in the level's last 300 s over 300 s, times 60
+([bench/README.md](../../bench/README.md#reading-the-results)):
+
+| Streams | Start, UTC | ok/err/inc | req/s | Second-half req/s | Images a minute | TTFT median ms | ITL median ms | Latency median s | Latency p90 s | Prompt tok/s | Output tok/s | Duration s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2 | 2026-11-26T04:15:30Z | 33/0/2 | 0.055 | 0.057 | 3.40 | 1,940 | 32.42 | 31.91 | 46.21 | 62 | 53.77 | 600 |
+| 4 | 2026-11-26T04:25:37Z | 53/0/4 | 0.088 | 0.097 | 5.80 | 1,959 | 42.14 | 39.81 | 52.93 | 100 | 86.83 | 600 |
+| 8 | 2026-11-26T04:35:43Z | 75/0/8 | 0.125 | 0.137 | 8.20 | 2,013 | 58.02 | 56.37 | 74.85 | 142 | 123.70 | 600 |
+
+Across the three levels, 0 of 175 requests' pages hit the multimodal cache and 0 of 198,679 prompt
+tokens the prefix cache; the row finished 161 requests, 159 on `stop` and 2 at the 2,048-token
+bound, with 0 preemptions. Each request took 1,135 prompt tokens on average, and its reply 983
+output tokens, from 186 to 2,048. The host's lowest MemAvailable over the cell was 63.62 GiB,
+sampled every 10 s. Every level misses the 10 s floor, which doesn't set the cap.
+
+- **Throughput rises to 8 streams, the top level**: 3.40 images a minute at 2 streams, 5.80 at 4
+  and 8.20 at 8, 41% over 4. The replies are long, so the row is bound by decoding: output
+  throughput rises with the streams, as the ITL median grows from 32 to 58 ms. A level past 8 may
+  clear more; the cell's levels end at 8.
+- At 4 streams, the earlier cap, the row clears 5.80 images a minute, against docinfer's re-probe's
+  5.44 there.
+- A page's latency median grows from 32 s at 2 streams to 56 s at 8, its p90 to 75 s: a client's
+  timeout for one dense page sits above that.
+
+## dense-noise
+
+The run noise: [dense-1120](#dense-1120)'s throughput peak, 8 streams, run again from a restart at
+2026-11-26T05:36:05Z, as [the verdict](../upgrades.md#the-verdict) asks, after [layout](#layout),
+at cap 8 and a queue limit of 64. Its start read a KV cache of 160,496 tokens, and MemAvailable fell
+no lower than 66.01 GiB through it; `tailscale ping gb10-2` direct, 0 ms.
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell vision-dense-noise-gb10-2 8:160
+```
+
+| Streams | Start, UTC | ok/err/inc | req/s | Second-half req/s | Images a minute | TTFT median ms | ITL median ms | Latency median s | Latency p90 s | Output tok/s | Duration s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 8 | 2026-11-26T05:36:58Z | 75/0/8 | 0.125 | 0.137 | 8.20 | 1,986 | 58.82 | 57.04 | 84.00 | 123.97 | 600 |
+
+The row finished 75 requests, 73 on `stop` and 2 at the 2,048-token bound, with 0 preemptions,
+and 0 pages hit the multimodal cache; the host's lowest MemAvailable over the cell was 64.17 GiB.
+Its rows were the cell's first 160, the pages [dense-1120](#dense-1120)'s 2 and 4 streams sent.
+
+- **The repeat reads the same**: 8.20 images a minute, as dense-1120's 8 streams, on other pages.
+  One request more or less in a level's second half moves the rate by about 2.4%, and
+  [layout](#layout)'s 8 streams read 8.00, 2.5% under: 2.5% is the host's run noise.
+
+## layout
+
+The standing layout cell: the four rows together, each on its own host, the vision row through
+[dense-1120](#dense-1120)'s levels, the agent row at its target of 4 sessions, the audio row at its
+target of 48 streams of docinfer's windows, and the embedding row at 78 requests a second with at
+most 16 in flight. Each row's figures are read against its row-alone cell here and in its
+purpose's findings: [agent](agent.md#layout), [audio](audio.md#layout) and
+[embedding](embedding.md#layout).
+
+The cell is three rounds, one a vision level, since each cell starts on a row restarted since its
+last ([bench/README.md](../../bench/README.md#running-a-cell)). Each round restarts the four rows
+together, `docker restart` of `vllm-agent` on gb10-1, `vllm-vision` on gb10-2, `vllm-audio` on
+`framework` and `vllm-embed` on `framework-2`, then starts the four cells at once from the laptop
+on the LAN, the other three held for the vision level's 600 s with `--seconds 600`. `tailscale
+ping` to each host answered direct, 0 or 1 ms, before each round. The rows ran as the profiles
+render them, but vision at cap 8 with a queue limit of 64 and audio at cap 48 with a queue limit
+of 192, set by `hosting profile set` in each host's clone, uncommitted, and applied by `hosting
+engine update` before the first round: the values the profiles now hold. The round at 2 streams:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell layout-v2-vision-gb10-2 2:60 &
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
+  --scenario bench/agent-sessions.yaml --cell layout-v2-agent-gb10-1 --seconds 600 4 &
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework --alias audio \
+  --scenario bench/audio-real-30s.yaml --cell layout-v2-audio-framework --seconds 600 48:1500 &
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
+  --scenario bench/embedding-target.yaml --cell layout-v2-embedding-framework-2 --seconds 600 78 &
+wait
+```
+
+The rounds at 4 and 8 streams ran the same with `layout-v4` and `4:100`, and `layout-v8` and
+`8:160`. The rounds ran from 2026-11-26T05:02:38Z to 05:12:58Z, 05:14:07Z to 05:24:28Z, and
+05:25:34Z to 05:35:55Z.
+
+The vision row, `levels.jq` with `--arg purpose vision`, against [dense-1120](#dense-1120)'s row
+alone:
+
+| Streams | Start, UTC | ok/err/inc | Second-half req/s | Images a minute | Alone | TTFT median ms | ITL median ms | Latency median s | Latency p90 s | Output tok/s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2 | 2026-11-26T05:02:44Z | 33/0/2 | 0.060 | 3.60 | 3.40 | 1,944 | 32.61 | 33.73 | 49.53 | 54.42 |
+| 4 | 2026-11-26T05:14:13Z | 53/0/4 | 0.090 | 5.40 | 5.80 | 1,953 | 42.38 | 40.23 | 55.23 | 84.18 |
+| 8 | 2026-11-26T05:25:40Z | 75/0/8 | 0.133 | 8.00 | 8.20 | 1,990 | 58.75 | 57.38 | 81.92 | 125.22 |
+
+Each round's start read a KV cache of 160,253, 158,246 and 159,402 tokens, 19.3 to 19.6 requests
+of 8,192, and the host's lowest MemAvailable was 66.00 GiB through the starts and 64.39 GiB through
+the cells. Across the rounds, 0 of the vision requests' pages hit the multimodal cache, and the
+row finished every request with 0 preemptions; at 4 and 8 streams, 1 and 3 replies reached the
+2,048-token bound.
+
+- **The vision row beside the others matches it alone**: 8.00 images a minute at 8 streams
+  against 8.20, within [dense-noise](#dense-noise)'s 2.5%. At 2 and 4 streams, with fewer requests
+  in a level's second half, 3.60 and 5.40 against 3.40 and 5.80, one request apart at 2 streams
+  and two at 4. Throughput still peaks at 8 streams, the top level.
+- The other rows read the same beside it as alone: the agent's ITL median 49.26 to 49.48 ms at 4
+  sessions against 49.94, audio 2.013 to 2.040 requests a second at 48 streams against 2.044 and
+  2.133, and embedding 77.11 to 77.87 against 77.96, as their sections give.

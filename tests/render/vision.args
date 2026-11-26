@@ -34,13 +34,13 @@ nvidia/Gemma-4-26B-A4B-NVFP4
 --served-model-name
 vision
 --max-num-seqs
-4
+8
 --max-model-len
 8192
 --gpu-memory-utilization
 0.40
 --max-num-queued-reqs
-32
+64
 --scheduling-policy
 priority
 --kv-cache-dtype

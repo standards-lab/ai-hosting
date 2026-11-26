@@ -587,3 +587,96 @@ A first, uncapped run from 2026-11-24T19:12:55Z (`.state/bench/embed-rate-sweep-
 held GuideLLM's default of 512 requests in flight: its throughput level reached 62.4 requests a
 second, under the row's ceiling, which squeezed the constant rates into a band under it. The
 scenario now caps the sweep at 16 in flight.
+
+## e5-target
+
+The row alone on framework-2 at its load target, 78 requests a second, for 600 s, as the profile
+renders it (cap 16, fraction 0.03, context 512), on vLLM v0.34.0 ([Tools](#tools)), GuideLLM 0.8.1
+with e5's tokenizer through transformers 5.24.1. Two cells, each from a restart, `tailscale ping
+framework-2` direct, 1 ms, before each.
+
+**Unbounded.** [`bench/embedding-rate.yaml`](../../bench/embedding-rate.yaml), which bounds no
+requests in flight, from a restart at 2026-11-26T04:19:17Z:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
+  --scenario bench/embedding-rate.yaml --cell embed-rate-78-framework-2 --seconds 600 78
+```
+
+**At 16 in flight.** [`bench/embedding-target.yaml`](../../bench/embedding-target.yaml), the same
+rate with at most 16 requests in flight, as [e5-rate-sweep](#e5-rate-sweep) held, from a restart at
+2026-11-26T04:30:39Z:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
+  --scenario bench/embedding-target.yaml --cell embed-target-78-framework-2 --seconds 600 78
+```
+
+`levels.jq` with `--arg purpose embed`:
+
+| Cell | Start, UTC | ok/err/inc | req/s | Second-half req/s | Latency median s | Latency p90 s | Prompt tok/s | Duration s | Floor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Unbounded | 2026-11-26T04:20:00Z | 44897/0/1904 | 74.828 | 72.587 | 2.87 | 19.54 | 38,237 | 600 | meets |
+| At 16 in flight | 2026-11-26T04:31:16Z | 46783/0/11 | 77.963 | 78.070 | 0.20 | 0.21 | 39,839 | 600 | meets |
+
+Neither cell erred, and the row read 0 preemptions and no prefix-cache query after each. The host's
+lowest MemAvailable over the bounded cell was 110.51 GiB; after it, `hosting engine memory` read
+the row's GTT at 1,868 MiB and the pool's GTT used at 2.15 GiB of 112.00.
+
+- **At 16 in flight the row holds the target**: 77.96 requests a second over 600 s, 99.95% of 78,
+  with a latency median of 0.20 s, as [e5-rate-sweep](#e5-rate-sweep)'s 77.96 over 90 s.
+- **Unbounded, it falls behind**: the requests the row doesn't run queue at it, a mean of 508 in
+  flight, and it serves 74.8 a second with a latency p90 of 19.5 s, as more requests in flight
+  lowered it in [e5-lan-sweep](#e5-lan-sweep). The load target holds 16 in flight, so the
+  [standing layout cell](#layout) runs the bounded scenario.
+
+## e5-noise
+
+The run noise: [e5-lan-sweep](#e5-lan-sweep)'s throughput peak, 4 streams, run twice through the
+cell runner, each from a restart, at 2026-11-26T04:41:39Z and 04:42:50Z, as
+[the verdict](../upgrades.md#the-verdict) asks:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
+  --scenario bench/embedding-sweep.yaml --cell embed-noise-1-framework-2 4
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
+  --scenario bench/embedding-sweep.yaml --cell embed-noise-2-framework-2 4
+```
+
+| Run | Start, UTC | ok/err/inc | req/s | Second-half req/s | Latency median s | Prompt tok/s | Duration s | Floor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 2026-11-26T04:42:18Z | 2488/0/1 | 82.833 | 79.133 | 0.05 | 42,328 | 30 | meets |
+| 2 | 2026-11-26T04:43:27Z | 2553/0/2 | 85.033 | 82.800 | 0.05 | 43,452 | 30 | meets |
+
+- **Within the session, 2.66%** on requests a second, 82.833 and 85.033, the figure the row's peak
+  is read on; its second half, 15 s of the level, spreads 4.63%.
+- **Across days, 3.83%**: with e5-lan-sweep's and [e5-lan-sweep-16](#e5-lan-sweep-16)'s 4-stream
+  levels on 2026-11-24, 82.167 and 81.900, the four readings run from 81.900 to 85.033.
+
+## layout
+
+The embedding row in the standing layout cell ([vision.md#layout](vision.md#layout)): 78 requests
+a second with at most 16 in flight, held for 600 s in each of the cell's three rounds beside the
+other three rows, each round from a restart:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
+  --scenario bench/embedding-target.yaml --cell layout-v2-embedding-framework-2 --seconds 600 78
+```
+
+The rounds `layout-v4` and `layout-v8` ran the same. Against [e5-target](#e5-target)'s row alone:
+
+| Round | Start, UTC | ok/err/inc | req/s | Achieved | Latency median s | Latency p90 s | Prompt tok/s | Duration s | Floor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Alone | 2026-11-26T04:31:16Z | 46783/0/11 | 77.963 | 99.95% | 0.20 | 0.21 | 39,839 | 600 | meets |
+| Vision at 2 | 2026-11-26T05:02:48Z | 46268/0/16 | 77.113 | 98.86% | 0.20 | 0.21 | 39,405 | 600 | meets |
+| Vision at 4 | 2026-11-26T05:14:17Z | 46718/0/16 | 77.863 | 99.82% | 0.20 | 0.21 | 39,788 | 600 | meets |
+| Vision at 8 | 2026-11-26T05:25:44Z | 46722/0/16 | 77.870 | 99.83% | 0.20 | 0.21 | 39,791 | 600 | meets |
+
+The host's lowest MemAvailable was 110.45 GiB through the starts and 110.34 GiB through the rounds;
+no round erred, and the row read 0 preemptions.
+
+- **The embedding row beside the others holds its target**: at least 98.86% of 78 a second in
+  every round, against 99.95% alone, each above the 98% the
+  [rate sweep](#e5-rate-sweep)'s limit takes; the first round's 77.11 is 1.1% under the row alone,
+  within [e5-noise](#e5-noise)'s spread.

@@ -56,8 +56,10 @@ record holds the tasks and their order.
 - **Findings** (built): the measurements behind a row's settings, each cell with its command,
   time, figures, and tool versions, which the profile's reasons cite: the embedding row's in
   [docs/findings/embedding.md](../docs/findings/embedding.md), the audio row's in
-  [docs/findings/audio.md](../docs/findings/audio.md), and the vision row's image budget and cap in
-  [docs/findings/vision.md](../docs/findings/vision.md).
+  [docs/findings/audio.md](../docs/findings/audio.md), the vision row's image budget and cap in
+  [docs/findings/vision.md](../docs/findings/vision.md), the agent row's in
+  [docs/findings/agent.md](../docs/findings/agent.md), and the standing layout cell, the four rows
+  together, in [docs/findings/vision.md](../docs/findings/vision.md#layout).
 - **Upgrade evaluation** (built): the convention for evaluating a vLLM release, a row's settings,
   or a replacement model ([docs/upgrades.md](../docs/upgrades.md)), the policy every candidate
   meets ([docs/policy.md](../docs/policy.md)), one descriptor a host
