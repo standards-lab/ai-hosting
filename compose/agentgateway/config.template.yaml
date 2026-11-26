@@ -40,26 +40,10 @@ gateways:
         metadata:
           name: ""
           class: interactive
-        budgets:
-        - name: tokens
-          limit:
-            unit: Tokens
-            amount: 5000000
-          window:
-            rolling: 1h
-          onBudgetExceeded: Audit
       - keyHash: ""
         metadata:
           name: ""
           class: bulk
-        budgets:
-        - name: tokens
-          limit:
-            unit: Tokens
-            amount: 1000000
-          window:
-            rolling: 1h
-          onBudgetExceeded: Block
   ui:
     port: 3001
 

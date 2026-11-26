@@ -8,6 +8,9 @@ secrets and recipients. What follows is ai-hosting's own.
 - `AZURE_FOUNDRY_KEY` is the Azure AI Foundry account's key and `AZURE_FOUNDRY_ACCOUNT` its
   resource name; the [gateway](gateway.md)'s overflow to Azure AI Foundry reads both.
   The values came from spike-model-gateway's `.state/azure`.
+- `AI_GATEWAY_TOKEN` is ai-hosting's own gateway key, consumer `ai-hosting` in the bulk class,
+  issued by `hosting key issue` for the bulk class's checks and upgrade measures
+  ([gateway document](../docs/gateway.md#keys)).
 - Two verbs call fnox, and the suite has no `secrets` group. `hosting gateway up` reads the
   Foundry key and account from this file, and the [gateway
   document](../docs/gateway.md#secrets-and-postgres) says how each reaches agentgateway with no

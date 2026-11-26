@@ -26,8 +26,8 @@ that the check never installs: [`bench/README.md`](bench/README.md).
 ## Secrets
 
 `fnox.toml` holds ai-hosting's development-time secrets, the Azure AI Foundry account's key and
-name, encrypted to three recipients: `laptop`, `gb10-2`, and the offline `backup`. No task is
-granted one yet. The [development-secrets
+name and ai-hosting's own bulk gateway key, encrypted to three recipients: `laptop`, `gb10-2`, and
+the offline `backup`. No task is granted one yet. The [development-secrets
 principle](https://github.com/standards-lab/architecture/blob/main/principles/development-secrets.md)
 gives the convention and every step: supplying your own values, adding a device, rotating, and
 restoring.

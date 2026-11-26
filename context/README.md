@@ -38,12 +38,13 @@ record holds the tasks and their order.
   memory, read-only ([engines.md](engines.md)).
 - **Model files** (built): the `model` group lists, pulls, and prunes the host's model store
   ([hosting-suite.md](hosting-suite.md)).
-- **The gateway** (built): agentgateway's compose stack on gb10-2, with keys, priority, budgets,
+- **The gateway** (built): agentgateway's compose stack on gb10-2, with keys, priority, buckets,
   overflow, and telemetry; the `gateway` group runs it and the `key` group issues consumers' keys
   ([docs/gateway.md](../docs/gateway.md), [gateway.md](gateway.md)). The embedding route has no
   cloud fallback.
-- **Secrets** (built): the Foundry key and account, age-encrypted in ai-hosting's committed
-  `fnox.toml`, each described, and checked by `scripts/lint-secrets.sh` ([secrets.md](secrets.md)).
+- **Secrets** (built): the Foundry key and account and ai-hosting's bulk gateway key,
+  age-encrypted in ai-hosting's committed `fnox.toml`, each described, and checked by
+  `scripts/lint-secrets.sh` ([secrets.md](secrets.md)).
 - **Runbooks** (built): one per host class, `classes/<class>/runbook.md`: the root steps, the
   suite's install, and each row's commands ([gb10](../classes/gb10/runbook.md),
   [strix-halo](../classes/strix-halo/runbook.md)).
