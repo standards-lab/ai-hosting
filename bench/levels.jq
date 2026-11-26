@@ -2,8 +2,7 @@
 # floor: agent an inter-token latency median of at most 100 ms, vision a request latency median of
 # at most 10 s, audio an RTFx median of at least 5, embed a mean of at least 4,300 prompt tok/s.
 # A level's second-half rate counts the requests that finished in its second half, over that half,
-# so the requests that start together at its start and those cut off at its end don't weigh on it.
-# A vision level's images a minute is its second-half rate times 60, one image a request.
+# and a vision level's images a minute is that rate times 60, one image a request.
 #
 #   jq -r --arg purpose <agent|vision|audio|embed> -f bench/levels.jq <result.json>...
 #
