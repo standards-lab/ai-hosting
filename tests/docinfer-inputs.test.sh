@@ -57,14 +57,17 @@ write_run() {
 
 run_inputs() {
   write_stub guidellm
-  write_stub python 'while IFS=$'"'\\t'"' read -r path dest cycle; do
+  write_stub python "$(cat <<'EOF'
+while IFS=$'\t' read -r path dest cycle; do
   { cat "$path"; echo " $cycle"; } >"$dest"
-done < <(jq -r "[.path, .dest, .cycle] | @tsv")'
+done < <(jq -r '[.path, .dest, .cycle] | @tsv')
+EOF
+)"
   run "$repo/bench/docinfer-inputs.sh" "$@"
 }
 
 build() {
-  run_inputs build --docproc "$docproc" --pages "$tmp/pages.txt" --output "$tmp/out" "$@"
+  run_inputs build --docproc "$docproc" --pages "$tmp/pages.txt" --output "$tmp/out"
 }
 
 build_and_record_manifest() {
@@ -181,7 +184,7 @@ test_the_scenarios_reading_these_rows_read_them_from_the_default_output() {
 
 test_build_refuses_a_page_the_run_lacks_before_writing() {
   write_run
-  echo "$(printf x | sha256sum | cut -d ' ' -f 1)" >>"$tmp/pages.txt"
+  printf x | sha256sum | cut -d ' ' -f 1 >>"$tmp/pages.txt"
   build
   assert_equal status "$status" 2
   assert_contains stderr "$err" "has no image output $(printf x | sha256sum | cut -d ' ' -f 1)"

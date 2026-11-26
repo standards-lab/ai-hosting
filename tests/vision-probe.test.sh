@@ -6,11 +6,22 @@
 source "$(dirname "$0")/lib.sh"
 
 run_probe() {
-  write_stub curl 'body=${*: -2:1}; n=$(ls '"$tmp"'/body-* 2>/dev/null | wc -l)
-cp "${body#@}" '"$tmp"'/body-$n
-'"${curl_body:-}"'
-jq -c "{usage: {prompt_tokens: (if (.messages[0].content | length) == 1 then 18
-  elif (.messages[0].content[0].image_url.url | length) < 100000 then 1112 else 1122 end)}}" "${body#@}"'
+  local copy reply
+  copy=$(cat <<'EOF'
+body=${*: -2:1}
+n=$(find "$dir" -maxdepth 1 -name 'body-*' | wc -l)
+cp "${body#@}" "$dir/body-$n"
+EOF
+)
+  reply=$(cat <<'EOF'
+jq -c '{usage: {prompt_tokens: (if (.messages[0].content | length) == 1 then 18
+  elif (.messages[0].content[0].image_url.url | length) < 100000 then 1112 else 1122 end)}}' "${body#@}"
+EOF
+)
+  write_stub curl "dir=$(printf %q "$tmp")
+$copy
+${curl_body:-}
+$reply"
   run "$repo/bench/vision-probe.sh" "$@"
 }
 

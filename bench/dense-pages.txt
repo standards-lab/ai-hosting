@@ -1,5 +1,5 @@
 # docinfer's dense pages: run 1's 110 real pages that replied past the vision row's budget, as
-# docinfer's docs/acceptance.md re-probes them, by their sha256 in the docproc run. See bench/README.md.
+# docinfer's acceptance re-probes them, by their sha256 in the docproc run. See bench/README.md.
 0131efe5671990aec6895940aeafdf5a3a59a50ef5b1128716415c9eb84b6a3e
 02bfa11fc13dd31a1e84cc39dbb403f55689d34ad64330e30bd660e7a907b36f
 03d1128d9d15c0b21cbc70c6107e685de14e07f374355e38b34421e5590718b6
