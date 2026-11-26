@@ -66,11 +66,12 @@ sets, the decode-ceiling fields, and the evaluation tooling. Two tasks took part
 
 - **embedding**: the strix-halo runbook's embedding section states e5's `query: ` and
   `passage: ` prefixes (`hosting/profile/profile.go:340-343`).
-- **architecture**: `docs/model-cards.md`'s first two sections, "What each value means" and "Why a
-  model runs at its card's values", rewritten for a served checkpoint in place of a GGUF, with the
-  rule for when a row takes sampling from a base model's card, went to architecture's
-  `architecture/principles/model-cards.md`, "Reading a model card"; the tool-call reliability
-  layers went to `architecture/principles/tool-call-reliability.md`, "Tool-call reliability".
+- **architecture**: `architecture/principles/model-cards.md`, "Reading a model card", rewrites
+  the spike's `docs/model-cards.md` first two sections, "What each value means" and "Why a model
+  runs at its card's values", for a served checkpoint in place of a GGUF, and adds the rule for
+  when a row takes sampling from a base model's card.
+  `architecture/principles/tool-call-reliability.md`, "Tool-call reliability", states the spike's
+  tool-call reliability layers.
 
 Sizing a row and placing rows stay ai-hosting's. A row is sized by measurement on its host, by
 [the tuning rule](../docs/policy.md#the-tuning-rule), not by the spike's decode-ceiling method, and

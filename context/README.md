@@ -6,11 +6,11 @@ the same class follows them. Its secrets, the `hosting` suite, and each class's 
 are built, and each host serves its rows from its clone. One gateway on gb10-2 fronts the rows, each
 alias at its own base URL behind an issued key, with overflow to Azure AI Foundry
 ([docs/gateway.md](../docs/gateway.md)). go-ai and docinfer hold its keys; Pi sessions, Claude Code
-subagents, and the capstone's services are to reach the rows through it with keys the tasks that
-build them issue. ai-hosting is low-level infrastructure outside the five tiers, beside the
+subagents, and the capstone's services will reach the rows through it, with keys issued by the
+tasks that build them. ai-hosting is low-level infrastructure outside the five tiers, beside the
 harness repositories, and is the one hosting repository on each workstation.
 
-The `acceptance` task proved the layout on vLLM v0.34.0. The four rows ran together
+The layout holds on vLLM v0.34.0. The four rows ran together
 ([layout](../docs/findings/vision.md#layout)): agent, audio, and embedding matched their rows alone
 within their hosts' run noise, and vision matched at 2, 4, and 8 streams; at 32 it decoded no
 slower, while the pages finished inside the second half read 3–4% under, past gb10-2's 1.5%. Each
@@ -31,8 +31,7 @@ in its class's profile. Each Strix Halo host keeps its model store on its second
 Its goals live in the coordinator's roadmap (`standards-lab/roadmap/index.toml`, v1.ai.hosting).
 It is built from experiment.hosting's spikes. Each capability's note cites the spike files it
 comes from, as `path` at the spike's commit; the files themselves carry no source comments. A
-planned capability's note also lists what is open at the plan of the task that builds it; the goal
-record holds the tasks and their order.
+planned capability's note also lists what is open at the plan of the task that builds it.
 
 ## Capability map
 

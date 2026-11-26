@@ -135,13 +135,12 @@ Rows are placed by the GPU compute they share, not by the memory they fit.
 
 - **One purpose to a GPU.** Each host serves one row. Two purposes on one GPU contend for its
   compute and memory bandwidth, so a second row that fits the host's memory can still take the
-  first below its floor. Fitting the pool remains a gate ([support and fit](#support-and-fit)),
-  and the fraction sum on one host is `engine install`'s
+  first below its floor. Fitting the pool is still a gate ([support and fit](#support-and-fit)),
+  and `engine install` checks the sum of the fractions on one host
   ([host-classes.md](../context/host-classes.md#why-the-profiles-take-this-shape)).
 - **One host to a role.** Each alias has one host, and nothing fails over between hosts; the
-  gateway's [overflow](gateway.md#overflow) is the only fallback. The gateway's config is the home
-  of which host serves which alias
-  ([config.template.yaml](../compose/agentgateway/config.template.yaml)).
+  gateway's [overflow](gateway.md#overflow) is the only fallback. The gateway's config maps each
+  alias to its host ([config.template.yaml](../compose/agentgateway/config.template.yaml)).
 - **No row is loaded on demand.** Every row stays resident: compute is the bottleneck, and loading
   and unloading a model add compute on top of inference.
 
