@@ -21,9 +21,9 @@ ai-hosting holds no Go, so Go Elemental's pages don't apply.
   file links it: a row's settings in its class profile, the alias-to-host map in the gateway's
   config, a setting's reasoning in ai-hosting's documents.
 - `architecture/principles/model-cards.md`: a row's sampling, reasoning, context, and prompt
-  forms come from its model's card, and a value the card doesn't state is chosen on purpose.
-- `architecture/principles/tool-call-reliability.md`: a row runs its model's official chat
-  template at the card's settings; a template override fixes only a broken template.
+  forms come from its model's card.
+- `architecture/principles/tool-call-reliability.md`: a row serves its checkpoint's own chat
+  template, so a `--chat-template` in its flags is an override, and its reason names the breakage.
 - `architecture/principles/tool-beside-library.md`: each `hosting-<group>-<verb>` command is a
   thin consumer of the suite's shell library, which holds the logic the commands share.
 - `architecture/principles/repository-topology.md`: ai-hosting stands outside the five tiers,
