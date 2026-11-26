@@ -61,8 +61,9 @@ on every run.
   docinfer's windows, with RTFx reported beside it ([audio findings](../docs/findings/audio.md)).
   The embedding row runs the stock ROCm image and takes no MIOpen setting: its long-input probe,
   512 tokens, passed on it ([findings](../docs/findings/embedding.md#e5-probes)).
-- A report upstream is deferred to the backlog. The watch register's gfx1151 entry checks each
-  vLLM ROCm image for a gfx1151 find database, and its action drops FAST
+- A report upstream rides the watch register's gfx1151 entry. The entry checks each vLLM ROCm
+  image for a gfx1151 find database; its action drops FAST, or reports upstream if the probe still
+  fails without it
   ([watch.md](../docs/watch.md#a-gfx1151-miopen-find-database-in-vllms-rocm-image)).
 
 ## The vLLM release

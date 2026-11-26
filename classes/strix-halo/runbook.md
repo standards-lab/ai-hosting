@@ -295,8 +295,9 @@ cat /sys/class/drm/card*/device/mem_info_gtt_total
 `hosting profile render <alias>` prints the `docker run` command a row runs, without running it.
 `hosting engine install` pulls the row's model into the store, builds or pulls its image, starts
 its container, and records the alias on the host; `hosting engine update` and `uninstall` with no
-alias act on every recorded row. Each host serves one row; `engine install` refuses rows on one
-host whose fractions sum over 1.
+alias act on every recorded row. Each host serves one row
+([placement](../../docs/policy.md#placement)); `engine install` refuses rows on one host whose
+fractions sum over 1.
 
 ### audio
 
