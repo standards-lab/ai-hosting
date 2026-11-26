@@ -30,6 +30,7 @@ them on the command line.
 | --- | --- | --- |
 | [`embedding-sweep.yaml`](embedding-sweep.yaml) | 1, 4, 16, 32, 64 and 128 concurrent streams, 30 s a level, six levels in one run | The embedding row's knee and plateau, and the cap |
 | [`embedding-rate.yaml`](embedding-rate.yaml) | A constant rate, given per run, for 240 s | The embedding row at one rate; [e5-pair](../docs/findings/embedding.md#e5-pair) ran it beside audio, when the two shared `framework` |
+| [`embedding-target.yaml`](embedding-target.yaml) | A constant rate, given per level, at most 16 requests in flight, for 240 s | The embedding row at its load target, 78 requests a second at 16 in flight, alone and in the standing layout cell |
 | [`embedding-rate-sweep.yaml`](embedding-rate-sweep.yaml) | GuideLLM's sweep: synchronous, throughput, then 14 constant rates between them, 90 s a level, sixteen levels in one run | The highest rate the embedding row keeps |
 | [`audio.yaml`](audio.yaml) | 4 concurrent streams for 240 s | The audio row at 4 streams |
 | [`audio-8.yaml`](audio-8.yaml) | 8 concurrent streams for 240 s | The audio row alone at 8 streams |
@@ -338,12 +339,16 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
   --scenario bench/agent-capacity.yaml --cell <cell> 8
 ```
 
-The embedding row at a constant 78 requests a second, a rate scenario's level being its rate:
+The embedding row at its load target, a constant 78 requests a second with at most 16 in flight,
+a rate scenario's level being its rate:
 
 ```sh
 MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
-  --scenario bench/embedding-rate.yaml --cell <cell> 78
+  --scenario bench/embedding-target.yaml --cell <cell> 78
 ```
+
+Without the bound on requests in flight, `embedding-rate.yaml` at 78 a second queues past the row's
+16 and falls behind ([e5-target](../docs/findings/embedding.md#e5-target)).
 
 Run by hand, the rate scenario takes its rate from the environment,
 `GUIDELLM__SPEC__PROFILE__RATE=<requests a second>`; with none set, GuideLLM refuses to start. The
@@ -425,17 +430,23 @@ redistributable.
 
 [`levels.jq`](levels.jq) turns a result JSON into one table a file, one row a level: its streams,
 `rate <r>` on a constant-rate level, its rate to two places, or `synchronous` or `throughput` on a
-sweep's first two levels; requests ok, errored, and incomplete; requests a second; the TTFT median;
+sweep's first two levels; requests ok, errored, and incomplete; requests a second; the second-half
+rate, the requests that finished in the level's second half over that half; the TTFT median;
 the ITL median; the request latency's median, p90, and minimum; for vision, the count of requests
-that finished in 10 s or less and the images a minute, its requests a second times 60 at one image
+that finished in 10 s or less and the images a minute, its second-half rate times 60 at one image
 a request; prompt tok/s; output tok/s; for audio, the RTFx median and
 minimum and the count of requests at RTFx 5 or more (each request's clip seconds over its request
 time); and the level's floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's
 an RTFx median of 5, vision's a request latency median of at most 10 s, and the agent's an
 inter-token latency median of at most 100 ms; a level with no successful request misses. The
 verdict doesn't set a cap: the vision and audio rows' caps follow their throughput peaks, as their
-profiles' `cap_reason` says. A sweep's table starts with the knee GuideLLM concluded. Medians and
-percentiles interpolate linearly between the two nearest ranks.
+profiles' `cap_reason` says, read on the second-half rate. Requests a second count only the
+requests that finished within the level, so a level whose requests are long against its duration
+reads low: its streams start together, and the requests in flight at its end don't count. At 48
+streams of 30 s windows, a latency median of 25 s in a 90 s level, requests a second read 1.656
+against a second-half rate of 2.133 ([audio-real-30s](../docs/findings/audio.md#audio-real-30s)).
+A sweep's table starts with the knee GuideLLM concluded. Medians and percentiles interpolate
+linearly between the two nearest ranks.
 
 ```sh
 jq -r --arg purpose embed -f bench/levels.jq .state/bench/<cell>.json

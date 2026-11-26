@@ -172,7 +172,7 @@ run_levels() {
 test_levels_names_a_rate_sweeps_synchronous_throughput_and_constant_levels() {
   run_levels "$fixtures/sweep-result.json"
   assert_equal status "$status" 0
-  assert_equal levels "$(cut -d '|' -f 1-3,17 <<<"$out")" "## sweep-result.json
+  assert_equal levels "$(cut -d '|' -f 1-3,18 <<<"$out")" "## sweep-result.json
 level | ok/err/inc | req/s | floor
 synchronous | 2/0/1 | 9.250 | meets
 throughput | 2/1/0 | 70.500 | meets
@@ -188,29 +188,39 @@ test_levels_names_a_stream_sweeps_level_by_its_streams() {
 test_levels_judges_each_vision_level_by_its_latency_median() {
   run jq -r --arg purpose vision -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
   assert_equal status "$status" 0
-  assert_equal levels "$(cut -d '|' -f 1,2,4-9,17 <<<"$out")" "## vision-result.json
+  assert_equal levels "$(cut -d '|' -f 1,2,5-10,18 <<<"$out")" "## vision-result.json
 level | ok/err/inc | TTFT med ms | ITL med ms | lat med s | lat p90 s | lat min s | lat<=10s | floor
 4 | 3/0/4 | 812 | 31.26 | 4.00 | 4.80 | 3.00 | 3/3 | meets
 8 | 3/1/8 | 2400 | 70.00 | 9.50 | 11.50 | 8.00 | 2/3 | meets
 16 | 2/0/16 | 6100 | 95.50 | 11.00 | 12.60 | 9.00 | 1/2 | MISSES"
 }
 
-test_levels_gives_a_vision_levels_images_a_minute_and_no_other_purposes() {
+test_levels_gives_a_vision_levels_images_a_minute_from_its_second_half_and_no_other_purposes() {
   run jq -r --arg purpose vision -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
   assert_equal status "$status" 0
-  assert_equal "vision" "$(cut -d '|' -f 1,3,10 <<<"$out")" "## vision-result.json
-level | req/s | img/min 
-4 | 0.950 | 57.00 
-8 | 0.800 | 48.00 
-16 | 0.600 | 36.00 "
+  assert_equal "vision" "$(cut -d '|' -f 1,4,11 <<<"$out")" "## vision-result.json
+level | 2nd half req/s | img/min 
+4 | 0.067 | 4.00 
+8 | 0.044 | 2.67 
+16 | - | - "
   run_levels "$fixtures/streams-result.json"
-  assert_equal "embed" "$(sed -n 3p <<<"$out" | cut -d '|' -f 10)" " - "
+  assert_equal "embed" "$(sed -n 3p <<<"$out" | cut -d '|' -f 11)" " - "
+}
+
+test_levels_rates_each_level_on_the_requests_finished_in_its_second_half() {
+  run jq -r --arg purpose vision -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
+  assert_equal status "$status" 0
+  assert_equal levels "$(cut -d '|' -f 1,3,4 <<<"$out")" "## vision-result.json
+level | req/s | 2nd half req/s 
+4 | 0.950 | 0.067 
+8 | 0.800 | 0.044 
+16 | 0.600 | - "
 }
 
 test_levels_judges_each_agent_level_by_its_itl_median() {
   run jq -r --arg purpose agent -f "$repo/bench/levels.jq" "$fixtures/agent-result.json"
   assert_equal status "$status" 0
-  assert_equal levels "$(cut -d '|' -f 1,2,4,5,12,17 <<<"$out")" "## agent-result.json
+  assert_equal levels "$(cut -d '|' -f 1,2,5,6,13,18 <<<"$out")" "## agent-result.json
 level | ok/err/inc | TTFT med ms | ITL med ms | out tok/s | floor
 4 | 4/0/0 | 61235 | 49.13 | 5.61 | meets
 12 | 2/0/10 | 250000 | 100.50 | 0.90 | MISSES
