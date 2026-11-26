@@ -413,9 +413,10 @@ preemptions and no cache hit. The host's lowest MemAvailable over the levels was
 62.66 GiB.
 
 - **Throughput still rises at 64 streams.** Images a minute grow 32% from 8 to 16 streams, 24% to
-  32 and 18% to 64, each beyond gb10-2's 2.5% run noise, and the total output 32%, 21% and 12%.
-  At 64 streams a request's latency median, 248 s, is near half the level, so its 64 first
-  requests finish together inside the second half and the second-half rate reads high; the total
+  32 and 18% to 64, each beyond gb10-2's run noise, 2.5% at 8 streams and 1.5% at 32
+  ([dense-noise-32](#dense-noise-32)), and the total output 32%, 21% and 12%. At 64 streams a
+  request's latency median, 248 s, is near half the level, so its 64 first requests finish
+  together inside the second half and the second-half rate reads high; the total
   output, which counts every token decoded, still rises 12%.
 - **No preemption at 0.40.** The dense pages took about 1,135 prompt tokens and 1,000 of reply, so
   64 in flight used under the 158,125 tokens of the KV cache; at the row's context of 8,192 the
@@ -445,6 +446,39 @@ Its rows were the cell's first 160, the pages [dense-1120](#dense-1120)'s 2 and 
 - **The repeat reads the same**: 8.20 images a minute, as dense-1120's 8 streams, on other pages.
   One request more or less in a level's second half moves the rate by about 2.4%, and
   [layout](#layout)'s 8 streams read 8.00, 2.5% under: 2.5% is the host's run noise.
+
+## dense-noise-32
+
+The run noise at the row's peak level: [dense-1120-high](#dense-1120-high)'s 32 streams, run again
+from a restart, `docker restart vllm-vision` on gb10-2 at 2026-11-26T14:27:43Z, alone, at the
+row's committed settings, cap 32, queue limit 64, fraction 0.55, with `hosting profile stale`
+empty and the gateway's stack up and idle. Its start read a KV cache of 272,539 tokens, 33.27
+requests of 8,192; `tailscale ping gb10-2` direct, 0 ms.
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell vision-dense-32-noise-gb10-2 32:280
+```
+
+`levels.jq` with `--arg purpose vision`, against [dense-1120-high](#dense-1120-high)'s 32 streams
+alone, which ran at fraction 0.40, and [layout](#layout)'s 32-stream round, at 0.55; total output
+tok/s from the result JSON's `output_tokens_per_second.total`:
+
+| Run | Fraction | Start, UTC | ok/err/inc | Second-half req/s | Images a minute | TTFT median ms | ITL median ms | Latency median s | Latency p90 s | Output tok/s | Total output tok/s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| This cell, alone | 0.55 | 2026-11-26T14:28:43Z | 115/0/32 | 0.227 | 13.60 | 2,109 | 141.47 | 135.68 | 198.38 | 183.17 | 208.7 |
+| dense-1120-high, alone | 0.40 | 2026-11-26T10:22:45Z | 115/0/32 | 0.223 | 13.40 | 2,163 | 141.23 | 136.29 | 198.39 | 181.78 | 209.8 |
+| layout, beside the others | 0.55 | 2026-11-26T10:58:08Z | 114/0/32 | 0.217 | 13.00 | 2,118 | 140.21 | 135.87 | 198.94 | 183.81 | 210.5 |
+
+The row finished 115 requests, 2 at the 2,048-token bound, with 0 preemptions, and 0 pages hit
+the multimodal cache; the host's lowest MemAvailable over the cell was 44.74 GiB.
+
+- **The two runs alone read within 1.5%**: 13.60 images a minute against 13.40, 68 requests in the
+  second half against 67, one request apart, and their total output within 0.5%. The earlier run
+  was at fraction 0.40 and this one at 0.55; neither preempted, and 32 in flight fit either cache,
+  so the fraction doesn't bound the rate at 32 streams. 1.5% is gb10-2's run noise at 32 streams,
+  from two runs.
+- The 8-stream reading, 2.5% at cap 8 and fraction 0.40, stays in [dense-noise](#dense-noise).
 
 ## layout
 
@@ -504,9 +538,13 @@ at 4, 8 and 32 streams, 1, 3 and 3 replies reached the 2,048-token bound.
 - **The vision row beside the others matches it alone**: 8.00 images a minute at 8 streams
   against 8.20, within [dense-noise](#dense-noise)'s 2.5%. At 2 and 4 streams, with fewer requests
   in a level's second half, 3.60 and 5.40 against 3.40 and 5.80, one request apart at 2 streams
-  and two at 4. At 32 streams, 13.00 against 13.40 alone at fraction 0.40, 3.0% under: 65
-  requests in the second half against 67, while the total output reads 210.5 tokens a second
-  against 209.8.
+  and two at 4. At 32 streams, 13.00 against 13.40 alone at fraction 0.40, 3.0% under, and 13.60
+  alone at 0.55, the layout's own settings, 4.4% under: 65 requests in the second half against 67
+  and 68. That is past [dense-noise-32](#dense-noise-32)'s 1.5%, two and three requests against
+  the runs alone's one. Yet the row decoded no slower beside the others: its total output reads
+  210.5 tokens a second against 209.8 and 208.7 alone, and its ITL median 140.21 ms against
+  141.23 and 141.47. The shortfall is in how many pages finished inside the second half, not in
+  the row's rate, and a spread from two runs alone doesn't bound that count closely.
 - The other rows read the same beside it as alone: the agent's ITL median 49.26 to 49.75 ms at 4
   sessions against 49.94, audio 2.013 to 2.057 requests a second at 48 streams against 2.044 and
   2.133, and embedding 77.11 to 77.87 against 77.96, as their sections give.
