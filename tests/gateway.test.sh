@@ -146,7 +146,7 @@ test_each_azure_provider_drops_what_its_deployment_refuses_and_the_rows_keep_the
     <<<"$config")" "agent-row priority=apiKey.class == \"bulk\" ? 10 : 0
 agent-azure ignore_eos=fail(\"remove\")
 vision-row priority=apiKey.class == \"bulk\" ? 10 : 0
-vision-azure max_completion_tokens=has(llmRequest.max_completion_tokens) ? llmRequest.max_completion_tokens : llmRequest.max_tokens;max_tokens=fail(\"remove\");top_p=fail(\"remove\");top_k=fail(\"remove\")
+vision-azure max_completion_tokens=has(llmRequest.max_completion_tokens) ? llmRequest.max_completion_tokens : llmRequest.max_tokens;max_tokens=fail(\"remove\");top_p=fail(\"remove\");top_k=fail(\"remove\");reasoning_effort=\"minimal\"
 audio-row 
 audio-azure stream_options=has(llmRequest.stream_options) ? {\"include_usage\": true} : fail(\"remove\")
 embedding-row "
