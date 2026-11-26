@@ -36,6 +36,9 @@ them on the command line.
 | [`audio-capacity.yaml`](audio-capacity.yaml) | 4, 8, 12, 16, 24 and 32 concurrent streams, 90 s a level, six levels in one run; a cell runs them one at a time | The audio row's throughput and RTFx on short clips |
 | [`audio-capacity-30s.yaml`](audio-capacity-30s.yaml) | The same six levels | The audio row's throughput and RTFx on 30 s windows of speech |
 | [`vision-capacity.yaml`](vision-capacity.yaml) | 4, 8 and 16 concurrent streams, 90 s a level, three levels in one run; a cell runs them one at a time | The vision row's throughput and request latency at each image budget it is given |
+| [`vision-dense.yaml`](vision-dense.yaml) | 2, 4 and 8 concurrent streams, 10 min a level; a cell runs them one at a time | The vision row's throughput, in images a minute, on docinfer's dense pages as docinfer sends them |
+| [`audio-real-30s.yaml`](audio-real-30s.yaml) | 8, 16, 24, 32 and 48 concurrent streams, 90 s a level; a cell runs them one at a time | The audio row's throughput on docinfer's real windows of 28 to 30 s as docinfer sends them |
+| [`agent-sessions.yaml`](agent-sessions.yaml) | 4 and 12 concurrent sessions, 110 s a level; a cell runs them one at a time | The agent row's inter-token latency, time to first token and output tokens a second under multi-turn sessions |
 | [`agent-capacity.yaml`](agent-capacity.yaml) | 8 concurrent streams, one request each, at most 570 s | Whether the agent row holds 8 long sessions at once, and its inter-token latency, time to first token and output tokens a second while it does |
 
 Each embedding request is 510 synthetic tokens to `/v1/embeddings`: with the 2 special tokens an
@@ -125,6 +128,78 @@ sessions at once. The requests match spike-model-layout's agent capacity cell
 took 225 s on a GB10. A level stops at 570 s, and the requests still in flight then count as
 incomplete. The row's context must hold the 65,792 tokens of a prompt and its reply; the agent
 row's 131,072 does.
+
+Each agent session is spike-model-layout's S-agent session, unchanged
+(`bench/role-split-agent-split.yaml`, which its `vllm-layout-agent.yaml` ran at 4 and 12 sessions,
+and its `docs/findings/agent-vllm.md`, F): GuideLLM's multi-turn synthetic conversation of 4
+turns, the first 8,192 prompt tokens and the next three 512 each, every turn exactly 512 output
+tokens, each turn sent when the last one's reply ends. A later turn carries the earlier ones as
+history, so a session reads 11,776 tokens by its last reply, well inside the agent row's 131,072.
+The levels are the spike's agent target of 4 sessions and the row's cap of 12, 110 s a level, the
+sessions in flight at its end counted incomplete; `agent-sessions.yaml` runs them as a concurrent
+profile, which the cell runner takes one level at a time, where the spike's S-agent swept a knee
+profile in one run.
+
+## docinfer's inputs
+
+`vision-dense.yaml` and `audio-real-30s.yaml` send what docinfer sends the rows, read from local
+files that [`docinfer-inputs.sh`](docinfer-inputs.sh) writes from the local docproc run docinfer
+read, `~/runs/docproc/final`. The pages and windows are from documents that may not be
+redistributed, so only the builder, its page list, and its manifest are committed; the inputs it
+writes stay in the untracked `.state/bench/docinfer/`.
+
+- **The dense pages.** [`dense-pages.txt`](dense-pages.txt) names, by their sha256 in the run, the
+  110 real pages whose replies ran past `max_tokens` in docinfer's first acceptance run, 95 of them
+  CFR pages, the set docinfer's `docs/acceptance.md` re-probes at 1,120 image tokens, with replies
+  running to about 2,048 tokens. The builder writes 440 rows, cycling through the 110 in sha256
+  order. Each row's page is bounded as docinfer bounds it: a page over 2,580,480 pixels, Gemma 4's
+  1,120 soft tokens × 9 patches × 16², is downscaled by area average, keeping its aspect, to
+  docinfer's size for it; a page that is neither grayscale nor RGB is converted to RGB. Each row
+  carries docinfer's prompt, `Transcribe the text in this picture. If it has no text, describe it
+  in one sentence.`, which GuideLLM sends before the page, as docinfer does.
+- **The windows.** Every distinct audio window of 28 to 30 s in the run's record, 657 of the 1,208
+  windows docinfer transcribed, the heaviest requests the audio row transcribes whole. The builder
+  writes 2,000 rows, cycling through them in sha256 order, each a 16 kHz mono WAV as docproc cut it,
+  with the model card's transcription instruction as go-ai sends it with no language given:
+  `Transcribe the following speech segment in its original language into text.`, then the card's
+  formatting instructions.
+
+Each row has its own file, under `dense-pages/` or `windows-30/`, and no two rows send the same
+page or audio, which the builder checks on the bytes GuideLLM sends and stops on a repeat: a row's
+cycle n through its sources scales a page's pixels by 1 − n/128, at most 3/128 darker, and
+adds n to each of a window's samples, an offset of at most 3 in 32,768. A gain can't vary the run's
+silent windows, which an offset does. The row files are `dense-pages.jsonl` and `windows-30.jsonl`,
+each row naming its file, its source's sha256, and its file's sha256.
+
+The scenarios send docinfer's request shape. A vision request asks for at most 2,048 tokens with
+Gemma 4's card sampling, `temperature` 1.0, `top_p` 0.95 and `top_k` 64; an audio request for at
+most 512 at `temperature` 0. Neither sets `ignore_eos`, so a reply ends where the model ends it, as
+docinfer's do. GuideLLM 0.8.1 re-encodes each page as a JPEG before it sends it, where docinfer
+sends the PNG, and streams each reply, where docinfer doesn't; a level's token counts are the
+same either way.
+
+[`docinfer-inputs.sha256`](docinfer-inputs.sha256) is the manifest: the sha256 of each row file,
+its paths taken relative to the output directory, so it holds wherever the inputs lie. With each
+row's file checked against the sha256 its row gives, it checks every file the builder wrote. The
+inputs were built and checked with the bench environment's Pillow 13.0.0; a Pillow that encodes a
+PNG differently fails the check on the pages, though their pixels match. A deliberate change to
+the builder ends with its new manifest committed, `docinfer-inputs.sh manifest` printing it.
+
+From the repository root, building them once, then checking them, which needs only jq and
+`sha256sum`:
+
+```sh
+MISE_ENV=bench mise exec -- bench/docinfer-inputs.sh build
+bench/docinfer-inputs.sh check
+```
+
+`build --docproc <run dir>` reads another docproc run directory, which must hold one run; `--pages
+<file>` another page list; and `--output <dir>`, which `check` and `manifest` take too, writes
+elsewhere, but the scenarios read `.state/bench/docinfer/`. Before writing anything, the builder
+refuses a page the list names that the run's record lacks, a run with no window of 28 to 30 s, a
+source missing from the run's `content/`, and a run outside the bench environment. `check` exits 1
+and names each file that differs or is missing. The tests are
+[`tests/docinfer-inputs.test.sh`](../tests/docinfer-inputs.test.sh).
 
 ## Running a cell
 
@@ -231,6 +306,30 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
   --scenario bench/vision-capacity.yaml --cell <cell> 4 8
 ```
 
+The vision row on docinfer's dense pages, after building them, each level on its own slice of
+the 440 rows, sized for at least 1.2 times the 5.44 images a minute docinfer's re-probe reached at
+4 streams, and more for 8:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell <cell> 2:60 4:100 8:160
+```
+
+The audio row on docinfer's windows, each level on its own slice of the 2,000 rows, as the
+LibriSpeech windows' slices are sized:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework --alias audio \
+  --scenario bench/audio-real-30s.yaml --cell <cell> 8:200 16:300 24:400 32:500 48:600
+```
+
+The agent row's sessions on gb10-1, each level drawing its text from a seed of its streams:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
+  --scenario bench/agent-sessions.yaml --cell <cell> 4 12
+```
+
 The agent row's capacity cell on gb10-1, its one level drawing its text from a seed of 8 the same
 way:
 
@@ -274,6 +373,40 @@ concurrent profile or reads data other than synthetic text, synthetic images, an
 levels taking more rows than the file holds, a level whose result JSON exists, or a run outside the
 bench environment. It stops at the first level GuideLLM fails, exiting with GuideLLM's status. Its
 tests are [`tests/cell.test.sh`](../tests/cell.test.sh).
+
+## The vision probe
+
+[`vision-probe.sh`](vision-probe.sh) reads how many prompt tokens the vision row gives a page at
+its image budget, the vision row's accuracy measure ([probe-1120](../docs/findings/vision.md#probe-1120)),
+with no other load on the row:
+
+```sh
+bench/vision-probe.sh --host gb10-2
+```
+
+It sends the text `Transcribe this page.` alone, then each of the two pages in
+[`probe/`](probe/) whole, as a PNG data URL before the same text, each request with `max_tokens` 1,
+and prints the findings' table: each request's prompt tokens, and each page's image span, its
+prompt tokens less the text-only request's. `--alias <alias>` probes another row. It refuses a
+missing or malformed argument and an alias that names no row or more than one before its first
+request, and exits 1 when a request fails. Its tests are
+[`tests/vision-probe.test.sh`](../tests/vision-probe.test.sh).
+
+The pages are page 95 of the 2024 Code of Federal Regulations, Title 32, volume 1, a US government
+work (17 USC 105), from govinfo
+(`https://www.govinfo.gov/content/pkg/CFR-2024-title32-vol1/pdf/CFR-2024-title32-vol1.pdf`, sha256
+`a1946ff2e79347cc55adf80a0b0618e071d45d36ed367c7ddd979bdb3560e660`), rendered in grayscale at the
+two sizes probe-280, probe-560 and probe-1120 sent, 1240×1754 and 3705×4934, by Ghostscript
+10.08.0:
+
+```sh
+gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pnggray -g<width>x<height> -dPDFFitPage \
+  -dFirstPage=95 -dLastPage=95 -o bench/probe/cfr-<width>x<height>.png CFR-2024-title32-vol1.pdf
+```
+
+Gemma 4's processor fits a page to the budget's patches by its size, not its content, so these
+pages take the sizes of the pages the probes first sent, which came from docproc's run and aren't
+redistributable.
 
 ## Reading the results
 

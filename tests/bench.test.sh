@@ -2,7 +2,8 @@
 # Tests for scripts/lint-bench.sh, the bench scenarios' lint, against the committed scenarios and
 # profiles and against the fixtures in tests/bench/: a 512-token embedding context and a 1,024-token
 # agent context, each with a scenario within it and one over it, a stream sweep and a rate sweep
-# among them. Tests too that each committed audio
+# among them, and bench/agent-sessions.yaml's 4-turn session against agent contexts of its own
+# length and one token less. Tests too that each committed audio
 # scenario reading LibriSpeech from Hugging Face lists one prompt per clip row, for
 # bench/audio-windows.jq's windows against toy clips and the LibriSpeech dummy set's clip lengths,
 # and for bench/levels.jq's level names and the agent and vision figures and floors against the
@@ -104,6 +105,20 @@ test_an_agent_session_over_the_agent_rows_context_fails() {
     "$fixtures/agent-session-1025.yaml"
   assert_equal status "$status" 1
   assert_equal stderr "$err" "FAIL: $fixtures/agent-session-1025.yaml: a session of 1025 tokens exceeds the agent row's context in $fixtures/context-512.toml, 1024"
+}
+
+test_the_session_scenario_fits_an_agent_context_of_its_11776_tokens() {
+  printf '[[rows]]\nalias = "agent"\ncontext = 11776\n' >"$tmp/agent.toml"
+  run_lint "$tmp/agent.toml" "$repo/bench/agent-sessions.yaml"
+  assert_equal status "$status" 0
+  assert_equal stderr "$err" ""
+}
+
+test_the_session_scenario_over_an_agent_context_of_11775_fails() {
+  printf '[[rows]]\nalias = "agent"\ncontext = 11775\n' >"$tmp/agent.toml"
+  run_lint "$tmp/agent.toml" "$repo/bench/agent-sessions.yaml"
+  assert_equal status "$status" 1
+  assert_equal stderr "$err" "FAIL: $repo/bench/agent-sessions.yaml: a session of 11776 tokens exceeds the agent row's context in $tmp/agent.toml, 11775"
 }
 
 test_an_agent_scenario_against_a_profile_with_no_agent_row_fails() {

@@ -46,9 +46,12 @@ The pass pauses with a proposal, and runs none of the cell, when a cell it would
   `bench/cell.sh` runs loads only, so the cell is outside it. The proposal names the cell and the
   steps it took.
 - **has inputs or a command the repository doesn't hold**. The proposal names what is missing.
-  The vision row's accuracy measure is one:
-  [probe-1120](../../../docs/findings/vision.md#probe-1120)'s pages and request command aren't
-  in the repository, so no vision pass reaches a verdict until `acceptance` commits them.
+  The vision row's accuracy measure isn't one: [probe-1120](../../../docs/findings/vision.md#probe-1120)'s
+  pages and command are `bench/vision-probe.sh` and its pages
+  ([bench/README.md](../../../bench/README.md#the-vision-probe)). A cell on docinfer's inputs,
+  such as `bench/vision-dense.yaml`, needs them built and checked locally first
+  ([bench/README.md](../../../bench/README.md#docinfers-inputs)); a client with no local docproc
+  run can't build them, and the proposal says so.
 - **needs a file staged into the row's container**, such as a chat template the row's model
   doesn't ship. There is no staging route yet; the proposal names the file and where the row would
   read it.
@@ -86,8 +89,9 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host <host> --alias <alias> \
 measure after it: the runner refuses a row whose caches have served a request
 ([bench/README.md](../../../bench/README.md#running-a-cell)).
 The accuracy measures are each purpose's own: embedding's retrieval through `bench/retrieval.sh`
-([bench/README.md](../../../bench/README.md#scoring-retrieval)), and the audio, vision, and agent
-probes as their findings give them.
+([bench/README.md](../../../bench/README.md#scoring-retrieval)), vision's probe through
+`bench/vision-probe.sh` ([bench/README.md](../../../bench/README.md#the-vision-probe)), and the
+audio and agent probes as their findings give them.
 
 A cell its findings ran under settings the profile no longer holds, such as vision's cells at cap
 16 where the row now runs cap 4, runs at the current settings as the row's new baseline

@@ -135,7 +135,8 @@ An engine move is adopted only when every row passes both tests:
   - embedding: nDCG@10 within 0.02 of the published score on each of its BelebeleRetrieval
     subsets ([e5-retrieval](findings/embedding.md#e5-retrieval));
   - vision: the probe pages' prompt tokens unchanged at the row's image budget
-    ([probe-1120](findings/vision.md#probe-1120));
+    ([probe-1120](findings/vision.md#probe-1120)), read by `bench/vision-probe.sh` from the
+    committed pages ([bench/README.md](../bench/README.md#the-vision-probe));
   - agent: the inter-token latency median at most 100 ms at its load target.
 - **Throughput holds**: the row's throughput peak is within the host's run noise of the
   incumbent's, or ahead of it. The run noise is the widest within-session spread the host's
