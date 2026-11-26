@@ -4,13 +4,16 @@
 # streams on a concurrent scenario and a rate in requests a second on a constant one. Each level
 # sends its own inputs: a level of a scenario reading a JSON file takes the next <rows> rows of it,
 # and every level draws its synthetic text and images from seeds set to its level. --seconds sets
-# each level's max_duration in place of the scenario's. The row is the alias's in the class
-# profiles, its port and tokenizer read from there. Before the first level it refuses a row whose
-# /metrics reads vllm:mm_cache_queries_total or vllm:prefix_cache_queries_total above 0: restart
-# the row first. It exits 2 on a refusal, and stops at the first level GuideLLM fails.
+# each level's max_duration in place of the scenario's, and --requests its max_requests. The row is
+# the alias's in the class profiles, its port and tokenizer read from there. Before the first level
+# it refuses a row whose /metrics reads vllm:mm_cache_queries_total or
+# vllm:prefix_cache_queries_total above 0: restart the row first. --gateway sends the load through
+# the gateway on that host instead, with the key in AI_GATEWAY_TOKEN, and --row-down runs it with
+# the row stopped, refusing a row whose /metrics answers. It exits 2 on a refusal, and stops at the
+# first level GuideLLM fails.
 #
 #   bench/cell.sh --host <host> --alias <alias> --scenario <file> --cell <cell> [--output <dir>]
-#     [--seconds <n>] <level>[:<rows>]...
+#     [--seconds <n>] [--requests <n>] [--gateway <host> [--row-down]] <level>[:<rows>]...
 #
 # See bench/README.md.
 set -uo pipefail
@@ -20,7 +23,7 @@ source "$root/lib/profile.sh"
 
 usage() {
   echo "cell: $1" >&2
-  echo "usage: bench/cell.sh --host <host> --alias <alias> --scenario <file> --cell <cell> [--output <dir>] [--seconds <n>] <level>[:<rows>]..." >&2
+  echo "usage: bench/cell.sh --host <host> --alias <alias> --scenario <file> --cell <cell> [--output <dir>] [--seconds <n>] [--requests <n>] [--gateway <host> [--row-down]] <level>[:<rows>]..." >&2
   exit 2
 }
 
@@ -30,10 +33,12 @@ refuse() {
 }
 
 output=$root/.state/bench
+gateway_port=3000
+row_down=0
 levels=()
 while (($#)); do
   case $1 in
-    --host | --alias | --scenario | --cell | --output | --seconds)
+    --host | --alias | --scenario | --cell | --output | --seconds | --requests | --gateway)
       (($# >= 2)) || usage "$1 needs a value"
       case $1 in
         --host) host=$2 ;;
@@ -42,8 +47,14 @@ while (($#)); do
         --cell) cell=$2 ;;
         --output) output=$2 ;;
         --seconds) seconds=$2 ;;
+        --requests) requests=$2 ;;
+        --gateway) gateway=$2 ;;
       esac
       shift 2
+      ;;
+    --row-down)
+      row_down=1
+      shift
       ;;
     -*) usage "unknown option $1" ;;
     *)
@@ -61,6 +72,13 @@ done
 [[ $cell =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || usage "--cell $cell is not a file name"
 [[ -n $output ]] || usage "--output is empty"
 [[ ! -v seconds || $seconds =~ ^[1-9][0-9]*$ ]] || usage "--seconds $seconds is not a positive whole number"
+[[ ! -v requests || $requests =~ ^[1-9][0-9]*$ ]] || usage "--requests $requests is not a positive whole number"
+[[ ! -v gateway || $gateway =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]] ||
+  usage "--gateway $gateway is not a short host name"
+((!row_down)) || [[ -v gateway ]] || usage "--row-down needs --gateway"
+if [[ -v gateway && -z ${AI_GATEWAY_TOKEN:-} ]]; then
+  usage "--gateway needs the key in AI_GATEWAY_TOKEN"
+fi
 ((${#levels[@]})) || usage "no level"
 
 streams=() rows=()
@@ -136,24 +154,43 @@ done
 command -v guidellm >/dev/null ||
   refuse "guidellm is not on PATH; run in the bench environment, MISE_ENV=bench mise exec --"
 
-target=http://$host:$port
-if ! metrics=$(curl --silent --fail --max-time 5 "$target/metrics"); then
-  refuse "$target/metrics doesn't answer"
+row=http://$host:$port
+if ((row_down)); then
+  ! curl --silent --fail --max-time 5 "$row/metrics" >/dev/null ||
+    refuse "$row/metrics answers; --row-down runs with the row stopped"
+else
+  if ! metrics=$(curl --silent --fail --max-time 5 "$row/metrics"); then
+    refuse "$row/metrics doesn't answer"
+  fi
+  for counter in vllm:mm_cache_queries_total vllm:prefix_cache_queries_total; do
+    count=$(awk -v name="$counter" '$1 == name || index($1, name "{") == 1 { sum += $NF }
+      END { print sum + 0 }' <<<"$metrics")
+    [[ $count == 0 ]] ||
+      refuse "$row reads $counter at $count, not 0; restart the row, as hosting engine update $alias on $host does"
+  done
 fi
-for counter in vllm:mm_cache_queries_total vllm:prefix_cache_queries_total; do
-  count=$(awk -v name="$counter" '$1 == name || index($1, name "{") == 1 { sum += $NF }
-    END { print sum + 0 }' <<<"$metrics")
-  [[ $count == 0 ]] ||
-    refuse "$target reads $counter at $count, not 0; restart the row, as hosting engine update $alias on $host does"
-done
+
+target=$row
+backend=kind=openai_http,model=$alias
+if [[ -v gateway ]]; then
+  target=http://$gateway:$gateway_port/$alias
+  printf 'Authorization: Bearer %s\n' "$AI_GATEWAY_TOKEN" |
+    curl --silent --fail --max-time 5 --output /dev/null --header @- "$target/v1/models" ||
+    refuse "$target/v1/models doesn't answer the key in AI_GATEWAY_TOKEN"
+  export GUIDELLM__SPEC__BACKEND__API_KEY=$AI_GATEWAY_TOKEN
+  backend+=,validate_backend=false
+fi
 
 constraints=()
-if [[ -v seconds ]]; then
+if [[ -v seconds || -v requests ]]; then
   while IFS= read -r constraint; do
     constraints+=(--constraint "$constraint")
-  done < <(jq -r --argjson seconds "$seconds" '[.constraints[]? | select(.kind != "max_duration")]
-    + [{kind: "max_duration", seconds: $seconds}] | .[]
-    | to_entries | map("\(.key)=\(.value)") | join(",")' <<<"$spec")
+  done < <(jq -r --arg seconds "${seconds:-}" --arg requests "${requests:-}" '
+    ([if $requests != "" then {kind: "max_requests", count: ($requests | tonumber)} else empty end,
+      if $seconds != "" then {kind: "max_duration", seconds: ($seconds | tonumber)} else empty end]
+    ) as $given
+    | [.constraints[]? | select(.kind as $kind | [$given[].kind] | index($kind) | not)] + $given
+    | .[] | to_entries | map("\(.key)=\(.value)") | join(",")' <<<"$spec")
 fi
 
 mkdir -p "$output" || exit
@@ -177,7 +214,7 @@ for i in "${!streams[@]}"; do
     "${data[@]}" \
     --seed "kind=static,value=$n" \
     "${constraints[@]}" \
-    --backend "kind=openai_http,model=$alias" \
+    --backend "$backend" \
     --tokenizer "kind=huggingface_auto,model=$tokenizer" \
     --output "kind=json,path=$output/$cell-$n.json" || exit
 done

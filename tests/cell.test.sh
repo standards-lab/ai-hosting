@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Tests for bench/cell.sh, the bench cell runner, with guidellm and curl stubbed: the GuideLLM run
-# it starts for each level, streams or a rate, the rows and seeds each level takes, the duration it
-# sets, the row's cache counters it reads before the first level, and what it refuses before any
-# request.
+# it starts for each level, streams or a rate, the rows and seeds each level takes, the duration and
+# request count it sets, the row's cache counters it reads before the first level, the load sent
+# through the gateway with a key, and what it refuses before any request.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 
@@ -13,8 +13,18 @@ vllm:mm_cache_queries_total{engine="0",model_name="openai/gpt-oss-120b"} 0.0'
 
 run_cell() {
   write_stub guidellm "${guidellm_body:-}"
-  write_stub curl "cat $(printf %q "$tmp/metrics") 2>/dev/null || exit 22"
+  write_stub curl "case \"\$*\" in
+  *:3000/*) cat >$(printf %q "$tmp/header"); [[ -e $(printf %q "$tmp/gateway-up") ]] || exit 22 ;;
+  *) cat $(printf %q "$tmp/metrics") 2>/dev/null || exit 22 ;;
+esac"
   run "$repo/bench/cell.sh" "$@"
+}
+
+gateway_key=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+gateway_cell() {
+  AI_GATEWAY_TOKEN=$gateway_key run_cell --host gb10-2 --alias vision \
+    --scenario "$repo/bench/vision-capacity.yaml" --cell g --output "$tmp/out" --gateway gb10-2 "$@"
 }
 
 serve_metrics() {
@@ -110,6 +120,65 @@ test_seconds_replaces_the_scenarios_duration_and_keeps_its_other_constraints() {
   assert_equal "constraints" "$(guidellm_calls | grep -o -- '--constraint' | wc -l)" 1
 }
 
+test_requests_replaces_the_scenarios_request_count() {
+  serve_metrics "$clean_metrics"
+  agent_cell --requests 3 4
+  assert_equal status "$status" 0
+  assert_contains calls "$(guidellm_calls)" "--seed kind=static,value=4 --constraint kind=max_duration,seconds=570 --constraint kind=max_requests,count=3 --backend"
+  assert_equal "constraints" "$(guidellm_calls | grep -o -- '--constraint' | wc -l)" 2
+  rm -f "$tmp/calls"
+  agent_cell --requests 300 --seconds 90 4
+  assert_contains calls "$(guidellm_calls)" "--seed kind=static,value=4 --constraint kind=max_requests,count=300 --constraint kind=max_duration,seconds=90 --backend"
+}
+
+test_gateway_sends_the_load_through_the_gateway_with_the_key_off_the_command_line() {
+  serve_metrics "$clean_metrics"
+  touch "$tmp/gateway-up"
+  local guidellm_body
+  # shellcheck disable=SC2016 # The stub expands the variables when GuideLLM would read them.
+  guidellm_body='echo "target $GUIDELLM__SPEC__BACKEND__TARGET key $GUIDELLM__SPEC__BACKEND__API_KEY" >>'"$(printf %q "$tmp/calls")"
+  gateway_cell 4
+  assert_equal status "$status" 0
+  assert_contains calls "$(calls)" "curl --silent --fail --max-time 5 http://gb10-2:8001/metrics"
+  assert_contains calls "$(calls)" "curl --silent --fail --max-time 5 --output /dev/null --header @- http://gb10-2:3000/vision/v1/models"
+  assert_equal header "$(cat "$tmp/header")" "Authorization: Bearer $gateway_key"
+  assert_contains calls "$(calls)" "target http://gb10-2:3000/vision key $gateway_key"
+  assert_contains calls "$(guidellm_calls)" "--backend kind=openai_http,model=vision,validate_backend=false --tokenizer"
+  assert_equal "key on a command line" "$(calls | grep -E '^(curl|guidellm) ' | grep -c "$gateway_key")" 0
+}
+
+test_gateway_refuses_a_key_the_gateway_does_not_answer() {
+  serve_metrics "$clean_metrics"
+  gateway_cell 4
+  assert_equal status "$status" 2
+  assert_contains stderr "$err" "cell: http://gb10-2:3000/vision/v1/models doesn't answer the key in AI_GATEWAY_TOKEN"
+  assert_equal "guidellm runs" "$(guidellm_calls)" ""
+}
+
+test_row_down_runs_only_with_the_row_stopped() {
+  touch "$tmp/gateway-up"
+  gateway_cell --row-down 4
+  assert_equal status "$status" 0
+  assert_equal "guidellm runs" "$(guidellm_calls | wc -l)" 1
+  rm -f "$tmp/calls"
+  serve_metrics "$clean_metrics"
+  gateway_cell --row-down 4
+  assert_equal status "$status" 2
+  assert_contains stderr "$err" "cell: http://gb10-2:8001/metrics answers; --row-down runs with the row stopped"
+  assert_equal "guidellm runs" "$(guidellm_calls)" ""
+}
+
+test_gateway_needs_a_key_and_row_down_needs_gateway() {
+  AI_GATEWAY_TOKEN='' run_cell --host gb10-2 --alias vision \
+    --scenario "$repo/bench/vision-capacity.yaml" --cell g --gateway gb10-2 4
+  assert_equal status "$status" 2
+  assert_contains stderr "$err" "cell: --gateway needs the key in AI_GATEWAY_TOKEN"
+  agent_cell --row-down 4
+  assert_equal status "$status" 2
+  assert_contains stderr "$err" "cell: --row-down needs --gateway"
+  assert_equal calls "$(calls)" ""
+}
+
 test_a_counter_the_row_does_not_expose_counts_as_zero() {
   serve_metrics 'vllm:num_requests_running{engine="0"} 0.0'
   agent_cell 8
@@ -182,6 +251,13 @@ test_a_malformed_argument_is_refused() {
     agent_cell --seconds "$seconds" 8
     assert_equal "status for --seconds [$seconds]" "$status" 2
     assert_contains "stderr for --seconds [$seconds]" "$err" "cell: --seconds $seconds is not a positive whole number"
+    agent_cell --requests "$seconds" 8
+    assert_contains "stderr for --requests [$seconds]" "$err" "cell: --requests $seconds is not a positive whole number"
+  done
+  for host in gb10-2.example http://gb10-2 ''; do
+    AI_GATEWAY_TOKEN=$gateway_key agent_cell --gateway "$host" 8
+    assert_equal "status for gateway [$host]" "$status" 2
+    assert_contains "stderr for gateway [$host]" "$err" "--gateway $host is not a short host name"
   done
   assert_equal calls "$(calls)" ""
 }

@@ -163,6 +163,8 @@ routes:
     ai: *typed
     retry: *retry-503
     localRateLimit: *key-rates
+    timeout:
+      requestTimeout: 9m
   backends:
   - ai:
       groups:

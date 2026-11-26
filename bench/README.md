@@ -367,7 +367,8 @@ environment:
 
 ```sh
 MISE_ENV=bench mise exec -- bench/cell.sh --host <host> --alias <alias> --scenario <file> \
-  --cell <cell> [--output <dir>] [--seconds <n>] <level>[:<rows>]...
+  --cell <cell> [--output <dir>] [--seconds <n>] [--requests <n>] \
+  [--gateway <host> [--row-down]] <level>[:<rows>]...
 ```
 
 The host goes by its short name, and the alias names the row in the class profiles, which give
@@ -381,6 +382,24 @@ images from seeds set to its level. Each level writes GuideLLM's JSON to `<dir>/
 seconds in place of the scenario's duration, keeping its other constraints, so rows run beside
 another row's longer levels hold their load as long
 ([the standing layout cell](../docs/findings/vision.md#layout)).
+`--requests <n>` sets each level's request count the same way, in place of the scenario's
+`max_requests`.
+
+`--gateway <host>` sends the load through the gateway on that host instead of to the row: to
+`http://<host>:3000/<alias>`, with the key in the environment's `AI_GATEWAY_TOKEN`, which the
+runner hands GuideLLM through its environment, never on a command line. Before the first level it
+asks the gateway's `/<alias>/v1/models` with the key and refuses unless it answers, so GuideLLM's
+own health check, which asks `/health` under the target, a path no route serves, is turned off.
+The row's cache counters are still read on `--host`, the row's own host. Run with a consumer's
+key from its `fnox.toml`, ai-hosting's own bulk key with `fnox exec --`:
+
+```sh
+fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell <cell> --gateway gb10-2 32:280
+```
+
+`--row-down` runs a cell with the row stopped, for an [overflow cell](../docs/findings/gateway.md):
+it needs `--gateway`, refuses a row whose `/metrics` answers, and so reads no cache counter.
 
 
 A cell starts on a row restarted since its last cell, since a restart empties the row's caches.
@@ -392,8 +411,9 @@ read 0; a counter the row doesn't expose reads 0. The runner doesn't restart the
 Before its first request, the runner exits 2 on any of these: a missing or malformed argument,
 an alias that names no row or more than one in the class profiles, a scenario that isn't a
 concurrent profile or reads data other than synthetic text, synthetic images, and one JSON file,
-levels taking more rows than the file holds, a level whose result JSON exists, or a run outside the
-bench environment. It stops at the first level GuideLLM fails, exiting with GuideLLM's status. Its
+levels taking more rows than the file holds, a level whose result JSON exists, `--gateway` with
+no key or a key its gateway doesn't answer, `--row-down` without `--gateway` or with the row
+answering, or a run outside the bench environment. It stops at the first level GuideLLM fails, exiting with GuideLLM's status. Its
 tests are [`tests/cell.test.sh`](../tests/cell.test.sh).
 
 ## The vision probe

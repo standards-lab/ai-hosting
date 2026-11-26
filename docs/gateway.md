@@ -293,6 +293,25 @@ profile gives a reason. The gateway acts on that refusal:
   whole load during each row eviction. agentgateway's default for an `ai` backend of several groups
   would evict it on one 5xx or failed connection, for 3 s.
 
+### Route timeouts
+
+agentgateway v1.7.0 sets no request timeout unless a route's `timeout` policy gives one: its
+`requestTimeout` runs from the request's arrival to the reply's headers, and doesn't bound a
+streamed reply's body. A streamed reply's headers come once the row takes the request into its
+queue, so the timeout bounds a reply that isn't streamed, which docinfer's pages aren't. Each
+route is sized against its row's limits, a request arriving to the last place of a full queue
+(the [class profiles](../classes/README.md) and the findings they cite):
+
+| Route | Before | After | A request at the row's limits |
+| --- | --- | --- | --- |
+| vision | none | `requestTimeout: 9m` | The 64th queued page waits about 287 s at the 13.40 images a minute of 32 streams, then runs up to 198 s, the latency p90 there, about 485 s in all ([dense-1120-high](findings/vision.md#dense-1120-high)); 9 min is the next whole minute above it, and sits inside docinfer's 600 s header timeout, so the gateway answers 504 before the client gives up |
+| audio | none | none | The 192nd queued window waits about 94 s at 2.04 requests a second, then runs up to 35 s, the latency p90 at 48 streams, about 130 s ([audio-real-30s](findings/audio.md#audio-real-30s)) |
+| agent | none | none | A session's turn at 12 sessions runs about 67 s, and a queue of 24 adds two such rounds ahead of it ([agent-sessions](findings/agent.md#agent-sessions)); 8 prompts of 65,536 tokens at once took 214 s ([agent-capacity](findings/agent.md#agent-capacity)), so a queue of long sessions has no bound a timeout could be sized to |
+| embedding, `embedding-tokenize` | none | none | A request takes milliseconds |
+
+Only vision's is set: with no timeout, no route cuts a queued request short, and vision's bounds
+a page held past the time its row can take, answering before the client's own timeout.
+
 ## Overflow
 
 Each of agent, vision, and audio has a second priority group, its own Azure AI Foundry deployment.
