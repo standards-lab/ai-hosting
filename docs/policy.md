@@ -136,11 +136,11 @@ Rows are placed by the GPU compute they share, not by the memory they fit.
 - **One purpose to a GPU.** Each host serves one row. Two purposes on one GPU contend for its
   compute and memory bandwidth, so a second row that fits the host's memory can still take the
   first below its floor. Fitting the pool remains a gate ([support and fit](#support-and-fit)),
-  and `engine install` refuses rows on one host whose fractions sum over 1
+  and the fraction sum on one host is `engine install`'s
   ([host-classes.md](../context/host-classes.md#why-the-profiles-take-this-shape)).
-- **One host to a role.** Each alias has one host, and nothing fails over between hosts; overflow
-  to the alias's Azure deployment is the only fallback, and embedding has none
-  ([routes](gateway.md#routes)). The gateway's config is the home of which host serves which alias
+- **One host to a role.** Each alias has one host, and nothing fails over between hosts; the
+  gateway's [overflow](gateway.md#overflow) is the only fallback. The gateway's config is the home
+  of which host serves which alias
   ([config.template.yaml](../compose/agentgateway/config.template.yaml)).
 - **No row is loaded on demand.** Every row stays resident: compute is the bottleneck, and loading
   and unloading a model add compute on top of inference.
@@ -151,12 +151,12 @@ The evidence:
   (spike-model-layout `docs/findings/vllm-layout.md` at `e64d9c4`). On gb10-2, audio missed beside
   vision at every pair level while each held alone, with the pool far above its floor (E.6). On the
   Framework, audio missed beside embedding run flat out (F.3) and held only with embedding at a
-  steady rate and its own cap at 4 (F.4, F.5), with the host's memory never near its floor (K).
+  steady rate and its own cap lowered (F.4, F.5), with the host's memory never near its floor (K).
 - **The embedding row shared the Framework with audio, then moved to its own host.** Beside
-  embedding at a steady rate, audio kept its RTFx only with embedding at 14 requests a second
-  ([e5-pair](findings/embedding.md#e5-pair)), with most of the pool free
+  embedding at a steady rate, audio kept its RTFx only up to the rate that
+  [e5-pair](findings/embedding.md#e5-pair) found, with most of the pool free
   ([e5-memory](findings/embedding.md#e5-memory)). The framework-2 task gave embedding framework-2
   alone, which lifted that limit ([e5-rate-sweep](findings/embedding.md#e5-rate-sweep)).
 - **With one row to each host, the rows don't interact.** In the standing layout cell the four
-  rows ran at once, each as it ran alone but for vision at 32 streams
+  rows ran at once, each as it ran alone but for vision at its cap
   ([layout](findings/vision.md#layout)).

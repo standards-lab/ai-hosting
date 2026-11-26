@@ -22,11 +22,11 @@ live tiers pass through the gateway under their own keys
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.
 
-Each host serves one row, by [the placement rule](../docs/policy.md#placement): `agent` on
-gb10-1, `vision` on gb10-2, `audio` alone on `framework`, and `embedding` alone on framework-2;
-each row's port is in its class's profile. Each Strix Halo host keeps its model store on its
-second NVMe ([strix-halo runbook](../classes/strix-halo/runbook.md#the-model-store)), and both
-unlock remotely ([strix-halo runbook](../classes/strix-halo/runbook.md#remote-unlock)).
+Each host serves one row, by [the placement rule](../docs/policy.md#placement); the gateway's
+config maps each alias to its host ([routes](../docs/gateway.md#routes)), and each row's port is
+in its class's profile. Each Strix Halo host keeps its model store on its second NVMe
+([strix-halo runbook](../classes/strix-halo/runbook.md#the-model-store)), and both unlock remotely
+([strix-halo runbook](../classes/strix-halo/runbook.md#remote-unlock)).
 
 Its goals live in the coordinator's roadmap (`standards-lab/roadmap/index.toml`, v1.ai.hosting).
 It is built from experiment.hosting's spikes. Each capability's note cites the spike files it
