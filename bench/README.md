@@ -360,8 +360,11 @@ since Azure refuses the `ignore_eos` GuideLLM sends for a fixed output; the dens
 reply bound as `max_completion_tokens` and no `top_p` or `top_k`, which gpt-5-mini refuses; and
 docinfer's windows as `audio-real-30s.yaml` sends them. Each is unstreamed, since GuideLLM's
 streamed request carries `stream_options.continuous_usage_stats`, which gpt-audio-mini refuses
-([gateway-overflow-shapes](../docs/findings/gateway.md#gateway-overflow-shapes)). Each runs through
-the gateway with the row stopped:
+([gateway-overflow-shapes](../docs/findings/gateway.md#gateway-overflow-shapes)). The gateway has
+since dropped those fields itself on overflow
+([gateway-overflow-rewrite](../docs/findings/gateway.md#gateway-overflow-rewrite)), and the
+scenarios keep the shape the overflow cells ran. Each runs through the gateway with the row
+stopped:
 
 ```sh
 fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \

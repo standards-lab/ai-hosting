@@ -351,6 +351,14 @@ down (behaviors 7, 8)").
   with its failure ([comparison.md][comparison], "IL6").
 - **The overflow switches.** [`overflow.toml`](../compose/agentgateway/overflow.toml) holds one
   switch per alias with an Azure group; `false` drops that alias's group at the next render.
+- **The rewrite.** Each Azure provider's `ai` transformations drop what its deployment refuses, so
+  a client sends the alias the same request whether the row or Azure answers: `agent-azure`
+  removes vLLM's `ignore_eos`; `vision-azure` moves `max_tokens` to `max_completion_tokens`, keeping
+  a client's own `max_completion_tokens`, and removes `top_p` and `top_k`; `audio-azure` keeps only
+  `include_usage` in `stream_options`, dropping vLLM's `continuous_usage_stats`. An expression that
+  fails removes its field, which `fail("remove")` does on purpose. They sit on the Azure providers,
+  so a row's request is never rewritten
+  ([gateway-overflow-rewrite](findings/gateway.md#gateway-overflow-rewrite)).
 - **The marker.** Every reply from an Azure provider carries `x-gateway-overflow: azure`, set by
   its response header policy; a row's reply never does. In the overflow cells, every Azure reply
   carried it, 429s too, and the first request after each row's restart was the row's, without it
@@ -370,13 +378,13 @@ What a workload gives up on overflow ([priority.md][f-priority], "Per alias: the
 its parity (behavior 12)"; [answer.md][f-answer], "The revalidation (behaviors 4, 5)"):
 
 - **agent:** a tool-calling request that needs `tool_choice: required` or a named function breaks
-  on Azure, and a Messages request at low effort gives no reasoning item; vLLM's `ignore_eos` gets
-  400.
-- **vision:** its content leaves the data zone; it refuses `max_tokens` (wanting
-  `max_completion_tokens`), `top_p`, `top_k`, and reasoning effort `none`, so docinfer's page
-  request as it stands gets 400 ([gateway-overflow-shapes](findings/gateway.md#gateway-overflow-shapes)).
-- **audio:** its content leaves the data zone; it refuses a text-only chat and vLLM's
-  `stream_options.continuous_usage_stats`, and the gateway's own
+  on Azure, and a Messages request at low effort gives no reasoning item; a fixed output under
+  `ignore_eos` isn't held, since the rewrite drops it.
+- **vision:** its content leaves the data zone; it refuses reasoning effort `none`, and the rewrite
+  drops a client's `top_p` and `top_k`. At its default effort gpt-5-mini spent docinfer's whole
+  2,048-token bound reasoning on a dense page and returned no text
+  ([gateway-overflow-rewrite](findings/gateway.md#gateway-overflow-rewrite)).
+- **audio:** its content leaves the data zone; it refuses a text-only chat, and the gateway's own
   typed parser refuses audio inside a Responses request on overflow (400, "failed to parse
   Responses request").
 - **The gateway's translation:** a Responses reply cut off at its limit reports

@@ -166,7 +166,8 @@ So the overflow cells run scenarios of their own, [`agent-overflow.yaml`](../../
 [`vision-overflow.yaml`](../../bench/vision-overflow.yaml) and
 [`audio-overflow.yaml`](../../bench/audio-overflow.yaml): each alias's load target and inputs,
 unstreamed, without the refused fields, with vision's reply bound as `max_completion_tokens`.
-docinfer's vision request as it stands gets 400 on overflow.
+docinfer's vision request as it stood got 400 on overflow; the gateway now rewrites each request for
+its deployment ([gateway-overflow-rewrite](#gateway-overflow-rewrite)).
 
 ## gateway-overflow-agent
 
@@ -266,3 +267,31 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
 Every call answered 200. **Tokenize needs no bucket:** at 253 calls a second, over three times
 docinfer's need at the embedding rate's 78 chunks a second, the embedding row held 77.975 requests
 a second, against 77.963 alone ([embedding.md#e5-target](embedding.md#e5-target)).
+
+## gateway-overflow-rewrite
+
+Each client's own request through the gateway with its row stopped, once the Azure providers drop
+what their deployments refuse (agentgateway's config template, the `ai` transformations on
+`agent-azure`, `vision-azure` and `audio-azure`). Each ran under go-ai's interactive key: first
+with the row up, then, after a render that reset the evictions and `docker stop` of the row, a
+small chat to evict the row, the client's request, and after `docker start` small chats until one
+came back without the marker.
+
+| Alias | The client's request | Row up | Row stopped | Back to the row |
+| --- | --- | --- | --- | --- |
+| agent | Streamed chat, `max_tokens` 256, `ignore_eos`, `stop` null, `stream_options` with `continuous_usage_stats` | 200 at 12:49:41Z, 256 completion tokens | 200 at 12:49:58Z with `x-gateway-overflow: azure`, from `gpt-oss-120b`, 182 completion tokens | Healthy at 12:51:04Z, the next request the row's |
+| vision | docinfer's: a dense page, unstreamed, `max_tokens` 2,048, `temperature` 1.0, `top_p` 0.95, `top_k` 64 | 200 at 12:51:10Z in 32.8 s, 952 completion tokens, `stop` | 200 at 12:51:51Z in 16.9 s with the marker, from `gpt-5-mini-2025-08-07`, 2,048 completion tokens, all reasoning, `length` | Healthy at 12:52:57Z, the next request the row's |
+| audio | A 30 s window, streamed, `max_tokens` 512, `temperature` 0, `stream_options` with `continuous_usage_stats` | 200 at 12:53:02Z, 84 completion tokens | 200 at 12:53:16Z with the marker, 91 completion tokens of transcript | Healthy at 12:54:21Z, the next request the row's |
+
+- **Each deployment takes the client's request.** Before the rewrite each of the three got 400
+  ([gateway-overflow-shapes](#gateway-overflow-shapes)). The agent's reply stopped at 182 tokens,
+  under its 256, so `ignore_eos` no longer reached Azure; vision's stopped at exactly 2,048, so
+  `max_tokens` reached gpt-5-mini as `max_completion_tokens`.
+- **The row's request is untouched:** the rewrite is on the Azure providers alone, and with the
+  row up the agent's request generated its full 256 tokens under `ignore_eos`.
+- **gpt-5-mini spends docinfer's bound on reasoning.** At its default effort it reasoned for all
+  2,048 completion tokens on the dense page and returned no text, `finish_reason` `length`, where
+  the row transcribed it in 952. A page that overflows needs a larger bound or a lower effort to
+  come back transcribed.
+- The small chat that evicted the audio row got 400 from Azure, which refuses a text-only chat on
+  gpt-audio-mini.
