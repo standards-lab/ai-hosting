@@ -354,7 +354,8 @@ down (behaviors 7, 8)").
 - **The rewrite.** Each Azure provider's `ai` transformations drop what its deployment refuses, so
   a client sends the alias the same request whether the row or Azure answers: `agent-azure`
   removes vLLM's `ignore_eos`; `vision-azure` moves `max_tokens` to `max_completion_tokens`, keeping
-  a client's own `max_completion_tokens`, and removes `top_p` and `top_k`; `audio-azure` keeps only
+  a client's own `max_completion_tokens`, removes `top_p` and `top_k`, and sets `reasoning_effort`
+  to `minimal`, so the client's bound stays a bound on text; `audio-azure` keeps only
   `include_usage` in `stream_options`, dropping vLLM's `continuous_usage_stats`. An expression that
   fails removes its field, which `fail("remove")` does on purpose. They sit on the Azure providers,
   so a row's request is never rewritten
@@ -380,10 +381,11 @@ its parity (behavior 12)"; [answer.md][f-answer], "The revalidation (behaviors 4
 - **agent:** a tool-calling request that needs `tool_choice: required` or a named function breaks
   on Azure, and a Messages request at low effort gives no reasoning item; a fixed output under
   `ignore_eos` isn't held, since the rewrite drops it.
-- **vision:** its content leaves the data zone; it refuses reasoning effort `none`, and the rewrite
-  drops a client's `top_p` and `top_k`. At its default effort gpt-5-mini spent docinfer's whole
-  2,048-token bound reasoning on a dense page and returned no text
-  ([gateway-overflow-rewrite](findings/gateway.md#gateway-overflow-rewrite)).
+- **vision:** its content leaves the data zone; the rewrite drops a client's `top_p` and `top_k`
+  and replaces its reasoning effort with `minimal`. At its default effort gpt-5-mini spent
+  docinfer's whole 2,048-token bound reasoning on a dense page and returned no text; at minimal it
+  transcribed the page in 971 tokens, matching the row's 952
+  ([gateway-overflow-minimal](findings/gateway.md#gateway-overflow-minimal)).
 - **audio:** its content leaves the data zone; it refuses a text-only chat, and the gateway's own
   typed parser refuses audio inside a Responses request on overflow (400, "failed to parse
   Responses request").

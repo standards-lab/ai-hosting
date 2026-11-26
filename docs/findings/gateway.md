@@ -289,9 +289,25 @@ came back without the marker.
   `max_tokens` reached gpt-5-mini as `max_completion_tokens`.
 - **The row's request is untouched:** the rewrite is on the Azure providers alone, and with the
   row up the agent's request generated its full 256 tokens under `ignore_eos`.
-- **gpt-5-mini spends docinfer's bound on reasoning.** At its default effort it reasoned for all
+- **gpt-5-mini spent docinfer's bound on reasoning.** At its default effort it reasoned for all
   2,048 completion tokens on the dense page and returned no text, `finish_reason` `length`, where
-  the row transcribed it in 952. A page that overflows needs a larger bound or a lower effort to
-  come back transcribed.
+  the row transcribed it in 952. The vision provider now sets `reasoning_effort` `minimal`
+  ([gateway-overflow-minimal](#gateway-overflow-minimal)).
 - The small chat that evicted the audio row got 400 from Azure, which refuses a text-only chat on
   gpt-audio-mini.
+
+## gateway-overflow-minimal
+
+docinfer's dense page of [gateway-overflow-rewrite](#gateway-overflow-rewrite) again, once
+`vision-azure` also sets `reasoning_effort` to `minimal`, the same steps under go-ai's interactive
+key:
+
+| Row up | Row stopped | Back to the row |
+| --- | --- | --- |
+| 200 at 13:25:31Z in 32.9 s, 1,137 prompt and 952 completion tokens, `stop` | 200 at 13:26:13Z in 9.6 s with `x-gateway-overflow: azure`, from `gpt-5-mini-2025-08-07`: 948 prompt and 971 completion tokens, 0 of them reasoning, `stop` | Healthy at 13:27:13Z, the next request the row's |
+
+- **At minimal effort the bound is a bound on text**: Azure's reply is the page's transcription,
+  971 tokens against the row's 952 under the same 2,048.
+- **The two transcriptions match.** The opening lines read the same word for word, the page's
+  running head and section number, then paragraphs (3) and (c) with its items (1) to (5); Azure's
+  keeps the page's line breaks, where the row's runs each paragraph on one line.
