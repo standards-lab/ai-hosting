@@ -151,14 +151,14 @@ files that [`docinfer-inputs.sh`](docinfer-inputs.sh) writes from a local docpro
 the baseline run over docs-corpus v0.2.0, run `01a218c9-8847-7ec5-b98e-cf5803c6a989` in
 `~/runs/docs-corpus/baseline/v0.2.0/docproc`, as docs-corpus's `docs/baseline.md` records it. Only
 the builder, its page list, and its manifest are committed; the inputs it writes stay in the
-untracked `.state/bench/docinfer/`. They were rebuilt from that run after the measurements in
-`docs/findings/`, which read them built from the docproc run over `~/docs` that docinfer read: the
-same dense pages, byte for byte, and 657 windows in place of today's 595.
+untracked `.state/bench/docinfer/`. The measurements in `docs/findings/` read inputs built
+earlier, from the docproc run over `~/docs` that docinfer read: the same dense pages, byte for
+byte, and 657 windows where the v0.2.0 run gives 595.
 
 - **The dense pages.** [`dense-pages.txt`](dense-pages.txt) names, by their sha256 in the run, the
   110 real pages whose replies ran past `max_tokens` in docinfer's first acceptance run, 95 of them
-  CFR pages, the set docinfer's `docs/acceptance.md` re-probes at 1,120 image tokens, with replies
-  running to about 2,048 tokens. The builder writes 440 rows, cycling through the 110 in sha256
+  CFR pages, the set docinfer's re-probe at 1,120 image tokens read over the retired `~/docs`
+  pool (its `docs/acceptance.md`), with replies running to about 2,048 tokens. The builder writes 440 rows, cycling through the 110 in sha256
   order. Each row's page is bounded as docinfer bounds it: a page over 2,580,480 pixels, Gemma 4's
   1,120 soft tokens × 9 patches × 16², is downscaled by area average, keeping its aspect, to
   docinfer's size for it; a page that is neither grayscale nor RGB is converted to RGB. Each row
