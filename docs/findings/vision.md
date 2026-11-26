@@ -342,12 +342,61 @@ sampled every 10 s. Every level misses the 10 s floor, which doesn't set the cap
 
 - **Throughput rises to 8 streams, the top level**: 3.40 images a minute at 2 streams, 5.80 at 4
   and 8.20 at 8, 41% over 4. The replies are long, so the row is bound by decoding: output
-  throughput rises with the streams, as the ITL median grows from 32 to 58 ms. A level past 8 may
-  clear more; the cell's levels end at 8.
+  throughput rises with the streams, as the ITL median grows from 32 to 58 ms.
+  [dense-1120-high](#dense-1120-high) runs the levels past 8.
 - At 4 streams, the earlier cap, the row clears 5.80 images a minute, against docinfer's re-probe's
   5.44 there.
 - A page's latency median grows from 32 s at 2 streams to 56 s at 8, its p90 to 75 s: a client's
   timeout for one dense page sits above that.
+
+## dense-1120-high
+
+[dense-1120](#dense-1120)'s pages at 16, 32 and 64 streams, 10 min a level, since the rate still
+rose at 8. Each level ran alone from its own start, the row's cap and queue limit raised in the
+host's clone by `hosting profile set`, uncommitted, the queue limit at eight times the cap, then
+`hosting engine update vision`; fraction 0.40, budget 1120. `tailscale ping gb10-2` direct, 0 or
+1 ms. The row then returned to cap 8 by `git checkout` of the profile and `hosting engine update
+vision`.
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell vision-dense-16-gb10-2 16:200
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell vision-dense-32-gb10-2 32:280
+MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell vision-dense-64-gb10-2 64:400
+```
+
+| Start, UTC | Cap, queue limit | KV cache, tokens | Lowest MemAvailable at start, GiB |
+| --- | --- | --- | --- |
+| 2026-11-26T10:08:34Z | 16, 128 | 158,307 | 64.16 |
+| 2026-11-26T10:21:22Z | 32, 256 | 158,794 | 64.23 |
+| 2026-11-26T10:32:57Z | 64, 512 | 158,125 | 63.32 |
+
+`levels.jq` with `--arg purpose vision`, with [dense-1120](#dense-1120)'s 8 streams; total output
+tok/s adds the tokens of the requests in flight at the level's end, from the result JSON's
+`output_tokens_per_second.total`:
+
+| Streams | Start, UTC | ok/err/inc | req/s | Second-half req/s | Images a minute | TTFT median ms | ITL median ms | Latency median s | Latency p90 s | Output tok/s | Total output tok/s | Duration s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 8 | 2026-11-26T04:35:43Z | 75/0/8 | 0.125 | 0.137 | 8.20 | 2,013 | 58.02 | 56.37 | 74.85 | 123.70 | 131.2 | 600 |
+| 16 | 2026-11-26T10:11:11Z | 99/0/16 | 0.165 | 0.180 | 10.80 | 2,031 | 87.84 | 84.86 | 123.19 | 160.77 | 173.0 | 600 |
+| 32 | 2026-11-26T10:22:45Z | 115/0/32 | 0.192 | 0.223 | 13.40 | 2,163 | 141.23 | 136.29 | 198.39 | 181.78 | 209.8 | 600 |
+| 64 | 2026-11-26T10:34:24Z | 116/0/64 | 0.193 | 0.263 | 15.80 | 13,764 | 240.55 | 247.85 | 355.79 | 184.54 | 234.6 | 600 |
+
+Each level finished its requests on `stop` but 2, 2 and 3 at the 2,048-token bound, with 0
+preemptions and no cache hit. The host's lowest MemAvailable over the levels was 64.01, 63.19 and
+62.66 GiB.
+
+- **Throughput still rises at 64 streams.** Images a minute grow 32% from 8 to 16 streams, 24% to
+  32 and 18% to 64, each beyond gb10-2's 2.5% run noise, and the total output 32%, 21% and 12%.
+  At 64 streams a request's latency median, 248 s, is near half the level, so its 64 first
+  requests finish together inside the second half and the second-half rate reads high; the total
+  output, which counts every token decoded, still rises 12%.
+- **No preemption at 0.40.** The dense pages took about 1,135 prompt tokens and 1,000 of reply, so
+  64 in flight used under the 158,125 tokens of the KV cache; at the row's context of 8,192 the
+  cache holds 19.3 requests, under a cap of 32 or 64.
+- A page's latency median grows to 136 s at 32 streams and 248 s at 64, its p90 to 198 s and 356 s.
 
 ## dense-noise
 
@@ -426,7 +475,7 @@ row finished every request with 0 preemptions; at 4 and 8 streams, 1 and 3 repli
 - **The vision row beside the others matches it alone**: 8.00 images a minute at 8 streams
   against 8.20, within [dense-noise](#dense-noise)'s 2.5%. At 2 and 4 streams, with fewer requests
   in a level's second half, 3.60 and 5.40 against 3.40 and 5.80, one request apart at 2 streams
-  and two at 4. Throughput still peaks at 8 streams, the top level.
+  and two at 4.
 - The other rows read the same beside it as alone: the agent's ITL median 49.26 to 49.48 ms at 4
   sessions against 49.94, audio 2.013 to 2.040 requests a second at 48 streams against 2.044 and
   2.133, and embedding 77.11 to 77.87 against 77.96, as their sections give.

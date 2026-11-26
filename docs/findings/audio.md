@@ -252,13 +252,40 @@ The host's lowest MemAvailable over the repeats was 79.43 GiB.
 - **Throughput rises to 48 streams, the top level.** On the second-half rate, 48 streams clear
   2.133 and 2.044 requests a second ([audio-noise](#audio-noise)), 8% and 13% over 32 streams'
   1.889, wider than the noise; 24 streams clear 1.822 twice. In seconds of speech, 48 streams clear
-  about 61 a second. The rise from 32 to 48 is 12% for half again the streams, so a level past 48
-  may clear more; the cell's levels end at 48.
+  about 61 a second. [audio-real-30s-64](#audio-real-30s-64) finds the rise ends there.
 - Real windows run about 11% under the LibriSpeech windows of
   [audio-capacity-30s](#audio-capacity-30s), whose 32-stream level clears 2.133 on the second-half
   rate, on prompts about 6% longer: 808 prompt tokens a request on average against 764.
 - The RTFx median falls from 3.86 at 8 streams to 1.19 at 48; no level meets the floor, which
   doesn't set the cap.
+
+## audio-real-30s-64
+
+[audio-real-30s](#audio-real-30s)'s windows one level higher, 64 streams for 90 s, since the rate
+still rose at 48. The row at cap 64 and a queue limit of 256, four times the cap, set by `hosting
+profile set` in the host's clone, uncommitted, and started by `hosting engine update audio` at
+2026-11-26T10:08:34Z, fraction 0.30: its KV cache held 430,276 tokens, 52.52 requests of 8,192, and
+MemAvailable fell no lower than 78.24 GiB through the start. `tailscale ping framework` direct.
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework --alias audio \
+  --scenario bench/audio-real-30s.yaml --cell audio-real-30s-64-framework 64:700
+```
+
+| Streams | Start, UTC | ok/err/inc | req/s | Second-half req/s | TTFT median ms | Latency median s | Latency p90 s | Prompt tok/s | RTFx median | RTFx min | RTFx ≥ 5 | Duration s | Floor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 64 | 2026-11-26T10:11:12Z | 132/1/64 | 1.467 | 2.111 | 4,640 | 35.48 | 50.07 | 1,192 | 0.83 | 0.48 | 7/132 | 90 | misses |
+
+The row finished 132 requests, all on `stop`, with 0 preemptions and no cache hit; the error is
+GuideLLM's `ConnectTimeout`, a connection the client didn't open in time. The host's lowest
+MemAvailable over the cell was 76.83 GiB. The row then returned to cap 48 by `git checkout` of the
+profile and `hosting engine update audio`.
+
+- **Throughput stops rising at 48 streams.** 64 streams clear 2.111 requests a second on the
+  second-half rate, within [audio-noise](#audio-noise)'s 4.4% of 48 streams' highest, 2.133, while
+  the latency median grows from 24.66 s to 35.48 s. 48 is the lowest level within the run noise of
+  the highest figure, so the peak is 48; 32 streams' 1.889 sits 11% under it. No level past 64
+  ran.
 
 ## audio-noise
 
