@@ -81,14 +81,14 @@ if [[ -v gateway && -z ${AI_GATEWAY_TOKEN:-} ]]; then
 fi
 ((${#levels[@]})) || usage "no level"
 
-streams=() rows=()
+values=() rows=()
 for level in "${levels[@]}"; do
   [[ $level =~ ^([1-9][0-9]*)(:([1-9][0-9]*))?$ ]] ||
     usage "level $level is not <level> or <level>:<rows>"
-  for seen in "${streams[@]}"; do
+  for seen in "${values[@]}"; do
     [[ $seen != "${BASH_REMATCH[1]}" ]] || usage "level $level repeats level $seen"
   done
-  streams+=("${BASH_REMATCH[1]}")
+  values+=("${BASH_REMATCH[1]}")
   rows+=("${BASH_REMATCH[3]}")
 done
 
@@ -147,7 +147,7 @@ if [[ -n $source_file ]]; then
     refuse "the levels take $needed rows, and $source_file holds $available"
 fi
 
-for n in "${streams[@]}"; do
+for n in "${values[@]}"; do
   [[ ! -e $output/$cell-$n.json ]] || refuse "$output/$cell-$n.json exists"
 done
 
@@ -195,8 +195,8 @@ fi
 
 mkdir -p "$output" || exit
 first=1
-for i in "${!streams[@]}"; do
-  n=${streams[i]}
+for i in "${!values[@]}"; do
+  n=${values[i]}
   data=()
   while IFS= read -r source; do
     data+=(--data "$source")
