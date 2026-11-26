@@ -311,3 +311,54 @@ key:
 - **The two transcriptions match.** The opening lines read the same word for word, the page's
   running head and section number, then paragraphs (3) and (c) with its items (1) to (5); Azure's
   keeps the page's line breaks, where the row's runs each paragraph on one line.
+
+## client-tiers
+
+The client repositories' live tiers through the gateway, each under its own interactive key from
+its own `fnox.toml`, which the repository's task sends as each role's bearer token: go-ai's
+`integration` task at `c851963`, its tier and tools/infer's, and docinfer's `test:integration` at
+`90ea79d`, on Go 1.27.4, from 2026-11-26T13:35:39Z to 13:38:37Z. The shell set each alias's base
+URL, the tokenize route's among them:
+
+```sh
+export AI_AGENT_BASE_URL=http://gb10-2:3000/agent/v1
+export AI_VISION_BASE_URL=http://gb10-2:3000/vision/v1
+export AI_AUDIO_BASE_URL=http://gb10-2:3000/audio/v1
+export AI_EMBEDDING_BASE_URL=http://gb10-2:3000/embedding/v1
+export AI_TOKENIZE_BASE_URL=http://gb10-2:3000/embedding/v1
+(cd go-ai && mise run integration)
+(cd docinfer && mise run test:integration)
+```
+
+then docinfer's again with `AI_TOKENIZE_BASE_URL` unset, and go-ai's again under each alias's
+profile, `AI_<ROLE>_PROFILE` set to the contents of ai-hosting's
+[`go-ai/<alias>.json`](../../go-ai/README.md):
+
+| Run | Package | Pass | Skip | Fail |
+| --- | --- | --- | --- | --- |
+| go-ai, the spec | `integration` | 106 | 4 | 0 |
+| | `tools/infer/integration` | 79 | 5 | 0 |
+| go-ai, the alias profiles | `integration` | 106 | 4 | 0 |
+| | `tools/infer/integration` | 79 | 5 | 0 |
+| docinfer | `integration` | 23 | 1 | 0 |
+| | `cmd/docinfer/integration` | 14 | 0 | 0 |
+| docinfer, no `AI_TOKENIZE_BASE_URL` | `integration` | 23 | 1 | 0 |
+| | `cmd/docinfer/integration` | 14 | 0 | 0 |
+
+Each count takes the tests and subtests together.
+
+- **Every client passes through the gateway with its own key**, on all four aliases, with no
+  failure. docinfer's run counted its tokens through the embedding alias's tokenize route, and with
+  `AI_TOKENIZE_BASE_URL` unset found the same route from `AI_EMBEDDING_BASE_URL`.
+- **The transcription route's scenarios skip:** `AI_TRANSCRIPTION_BASE_URL` was unset, since no
+  row serves `/v1/audio/transcriptions`. The audio row transcribes by chat completions, which
+  passed in each client. At 2026-11-26T13:43:34Z, under go-ai's key:
+
+  ```sh
+  curl -s -w ' %{http_code}\n' -X POST -H "Authorization: Bearer $(fnox get AI_GATEWAY_TOKEN)" \
+    --form-string model=audio http://gb10-2:3000/audio/v1/audio/transcriptions
+  ```
+
+  answered the row's own `{"detail":"Not Found"}` with 404, and `audio/translations` the same.
+- The other skips are go-ai's tests of a declared skip (`TestSkipDeclared_ThroughClient`,
+  `TestSkipDeclared`, `TestDeclaredSkip`), whose subject is the skip itself.

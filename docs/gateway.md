@@ -122,7 +122,10 @@ allow-list sees `/v1/...`. The first conditional direct response whose condition
   one model.
 - **Any path off the allow-list** gets 404. The allow-list is the eight serving paths:
   `/v1/models`, `chat/completions`, `completions`, `messages`, `responses`, `embeddings`,
-  `audio/transcriptions`, and `audio/translations`. vLLM's root routes (`/metrics`, `/health`,
+  `audio/transcriptions`, and `audio/translations`. No row serves the two audio paths today: the
+  audio row, Gemma 4 on vLLM, answers each with its own 404, `{"detail":"Not Found"}`, and its
+  interface is chat completions with the clip as input, as is gpt-audio-mini's on overflow
+  ([client-tiers](findings/gateway.md#client-tiers)). vLLM's root routes (`/metrics`, `/health`,
   `/tokenize`, `/docs`) are among those refused, so no consumer key manages a model; embedding's
   tokenize route alone reaches one, `POST /tokenize` ([Tokenize](#tokenize)). A path under no
   alias is unrouted, and gets 404 too.
@@ -208,10 +211,12 @@ run on any host and commit nothing.
    reloads the keys in place, with no restart: a new key is admitted, and a removed one gets 401
    on its next request while requests already running finish.
 
-go-ai and docinfer hold interactive keys. ai-hosting holds a bulk key, as consumer `ai-hosting` in
-its own `fnox.toml`, kept for the bulk class's priority and bucket checks and for upgrade measures
-through the gateway. Every other consumer gets its key from `hosting key issue` in the task that
-builds it.
+go-ai and docinfer hold interactive keys. Under them, go-ai's live tier, plain and under each
+alias's profile, tools/infer's, and docinfer's passed through the gateway with no failure
+([client-tiers](findings/gateway.md#client-tiers)). ai-hosting holds a bulk key, as consumer
+`ai-hosting` in its own `fnox.toml`, kept for the bulk class's priority and bucket checks and for
+upgrade measures through the gateway. Every other consumer gets its key from `hosting key issue` in
+the task that builds it.
 
 ## Limits and priority
 

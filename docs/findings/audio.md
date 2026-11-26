@@ -5,6 +5,10 @@ alone on its host. Each section is one cell: its command, its time in UTC, its f
 tool versions it ran on. The profile's reasons cite the cells by their section; the row's settings
 live in [the profile](../../classes/strix-halo/profile.toml).
 
+The row transcribes by chat completions, the clip as input with the transcription instruction, as
+every cell here sends it; it serves no `/v1/audio/transcriptions` or `/v1/audio/translations`,
+each answering 404 ([client-tiers](gateway.md#client-tiers)).
+
 Each table's Floor and RTFx ≥ 5 columns, and "the floor" below, are `levels.jq`'s audio verdict,
 an RTFx median of at least 5. The row's cap follows its throughput peak instead, as the profile's
 `cap_reason` says, and the cells report RTFx beside it.
@@ -60,8 +64,8 @@ answered via `DERP(iad)`, 56 to 61 ms, with "direct connection not established".
 697/2/7 requests, 2.904 req/s, TTFT median 997 ms, RTFx median 2.82, missing the floor, with no
 preemption. Both errors were GuideLLM's `WriteTimeout`: its write timeout is fixed at 5 s
 (`FALLBACK_TIMEOUT` in `guidellm/backends/openai/common.py`). That run measured the path, not the
-row, so bench cells run from a LAN client; success off the LAN belongs to the `gateway` and
-`acceptance` tasks.
+row, so bench cells run from a LAN client. Off the LAN stays out: the gateway serves tailnet peers
+on their direct path, with no relay ([gateway decisions](../gateway.md#decisions)).
 
 ## audio-probe
 

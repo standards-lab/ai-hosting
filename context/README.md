@@ -2,13 +2,19 @@
 
 ai-hosting specifies how the organization's local model hosts serve models: the settings the two
 Framework desktops and the two GB10 workstations use, stated generally enough that another host of
-the same class follows them. Its secrets, the `hosting` suite, and each class's profile and
-runbook are built, and each host serves its rows from its clone. One gateway on gb10-2 fronts the
-rows, each alias at its own base URL behind an issued key, with overflow to Azure AI Foundry
-([docs/gateway.md](../docs/gateway.md)). go-ai and docinfer hold its keys; Pi sessions, Claude
-Code subagents, and the capstone's services are to reach the rows through it with keys the tasks
-that build them issue. ai-hosting is low-level infrastructure outside the five tiers, beside the
-harness repositories, and is the one hosting repository on each workstation.
+the same class follows them. Its secrets, the `hosting` suite, and each class's profile and runbook
+are built, and each host serves its rows from its clone. One gateway on gb10-2 fronts the rows, each
+alias at its own base URL behind an issued key, with overflow to Azure AI Foundry
+([docs/gateway.md](../docs/gateway.md)). go-ai and docinfer hold its keys; Pi sessions, Claude Code
+subagents, and the capstone's services are to reach the rows through it with keys the tasks that
+build them issue. The `acceptance` task proved the layout on vLLM v0.34.0: the four rows together,
+each beside the others matching its row alone ([layout](../docs/findings/vision.md#layout)), each
+row's cap and load target set by its cells, overflow to Azure live for agent, vision, and audio
+([gateway findings](../docs/findings/gateway.md)), and go-ai's, tools/infer's, and docinfer's live
+tiers passing through the gateway under their own keys
+([client-tiers](../docs/findings/gateway.md#client-tiers)). ai-hosting is low-level infrastructure
+outside the five tiers, beside the harness repositories, and is the one hosting repository on each
+workstation.
 
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.
