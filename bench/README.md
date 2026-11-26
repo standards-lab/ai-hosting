@@ -319,9 +319,9 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
   --scenario bench/vision-dense.yaml --cell <cell> 2:60 4:100 8:160
 ```
 
-The levels past 8, up to the row's load target of 32, each ran as a cell of its own from its own
-start, at a cap of at least its streams, the first rows sized the same way, `16:200`, `32:280` and
-`64:400` ([dense-1120-high](../docs/findings/vision.md#dense-1120-high)).
+The levels past 8, 16, 32 and 64 streams, each ran as a cell of its own from its own start, at a
+cap of at least its streams, with rows sized the same way, `16:200`, `32:280` and `64:400`
+([dense-1120-high](../docs/findings/vision.md#dense-1120-high)).
 
 The audio row on docinfer's windows, each level on its own slice of the 2,000 rows, as the
 LibriSpeech windows' slices are sized:
@@ -354,17 +354,19 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
   --scenario bench/embedding-target.yaml --cell <cell> 78
 ```
 
+Without the bound on requests in flight, `embedding-rate.yaml` at 78 a second queues past the row's
+16 and falls behind ([e5-target](../docs/findings/embedding.md#e5-target)).
+
 The overflow scenarios send each alias's load target and inputs as Azure's deployment takes them:
 the agent's S-agent sessions with each turn at most 512 output tokens rather than exactly 512,
 since Azure refuses the `ignore_eos` GuideLLM sends for a fixed output; the dense pages with the
 reply bound as `max_completion_tokens` and no `top_p` or `top_k`, which gpt-5-mini refuses; and
 docinfer's windows as `audio-real-30s.yaml` sends them. Each is unstreamed, since GuideLLM's
 streamed request carries `stream_options.continuous_usage_stats`, which gpt-audio-mini refuses
-([gateway-overflow-shapes](../docs/findings/gateway.md#gateway-overflow-shapes)). The gateway has
-since dropped those fields itself on overflow
-([gateway-overflow-rewrite](../docs/findings/gateway.md#gateway-overflow-rewrite)), and the
-scenarios keep the shape the overflow cells ran. Each runs through the gateway with the row
-stopped:
+([gateway-overflow-shapes](../docs/findings/gateway.md#gateway-overflow-shapes)). The gateway
+also drops those fields on overflow
+([gateway-overflow-rewrite](../docs/findings/gateway.md#gateway-overflow-rewrite)); the scenarios
+keep the shape the overflow cells ran. Each runs through the gateway with the row stopped:
 
 ```sh
 fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
@@ -374,9 +376,6 @@ fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias
 fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host framework --alias audio \
   --scenario bench/audio-overflow.yaml --cell <cell> --gateway gb10-2 --row-down 48:300
 ```
-
-Without the bound on requests in flight, `embedding-rate.yaml` at 78 a second queues past the row's
-16 and falls behind ([e5-target](../docs/findings/embedding.md#e5-target)).
 
 Run by hand, the rate scenario takes its rate from the environment,
 `GUIDELLM__SPEC__PROFILE__RATE=<requests a second>`; with none set, GuideLLM refuses to start. The
@@ -400,14 +399,13 @@ its port and its model's tokenizer, the base model's when the profile names one.
 whole number, a count of streams on a concurrent scenario and requests a second on a constant one,
 given in the order the levels run, with no level twice. For a scenario that reads a JSON file, a
 level also gives the count of rows it takes, `<level>:<rows>`: each level takes the rows after the
-previous level's, written to `<dir>/<cell>-<level>.jsonl`. Every level draws its synthetic text and
-images from seeds set to its level. Each level writes GuideLLM's JSON to `<dir>/<cell>-<level>.json`;
-`<dir>` defaults to the untracked `.state/bench/`. `--seconds <n>` runs each level for at most `n`
-seconds in place of the scenario's duration, keeping its other constraints, so rows run beside
-another row's longer levels hold their load as long
-([the standing layout cell](../docs/findings/vision.md#layout)).
-`--requests <n>` sets each level's request count the same way, in place of the scenario's
-`max_requests`.
+previous level's, written to `<dir>/<cell>-<level>.jsonl`. Every level draws its synthetic text
+and images from seeds set to its level. Each level writes GuideLLM's JSON to
+`<dir>/<cell>-<level>.json`; `<dir>` defaults to the untracked `.state/bench/`. `--seconds <n>`
+runs each level for at most `n` seconds in place of the scenario's duration, keeping its other
+constraints, so rows run beside another row's longer levels hold their load as long
+([the standing layout cell](../docs/findings/vision.md#layout)). `--requests <n>` sets each
+level's request count the same way, in place of the scenario's `max_requests`.
 
 `--gateway <host>` sends the load through the gateway on that host instead of to the row: to
 `http://<host>:3000/<alias>`, with the key in the environment's `AI_GATEWAY_TOKEN`, which the
@@ -425,7 +423,6 @@ fnox exec -- env MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias
 `--row-down` runs a cell with the row stopped, for an [overflow cell](../docs/findings/gateway.md):
 it needs `--gateway`, refuses a row whose `/metrics` answers, and so reads no cache counter.
 
-
 A cell starts on a row restarted since its last cell, since a restart empties the row's caches.
 Before the first level, the runner reads the row's `/metrics` and refuses to start unless
 `vllm:mm_cache_queries_total` and `vllm:prefix_cache_queries_total`, each summed over its series,
@@ -437,14 +434,14 @@ an alias that names no row or more than one in the class profiles, a scenario th
 concurrent profile or reads data other than synthetic text, synthetic images, and one JSON file,
 levels taking more rows than the file holds, a level whose result JSON exists, `--gateway` with
 no key or a key its gateway doesn't answer, `--row-down` without `--gateway` or with the row
-answering, or a run outside the bench environment. It stops at the first level GuideLLM fails, exiting with GuideLLM's status. Its
-tests are [`tests/cell.test.sh`](../tests/cell.test.sh).
+answering, or a run outside the bench environment. It stops at the first level GuideLLM fails,
+exiting with GuideLLM's status. Its tests are [`tests/cell.test.sh`](../tests/cell.test.sh).
 
 ## The vision probe
 
 [`vision-probe.sh`](vision-probe.sh) reads how many prompt tokens the vision row gives a page at
-its image budget, the vision row's accuracy measure ([probe-1120](../docs/findings/vision.md#probe-1120)),
-with no other load on the row:
+its image budget, the vision row's accuracy measure
+([probe-1120](../docs/findings/vision.md#probe-1120)), with no other load on the row:
 
 ```sh
 bench/vision-probe.sh --host gb10-2
@@ -479,22 +476,21 @@ redistributable.
 [`levels.jq`](levels.jq) turns a result JSON into one table a file, one row a level: its streams,
 `rate <r>` on a constant-rate level, its rate to two places, or `synchronous` or `throughput` on a
 sweep's first two levels; requests ok, errored, and incomplete; requests a second; the second-half
-rate, the requests that finished in the level's second half over that half; the TTFT median;
-the ITL median; the request latency's median, p90, and minimum; for vision, the count of requests
-that finished in 10 s or less and the images a minute, its second-half rate times 60 at one image
-a request; prompt tok/s; output tok/s; for audio, the RTFx median and
-minimum and the count of requests at RTFx 5 or more (each request's clip seconds over its request
-time); and the level's floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's
-an RTFx median of 5, vision's a request latency median of at most 10 s, and the agent's an
-inter-token latency median of at most 100 ms; a level with no successful request misses. The
-verdict doesn't set a cap: the vision and audio rows' caps follow their throughput peaks, as their
-profiles' `cap_reason` says, read on the second-half rate. Requests a second count only the
-requests that finished within the level, so a level whose requests are long against its duration
-reads low: its streams start together, and the requests in flight at its end don't count. At 48
-streams of 30 s windows, a latency median of 25 s in a 90 s level, requests a second read 1.656
-against a second-half rate of 2.133 ([audio-real-30s](../docs/findings/audio.md#audio-real-30s)).
-A sweep's table starts with the knee GuideLLM concluded. Medians and percentiles interpolate
-linearly between the two nearest ranks.
+rate, the requests that finished in the level's second half over that half; the TTFT median; the ITL
+median; the request latency's median, p90, and minimum; for vision, the count of requests that
+finished in 10 s or less and the images a minute, its second-half rate times 60 at one image a
+request; prompt tok/s; output tok/s; for audio, the RTFx median and minimum and the count of
+requests at RTFx 5 or more (each request's clip seconds over its request time); and the level's
+floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's an RTFx median of 5,
+vision's a request latency median of at most 10 s, and the agent's an inter-token latency median of
+at most 100 ms; a level with no successful request misses. The verdict doesn't set a cap: the vision
+and audio rows' caps follow their throughput peaks, as their profiles' `cap_reason` says, read on
+the second-half rate. Requests a second count only the requests that finished within the level, so a
+level whose requests are long against its duration reads low: its streams start together, and the
+requests in flight at its end don't count. At 48 streams of 30 s windows, a latency median of 25 s
+in a 90 s level, requests a second read 1.656 against a second-half rate of 2.133
+([audio-real-30s](../docs/findings/audio.md#audio-real-30s)). A sweep's table starts with the knee
+GuideLLM concluded. Medians and percentiles interpolate linearly between the two nearest ranks.
 
 ```sh
 jq -r --arg purpose embed -f bench/levels.jq .state/bench/<cell>.json
@@ -507,8 +503,11 @@ jq -r --arg purpose vision -f bench/levels.jq .state/bench/<cell>.json
 
 A findings cell runs its row alone on its host unless it says otherwise. The standing layout cell
 ([layout](../docs/findings/vision.md#layout)) runs the four rows together, each on its own host, and
-reads each against its row-alone cell: each row matched itself alone within its host's run noise,
-so a row-alone cell stands for the row in the layout.
+reads each against its row-alone cell. Agent, audio, and embedding matched their rows alone within
+their hosts' run noise. Vision matched at 2, 4, and 8 streams; at 32 it decoded no slower, its
+total output and ITL median matching, while the pages finished inside the second half read 3–4%
+under, past gb10-2's 1.5% ([dense-noise-32](../docs/findings/vision.md#dense-noise-32)). So a
+row-alone cell stands for the row's rate in the layout.
 
 ## Scoring retrieval
 

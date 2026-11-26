@@ -142,7 +142,7 @@ An engine move is adopted only when every row passes both tests:
   incumbent's, or ahead of it. The run noise is the widest within-session spread the host's
   descriptor gives. A host whose descriptor gives none has its incumbent's peak level run again,
   from a restarted row, in the same measure, and that spread stands as its run noise. A spread
-  measured on another engine than vLLM counts as none.
+  measured on an engine other than vLLM counts as none.
 
 Otherwise the move is held, and the measure writes a finding that says which row failed which test,
 with the figures. The pin moves only when the move holds on all four hosts. The architect may

@@ -131,10 +131,10 @@ while :; do
 done
 ```
 
-The streamed probes' summary lines came out without their times, so their first tokens are read
-from their `.first` files, less the send, and their replies from the gateway's request log, whose
-`duration_ms` also gives the unstreamed probes' 149.7 and 281.9 s. Each probe's body is docinfer's request on one dense
-page of the bench's inputs, rows 430 to 433 of `dense-pages.jsonl`
+The streamed probes' summary lines came out without their times, so their first tokens are read from
+their `.first` files, less the send, and their replies from the gateway's request log, whose
+`duration_ms` also gives the unstreamed probes' 149.7 and 281.9 s. Each probe's body is docinfer's
+request on one dense page of the bench's inputs, rows 430 to 433 of `dense-pages.jsonl`
 ([bench/README.md](../../bench/README.md)). The command that built them wasn't kept; this one,
 reconstructed, builds the same JSON, checked field by field against the bodies as sent:
 
@@ -169,13 +169,13 @@ The row ran at most 32 requests and held at most 32 waiting, with 0 preemptions 
 A first attempt, at 11:40:45Z, ran 94 streams, sized for 32 running and 62 waiting. vLLM v0.34.0's
 `--max-num-queued-reqs` caps the row's unfinished requests, running and waiting together
 (`check_admission` in `vllm/v1/engine/async_llm.py`), so the vision row holds 64 in flight, 32
-waiting at most, not 64. The row refused the excess with 503: 5 refusals reached the gateway as
-503 and evicted the row, and the 161 requests GuideLLM sent in the evictions' windows went to
-Azure, which refused each with 400 for docinfer's fields (`max_tokens`, `top_p`, `top_k`; see
+waiting at most, not 64. The row refused the excess with 503: 5 refusals reached the gateway as 503
+and evicted the row, and the 161 requests GuideLLM sent in the evictions' windows went to Azure,
+which refused each with 400 for docinfer's fields (`max_tokens`, `top_p`, `top_k`; see
 [gateway-overflow-shapes](#gateway-overflow-shapes)). The other refusals came inside a streamed
-reply: its headers read 200, and its one event was the 503 error, so the gateway neither retried
-nor counted them. The attempt was stopped by hand at about 11:44Z, and the cell above ran from a restart with
-60 streams, within the 64.
+reply: its headers read 200, and its one event was the 503 error, so the gateway neither retried nor
+counted them. The attempt was stopped by hand at about 11:44Z, and the cell above ran from a restart
+with 60 streams, within the 64.
 
 ## gateway-dense-page
 
@@ -251,12 +251,13 @@ deployment on 2026-11-26 before the overflow cells, each a 400:
 | `gpt-5-mini` | `max_tokens`, `top_p`, `top_k` | docinfer's request, and `vision-dense.yaml` |
 | `gpt-audio-mini` | `stream_options.continuous_usage_stats` | GuideLLM, on every streamed request |
 
-So the overflow cells run scenarios of their own, [`agent-overflow.yaml`](../../bench/agent-overflow.yaml),
+So the overflow cells run scenarios of their own,
+[`agent-overflow.yaml`](../../bench/agent-overflow.yaml),
 [`vision-overflow.yaml`](../../bench/vision-overflow.yaml) and
 [`audio-overflow.yaml`](../../bench/audio-overflow.yaml): each alias's load target and inputs,
 unstreamed, without the refused fields, with vision's reply bound as `max_completion_tokens`.
-docinfer's vision request as it stood got 400 on overflow; the gateway now rewrites each request for
-its deployment ([gateway-overflow-rewrite](#gateway-overflow-rewrite)).
+docinfer's vision request, sent unchanged, got 400 on overflow until the gateway rewrote each
+request for its deployment ([gateway-overflow-rewrite](#gateway-overflow-rewrite)).
 
 ## The overflow stop point
 
@@ -557,8 +558,8 @@ sed -n 1999p .state/bench/docinfer/windows-30.jsonl | jq -c \
   row up the agent's request generated its full 256 tokens under `ignore_eos`.
 - **gpt-5-mini spent docinfer's bound on reasoning.** At its default effort it reasoned for all
   2,048 completion tokens on the dense page and returned no text, `finish_reason` `length`, where
-  the row transcribed it in 952. The vision provider now sets `reasoning_effort` `minimal`
-  ([gateway-overflow-minimal](#gateway-overflow-minimal)).
+  the row transcribed it in 952. [gateway-overflow-minimal](#gateway-overflow-minimal) sets the
+  vision provider's `reasoning_effort` to `minimal`.
 - The small chat that evicted the audio row got 400 from Azure, which refuses a text-only chat on
   gpt-audio-mini.
 

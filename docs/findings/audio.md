@@ -334,8 +334,9 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host framework --alias audio \
   --scenario bench/audio-real-30s.yaml --cell layout-v2-audio-framework --seconds 600 48:1500
 ```
 
-The rounds `layout-v4`, `layout-v8` and `layout-v32` ran the same. Against [audio-real-30s](#audio-real-30s)'
-and [audio-noise](#audio-noise)'s 48 streams alone, whose levels ran 90 s:
+The rounds `layout-v4`, `layout-v8` and `layout-v32` ran the same. Against
+[audio-real-30s](#audio-real-30s)' and [audio-noise](#audio-noise)'s 48 streams alone, whose levels
+ran 90 s:
 
 | Round | Start, UTC | ok/err/inc | req/s | Second-half req/s | TTFT median ms | Latency median s | Latency p90 s | Prompt tok/s | RTFx median | RTFx min | Duration s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -349,8 +350,9 @@ and [audio-noise](#audio-noise)'s 48 streams alone, whose levels ran 90 s:
 The first three rounds ran at fraction 0.28: each start read a KV cache of 371,231 tokens, and the
 host's lowest MemAvailable was 80.42 GiB through the starts and 78.64 GiB through the rounds. The
 round at vision's 32 ran at the present 0.30 ([audio-start](#audio-start)): its start read 431,113
-tokens, and MemAvailable fell no lower than 78.41 GiB through it and 76.37 GiB through the round. Across the rounds 0 requests' audio hit
-the multimodal cache, and the row finished every request on `stop` with 0 preemptions.
+tokens, and MemAvailable fell no lower than 78.41 GiB through it and 76.37 GiB through the round.
+Across the rounds 0 requests' audio hit the multimodal cache, and the row finished every request on
+`stop` with 0 preemptions.
 
 - **The audio row beside the others matches it alone**: 2.013 to 2.057 requests a second on the
   second-half rate against 2.044 and 2.133, within [audio-noise](#audio-noise)'s 4.4%. Over 600 s

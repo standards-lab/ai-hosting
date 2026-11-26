@@ -664,7 +664,8 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
   --scenario bench/embedding-target.yaml --cell layout-v2-embedding-framework-2 --seconds 600 78
 ```
 
-The rounds `layout-v4`, `layout-v8` and `layout-v32` ran the same. Against [e5-target](#e5-target)'s row alone:
+The rounds `layout-v4`, `layout-v8` and `layout-v32` ran the same. Against [e5-target](#e5-target)'s
+row alone:
 
 | Round | Start, UTC | ok/err/inc | req/s | Achieved | Latency median s | Latency p90 s | Prompt tok/s | Duration s | Floor |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

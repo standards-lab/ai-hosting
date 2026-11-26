@@ -46,10 +46,10 @@ The pass pauses with a proposal, and runs none of the cell, when a cell it would
   `bench/cell.sh` runs loads only, so the cell is outside it. The proposal names the cell and the
   steps it took.
 - **has inputs or a command the repository doesn't hold**. The proposal names what is missing.
-  The vision row's accuracy measure isn't one: [probe-1120](../../../docs/findings/vision.md#probe-1120)'s
-  pages and command are `bench/vision-probe.sh` and its pages
-  ([bench/README.md](../../../bench/README.md#the-vision-probe)). A cell on docinfer's inputs,
-  such as `bench/vision-dense.yaml`, needs them built and checked locally first
+  The vision row's accuracy measure isn't one: the repository holds
+  [probe-1120](../../../docs/findings/vision.md#probe-1120)'s command, `bench/vision-probe.sh`,
+  and its pages ([bench/README.md](../../../bench/README.md#the-vision-probe)). A cell on
+  docinfer's inputs, such as `bench/vision-dense.yaml`, needs them built and checked locally first
   ([bench/README.md](../../../bench/README.md#docinfers-inputs)); a client with no local docproc
   run can't build them, and the proposal says so.
 - **needs a file staged into the row's container**, such as a chat template the row's model

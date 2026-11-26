@@ -7,14 +7,17 @@ are built, and each host serves its rows from its clone. One gateway on gb10-2 f
 alias at its own base URL behind an issued key, with overflow to Azure AI Foundry
 ([docs/gateway.md](../docs/gateway.md)). go-ai and docinfer hold its keys; Pi sessions, Claude Code
 subagents, and the capstone's services are to reach the rows through it with keys the tasks that
-build them issue. The `acceptance` task proved the layout on vLLM v0.34.0: the four rows together,
-each beside the others matching its row alone ([layout](../docs/findings/vision.md#layout)), each
-row's cap and load target set by its cells, overflow to Azure live for agent, vision, and audio
-([gateway findings](../docs/findings/gateway.md)), and go-ai's, tools/infer's, and docinfer's live
-tiers passing through the gateway under their own keys
-([client-tiers](../docs/findings/gateway.md#client-tiers)). ai-hosting is low-level infrastructure
-outside the five tiers, beside the harness repositories, and is the one hosting repository on each
-workstation.
+build them issue. ai-hosting is low-level infrastructure outside the five tiers, beside the
+harness repositories, and is the one hosting repository on each workstation.
+
+The `acceptance` task proved the layout on vLLM v0.34.0. The four rows ran together
+([layout](../docs/findings/vision.md#layout)): agent, audio, and embedding matched their rows alone
+within their hosts' run noise, and vision matched at 2, 4, and 8 streams; at 32 it decoded no
+slower, while the pages finished inside the second half read 3–4% under, past gb10-2's 1.5%. Each
+row's cap and load target follow its cells. Overflow to Azure works live for agent, vision, and
+audio ([gateway findings](../docs/findings/gateway.md)), and go-ai's, tools/infer's, and docinfer's
+live tiers pass through the gateway under their own keys
+([client-tiers](../docs/findings/gateway.md#client-tiers)).
 
 A row is one vLLM container serving one model under its role's alias (`agent`, `vision`, `audio`,
 `embedding`); a host class is `gb10` or `strix-halo`.

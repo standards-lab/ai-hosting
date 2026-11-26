@@ -168,7 +168,7 @@ row's root, not under `/v1`. docinfer chunks documents by e5 token counts throug
 - **No bucket.** It is outside embedding's two buckets and has none of its own: a tokenize call is
   cheap, and a chunking run makes far more of them than it makes embeddings, so drawing on
   embedding's buckets would spend them on counting. A bulk consumer bounds its own concurrency.
-  Acceptance measured no need for one: four callers back to back, docinfer's concurrency, made 253
+  The cells measured no need for one: four callers back to back, docinfer's concurrency, made 253
   tokenize calls a second beside the embedding row at its load target, which held 77.98 requests a
   second against 77.96 alone ([gateway-tokenize](findings/gateway.md#gateway-tokenize)).
 
@@ -211,10 +211,10 @@ run on any host and commit nothing.
    reloads the keys in place, with no restart: a new key is admitted, and a removed one gets 401
    on its next request while requests already running finish.
 
-go-ai and docinfer hold interactive keys. Under them, go-ai's live tier, plain and under each
-alias's profile, tools/infer's, and docinfer's passed through the gateway with no failure
-([client-tiers](findings/gateway.md#client-tiers)). ai-hosting holds a bulk key, as consumer
-`ai-hosting` in its own `fnox.toml`, kept for the bulk class's priority and bucket checks and for
+go-ai and docinfer hold interactive keys, under which go-ai's live tier, plain and under each
+alias's profile, tools/infer's, and docinfer's pass through the gateway
+([client-tiers](findings/gateway.md#client-tiers)). ai-hosting holds a bulk key, consumer
+`ai-hosting` in its own `fnox.toml`, for the bulk class's priority and bucket checks and for
 upgrade measures through the gateway. Every other consumer gets its key from `hosting key issue` in
 the task that builds it.
 
@@ -227,9 +227,9 @@ Each key's class, in its metadata as `apiKey.class`, sets its priority and its r
 | `interactive` | 0 | 1,200 a minute |
 | `bulk` | 10 | 600 a minute |
 
-No key has a token budget. The rows' own capacity bounds self-hosted work, and cloud spend is
-governed in Azure ([Capacity and cloud spend](#capacity-and-cloud-spend)), so the gateway charges
-no key for its tokens. Postgres keeps the request log, which records each request's usage.
+No key has a token budget: the rows' own capacity bounds self-hosted work, and cloud spend is
+governed in Azure ([Capacity and cloud spend](#capacity-and-cloud-spend)). Postgres keeps the
+request log, which records each request's usage.
 
 ### Priority
 
@@ -250,7 +250,7 @@ In the spike, against a capturing mock row, bulk's chat reached the row with `"p
 interactive key's with `0`, the audio row's with none, and bulk's chat sent while the row was
 unreachable reached Azure with none ([priority.md][f-priority], "Answer for this task").
 
-Live, with the rows full of bulk work through the gateway, an interactive request waited behind no
+With the rows full of bulk work through the gateway, an interactive request waited behind no
 bulk one: on vision its first token came in 20 s where a bulk page sent with it waited 137 s, and
 on agent in 0.5 and 2.5 s where bulk's waited 16.6 and 21.9 s. Priority orders vLLM's waiting
 queue and doesn't preempt: the interactive request started only as a running bulk one finished,
@@ -268,9 +268,10 @@ heaviest bulk load the spike ran, vision at 20 concurrent, is about 1.9 requests
 a minute, and an interactive key's, the audio overhead cell, 64 requests in about 20 s
 ([agentgateway.md][f-agentgateway], "The cap cells" and "Slice 2 · overhead"). In the spike, bulk
 was refused by its own bucket while another key kept answering on the same alias
-([priority.md][f-priority], "bulk's bucket (behavior 14)"). Live, ai-hosting's bulk key got 429
-past its 600th request on a route and go-ai's interactive key past its 1,200th, each key and each
-route drawing on its own bucket ([gateway-buckets](findings/gateway.md#gateway-buckets)).
+([priority.md][f-priority], "bulk's bucket (behavior 14)"). On the live gateway, ai-hosting's bulk
+key got 429 past its 600th request on a route and go-ai's interactive key past its 1,200th, each
+key and each route drawing on its own bucket
+([gateway-buckets](findings/gateway.md#gateway-buckets)).
 
 Embedding has two rules: a global bucket of 78 a second, with no key, which every caller shares,
 and a bucket of 156 a second per key. 78 is the most the embedding row keeps with no error on
@@ -324,12 +325,12 @@ the timeout bounds a reply that isn't streamed, as docinfer's pages aren't
 request at its row's limits: the last place of a full queue, which at v0.34.0 holds the queue limit
 less the cap ([Row refusals, retry, and health](#row-refusals-retry-and-health)).
 
-| Route | Before | After | A request at the row's limits |
-| --- | --- | --- | --- |
-| vision | none | `requestTimeout: 9m` | The last of 32 waiting pages waits about 143 s at the 13.40 images a minute of 32 streams, then runs up to 198 s, the latency p90 there, about 341 s ([dense-1120-high](findings/vision.md#dense-1120-high)); through the gateway at the full 64 in flight, the slowest page took 440 s ([gateway-priority-vision](findings/gateway.md#gateway-priority-vision)). 9 min covers it, and sits inside docinfer's 600 s header timeout, so the gateway ends a page held past it before the client does |
-| audio | none | none | The last of 144 waiting windows waits about 71 s at 2.04 requests a second, then runs up to 35 s, the latency p90 at 48 streams, about 106 s ([audio-real-30s](findings/audio.md#audio-real-30s)); no timeout cuts it short |
-| agent | none | none | A turn at 12 sessions runs about 67 s, and 12 waiting add about one such round ahead of it ([agent-sessions](findings/agent.md#agent-sessions)); 8 prompts of 65,536 tokens at once took 214 s ([agent-capacity](findings/agent.md#agent-capacity)), so a queue of long sessions has no bound a timeout could be sized to, and none cuts it short |
-| embedding, `embedding-tokenize` | none | none | A request takes milliseconds |
+| Route | Timeout | A request at the row's limits |
+| --- | --- | --- |
+| vision | `requestTimeout: 9m` | The last of 32 waiting pages waits about 143 s at the 13.40 images a minute of 32 streams, then runs up to 198 s, the latency p90 there, about 341 s ([dense-1120-high](findings/vision.md#dense-1120-high)); through the gateway at the full 64 in flight, the slowest page took 440 s ([gateway-priority-vision](findings/gateway.md#gateway-priority-vision)). 9 min covers it, and sits inside docinfer's 600 s header timeout, so the gateway ends a page held past it before the client does |
+| audio | none | The last of 144 waiting windows waits about 71 s at 2.04 requests a second, then runs up to 35 s, the latency p90 at 48 streams, about 106 s ([audio-real-30s](findings/audio.md#audio-real-30s)); no timeout cuts it short |
+| agent | none | A turn at 12 sessions runs about 67 s, and 12 waiting add about one such round ahead of it ([agent-sessions](findings/agent.md#agent-sessions)); 8 prompts of 65,536 tokens at once took 214 s ([agent-capacity](findings/agent.md#agent-capacity)), so a queue of long sessions has no bound a timeout could be sized to, and none cuts it short |
+| embedding, `embedding-tokenize` | none | A request takes milliseconds |
 
 Only vision's is set, the one route whose clients send long unstreamed requests at a known bound;
 with no timeout, no other route cuts a queued request short.
@@ -368,9 +369,9 @@ down (behaviors 7, 8)").
 - **The marker.** Every reply from an Azure provider carries `x-gateway-overflow: azure`, set by
   its response header policy; a row's reply never does. In the overflow cells, every Azure reply
   carried it, 429s too, and the first request after each row's restart was the row's, without it
-  ([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent) and the cells after it). Each Azure provider sets
-  `providerOverride: azure`, so the access log's `gen_ai.provider.name` reads `azure` there and
-  `custom` on a row's.
+  ([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent) and the cells after it).
+  Each Azure provider sets `providerOverride: azure`, so the access log's `gen_ai.provider.name`
+  reads `azure` there and `custom` on a row's.
 
 Each Azure provider is a custom, OpenAI-compatible provider at
 `<account>.services.ai.azure.com:443` with the path prefix `/openai/v1`, the endpoint each
@@ -403,16 +404,17 @@ Each alias's [go-ai profile](../go-ai/README.md) declares only the row's refusal
 ### Capacity and cloud spend
 
 Cloud spend is governed in Azure, not by the gateway: each deployment's capacity is the rate
-ceiling on its overflow, and a Cost Management budget alerts on the month's spend. The commands
+ceiling on its overflow, and a Cost Management budget alerts on the month's spend. A change to a
+deployment or the budget is made with `az` and recorded here with its commands as run. The commands
 below ran from the laptop's `az` (2.90.0) on 2026-11-25, with `<account>` the Foundry account
 (`AZURE_FOUNDRY_ACCOUNT` in fnox) and `<group>` its resource group.
 
 **Capacity.** A unit of capacity is 1,000 tokens a minute, with a request limit that grows with
 it; Azure answers 429 past either, which the Azure health policy turns into an eviction
 ([Row refusals, retry, and health](#row-refusals-retry-and-health)). Each deployment is sized to
-its row's peak, capped by the region's quota. The first values, about 100 for agent, 50 for
-vision, and 30 for audio, ran first; the final ones follow the overflow cells and the rows' peaks
-below.
+its row's peak, capped by the region's quota. The overflow cells ran at first values of 100 for
+agent, 50 for vision, and 30 for audio; the final capacities, below, follow from those cells and
+the rows' peaks.
 
 ```sh
 az cognitiveservices account deployment create --name <account> --resource-group <group> \
@@ -626,9 +628,11 @@ them would see an idle row ([agentgateway.md][f-agentgateway], "The paper invent
 Priority orders only vLLM's waiting queue: interactive vision beside a saturating bulk key jumped
 the queue, then shared the batch with bulk's 20 streams and decoded at their pace, missing 10 s by
 0.47 s with priority, against 1.87 s without ([priority.md][f-priority], "Benchmark D: priority on
-vision (evidence 6)"). Live on the vision row's dense pages, an interactive page beside 60 bulk
-streams had its first token in 20 s, then took 142 s to its last beside 31 bulk pages, with no
-preemption ([gateway-priority-vision](findings/gateway.md#gateway-priority-vision)). Holding interactive latency under bulk load needs a cap on bulk's
+vision (evidence 6)"). On the live gateway with the vision row's dense pages, an interactive page
+beside 60 bulk streams had its first token in 20 s, then took 142 s to its last beside 31 bulk
+pages, with no preemption
+([gateway-priority-vision](findings/gateway.md#gateway-priority-vision)). Holding interactive
+latency under bulk load needs a cap on bulk's
 concurrency. v1.7.0's only in-flight cap, `maxConcurrentRequests`, counts every request on a port,
 whatever its key, so the bulk consumer bounds its own concurrency, and Cerebro's plan sets the
 number ([watch register](watch.md#agentgateway-concurrency-cap-per-key)).
@@ -679,7 +683,9 @@ What the gateway task settled, beyond what the sections above give:
 - **Cloud spend is governed in Azure, not by the gateway:** each deployment's capacity is the rate
   ceiling and a Cost Management budget alerts on spend, so no key has a token budget. Rejected: the
   per-key token budgets the gateway first charged, among them the bulk class's 1,000,000-token
-  Block ([Capacity and cloud spend](#capacity-and-cloud-spend)).
+  Block; per-key USD budgets (more to maintain, and a spent Block key is refused on the
+  self-hosted rows too); and counting tokens per backend, which needs a rate-limit service
+  ([Capacity and cloud spend](#capacity-and-cloud-spend)).
 - **Tracing samples every request,** as the spike did.
 
 [f-agentgateway]: https://github.com/JaimeStill/spike-model-gateway/blob/2f2e8c1/docs/findings/agentgateway.md

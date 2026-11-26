@@ -119,8 +119,8 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
   --scenario bench/agent-sessions.yaml --cell layout-v2-agent-gb10-1 --seconds 600 4
 ```
 
-The rounds `layout-v4`, `layout-v8` and `layout-v32` ran the same. Against [agent-sessions](#agent-sessions)'
-4 sessions alone, whose level ran 110 s:
+The rounds `layout-v4`, `layout-v8` and `layout-v32` ran the same. Against
+[agent-sessions](#agent-sessions)' 4 sessions alone, whose level ran 110 s:
 
 | Round | Start, UTC | ok/err/inc | TTFT median ms | ITL median ms | Latency median s | Latency p90 s | Output tok/s | Total output tok/s | Duration s | Floor |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

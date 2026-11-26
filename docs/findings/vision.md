@@ -7,12 +7,14 @@ its time in UTC, its figures, and the tool versions it ran on. The profile's rea
 by their section; the row's settings live in [the profile](../../classes/gb10/profile.toml).
 
 The capacity cells at 280, 560 and 1120, capacity-1120-clean among them, ran the row alone on
-synthetic pages with 100-token replies, and no longer set its cap: [dense-1120](#dense-1120) and
-the standing layout cell, [layout](#layout), measured it on docinfer's dense pages, alone and beside
-the other rows, and the two matched. 560 is an interim budget, measured before 1120. Each table's
-Floor column, and "the 10 s floor" below, is `levels.jq`'s vision verdict, a request latency median
-of at most 10 s; the row's cap follows its throughput peak instead, as the profile's `cap_reason`
-says.
+synthetic pages with 100-token replies, and no longer set its cap: [dense-1120](#dense-1120) and the
+standing layout cell, [layout](#layout), measured it on docinfer's dense pages, alone and beside the
+other rows. Beside the others it matched itself alone at 2, 4, and 8 streams; at 32 it decoded no
+slower, while the pages finished inside the second half read 3–4% under, past
+[dense-noise-32](#dense-noise-32)'s 1.5%. 560 is an interim budget, measured before 1120. Each
+table's Floor column, and "the 10 s floor" below, is `levels.jq`'s vision verdict, a request latency
+median of at most 10 s; the row's cap follows its throughput peak instead, as the profile's
+`cap_reason` says.
 
 ## Tools
 
@@ -483,10 +485,10 @@ the multimodal cache; the host's lowest MemAvailable over the cell was 44.74 GiB
 ## layout
 
 The standing layout cell: the four rows together, each on its own host, the vision row through
-[dense-1120](#dense-1120)'s levels and at its cap of 32, the agent row at its target of 4 sessions, the audio row at its
-target of 48 streams of docinfer's windows, and the embedding row at 78 requests a second with at
-most 16 in flight. Each row's figures are read against its row-alone cell here and in its
-purpose's findings: [agent](agent.md#layout), [audio](audio.md#layout) and
+[dense-1120](#dense-1120)'s levels and at its cap of 32, the agent row at its target of 4 sessions,
+the audio row at its target of 48 streams of docinfer's windows, and the embedding row at 78
+requests a second with at most 16 in flight. Each row's figures are read against its row-alone cell
+here and in its purpose's findings: [agent](agent.md#layout), [audio](audio.md#layout) and
 [embedding](embedding.md#layout).
 
 The cell is four rounds, one a vision level, since each cell starts on a row restarted since its
