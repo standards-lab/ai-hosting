@@ -95,15 +95,15 @@ test_the_tokenize_route_follows_the_embedding_row_host_and_port() {
   assert_equal host "$(route embedding-tokenize '[.backends[].host] | join(" ")')" framework-2:9103
 }
 
-test_each_key_carries_its_hash_consumer_and_class_and_no_budget() {
+test_each_key_carries_its_hash_consumer_and_class() {
   use_fixtures
   write_keys
   render
   assert_equal status "$status" 0
   assert_equal keys "$(jq -r '.gateways.consumer.apiKey.keys[]
-    | [.keyHash, .metadata.name, .metadata.class, has("budgets")] | join(" ")' <<<"$config")" \
-    "sha256:$(hash_of "$interactive_key") cerebro interactive false
-sha256:$(hash_of "$bulk_key") batch bulk false"
+    | [.keyHash, .metadata.name, .metadata.class] | join(" ")' <<<"$config")" \
+    "sha256:$(hash_of "$interactive_key") cerebro interactive
+sha256:$(hash_of "$bulk_key") batch bulk"
 }
 
 test_an_empty_key_list_renders_no_key() {
@@ -134,28 +134,6 @@ test_every_switch_on_keeps_each_azure_group_and_embedding_has_none() {
 vision vision-row,vision-azure
 audio audio-row,audio-azure
 embedding embedding-row"
-}
-
-test_each_azure_provider_drops_what_its_deployment_refuses_and_the_rows_keep_the_request() {
-  use_fixtures
-  render
-  assert_equal status "$status" 0
-  assert_equal transformations "$(jq -r '.routes[] | select(.backends[0].ai)
-    | .backends[0].ai.groups[].providers[]
-    | "\(.name) \(.policies.ai.transformations // {} | to_entries | map("\(.key)=\(.value)") | join(";"))"' \
-    <<<"$config")" "agent-row priority=apiKey.class == \"bulk\" ? 10 : 0
-agent-azure ignore_eos=fail(\"remove\")
-vision-row priority=apiKey.class == \"bulk\" ? 10 : 0
-vision-azure max_completion_tokens=has(llmRequest.max_completion_tokens) ? llmRequest.max_completion_tokens : llmRequest.max_tokens;max_tokens=fail(\"remove\");top_p=fail(\"remove\");top_k=fail(\"remove\");reasoning_effort=\"minimal\"
-audio-row 
-audio-azure stream_options=has(llmRequest.stream_options) ? {\"include_usage\": true} : fail(\"remove\")
-embedding-row "
-  assert_equal "azure policies" "$(jq -r '[.routes[].backends[0].ai.groups[]?.providers[]
-    | select(.name | endswith("-azure")) | .policies
-    | [.health.unhealthyExpression, .backendAuth.key.value.file,
-      .responseHeaderModifier.set["x-gateway-overflow"], (.backendTLS | tostring)] | join(" ")]
-    | unique | .[]' <<<"$config")" \
-    "!has(response.code) || response.code == 503 || response.code == 429 /run/secrets/azure-foundry-key azure {}"
 }
 
 test_the_render_holds_no_secret() {

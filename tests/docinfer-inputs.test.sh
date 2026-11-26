@@ -166,11 +166,12 @@ test_the_committed_manifest_records_both_rows_files() {
     "$(grep -cvE '^[0-9a-f]{64}  [a-z0-9-]+\.jsonl$' "$repo/bench/docinfer-inputs.sha256")" 0
 }
 
-test_the_committed_page_list_names_110_distinct_pages() {
-  local list
-  list=$(grep -v '^#' "$repo/bench/dense-pages.txt")
-  assert_equal pages "$(grep -cE '^[0-9a-f]{64}$' <<<"$list")" 110
-  assert_equal "distinct pages" "$(sort -u <<<"$list" | wc -l)" 110
+test_build_takes_the_committed_page_list_and_looks_for_its_pages_in_the_run() {
+  write_run
+  run_inputs build --docproc "$docproc" --output "$tmp/out"
+  assert_equal status "$status" 2
+  assert_contains stderr "$err" "has no image output $(grep -v '^#' "$repo/bench/dense-pages.txt" | sort | head -n 1)"
+  assert_equal calls "$(calls)" ""
 }
 
 test_the_scenarios_reading_these_rows_read_them_from_the_default_output() {

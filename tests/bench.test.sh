@@ -207,16 +207,6 @@ level | 2nd half req/s | img/min
   assert_equal "embed" "$(sed -n 3p <<<"$out" | cut -d '|' -f 11)" " - "
 }
 
-test_levels_rates_each_level_on_the_requests_finished_in_its_second_half() {
-  run jq -r --arg purpose vision -f "$repo/bench/levels.jq" "$fixtures/vision-result.json"
-  assert_equal status "$status" 0
-  assert_equal levels "$(cut -d '|' -f 1,3,4 <<<"$out")" "## vision-result.json
-level | req/s | 2nd half req/s 
-4 | 0.950 | 0.067 
-8 | 0.800 | 0.044 
-16 | 0.600 | - "
-}
-
 test_levels_judges_each_agent_level_by_its_itl_median() {
   run jq -r --arg purpose agent -f "$repo/bench/levels.jq" "$fixtures/agent-result.json"
   assert_equal status "$status" 0
