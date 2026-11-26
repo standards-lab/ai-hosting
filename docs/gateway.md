@@ -485,9 +485,11 @@ az cognitiveservices account deployment create --name <account> --resource-group
 Each answered `provisioningState` `Succeeded`, at capacity 133 and 41, with token limits of
 133,000 and 41,000 a minute and request limits of 133 and 41 a minute. Audio's deployment stays at
 30, its quota, with no command. In the cells Azure enforced its limits loosely: vision's ran about
-57 pages and 160,000 tokens a minute at capacity 50, and audio's 8 windows a second at capacity
-30, with no 429; agent's, whose turns read 8,300 to 9,700 prompt tokens, got its first 429 3.8 s
-in ([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent)).
+57 pages and 160,000 tokens a minute at capacity 50 with no 429, and audio's 8 windows a second
+at capacity 30 for 32 s before its first 429
+([gateway-overflow-audio](findings/gateway.md#gateway-overflow-audio)); agent's, whose turns read
+8,300 to 9,700 prompt tokens, got its first 429 3.8 s in
+([gateway-overflow-agent](findings/gateway.md#gateway-overflow-agent)).
 
 **The embedding deployment, deleted.** The account's `text-embedding-3-small` deployment,
 DataZoneStandard at capacity 10, was never routed: no route's Azure group named it, in the

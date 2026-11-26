@@ -81,8 +81,74 @@ reply's end, the streamed ones to the whole second:
 | --- | --- | --- | --- | --- | --- |
 | int-st | `go-ai`, interactive | yes | 20 | 142 | |
 | int-ns | `go-ai`, interactive | no | | 149.7 | 887 |
-| bulk-st | `ai-hosting`, bulk | yes | 137 | 198 | |
+| bulk-st | `ai-hosting`, bulk | yes | 137 | 332 | |
 | bulk-ns | `ai-hosting`, bulk | no | | 281.9 | 959 |
+
+The probes ran outside the cell runner, from a script that started the cell above in the
+background, read the row's gauges, and sent the four probes 120 s in, as run, its scratch
+directory dropped from the paths and its progress lines and cleanup left out:
+
+```sh
+sample.sh gb10-2:8001 run/samples & samp=$!
+AI_GATEWAY_TOKEN=$(<bulk.key) MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-2 --alias vision \
+  --scenario bench/vision-dense.yaml --cell gateway-priority-vision --gateway gb10-2 60:240 >run/cell.log 2>&1 & cell=$!
+sleep 120
+probe.sh interactive.key vision int-st.json int-st run &
+probe.sh bulk.key vision bulk-st.json bulk-st run &
+probe.sh interactive.key vision int-ns.json int-ns run &
+probe.sh bulk.key vision bulk-ns.json bulk-ns run &
+wait $cell
+```
+
+`probe.sh`, as run, times one request through the gateway, the key read from its file:
+
+```sh
+key=$1 alias=$2 body=$3 name=$4 out=$5
+start=$(date +%s.%N)
+if jq -e '.stream == true' "$body" >/dev/null; then
+  printf 'Authorization: Bearer %s\n' "$(<"$key")" | curl -sN -H @- -H 'content-type: application/json' \
+    --data-binary @"$body" -D "$out/$name.headers" "http://gb10-2:3000/$alias/v1/chat/completions" |
+    while IFS= read -r line; do [[ $line == data:* ]] || continue; [[ -e $out/$name.first ]] || date +%s.%N >"$out/$name.first"; printf '%s\n' "$line"; done >"$out/$name.body"
+  end=$(date +%s.%N)
+  first=$(cat "$out/$name.first" 2>/dev/null || echo "$end")
+  echo "$name start=$(date -ud @${start%.*} +%T) first_token_s=$(awk -v a="$first" -v b="$start" 'BEGIN{printf "%.2f", a-b}') total_s=$(awk -v a="$end" -v b="$start" 'BEGIN{printf "%.2f", a-b}') code=$(head -1 "$out/$name.headers" | cut -d' ' -f2) overflow=$(grep -i x-gateway-overflow "$out/$name.headers" | tr -d '\r' | cut -d' ' -f2)" >>"$out/summary"
+else
+  w=$(printf 'Authorization: Bearer %s\n' "$(<"$key")" | curl -s -H @- -H 'content-type: application/json' \
+    --data-binary @"$body" -D "$out/$name.headers" -o "$out/$name.body" -w '%{http_code} %{time_starttransfer} %{time_total}' \
+    "http://gb10-2:3000/$alias/v1/chat/completions")
+  read -r code ttfb total <<<"$w"
+  echo "$name start=$(date -ud @${start%.*} +%T) code=$code headers_s=$ttfb total_s=$total completion_tokens=$(jq -r '.usage.completion_tokens // "-"' "$out/$name.body" 2>/dev/null) overflow=$(grep -i x-gateway-overflow "$out/$name.headers" | tr -d '\r' | cut -d' ' -f2)" >>"$out/summary"
+fi
+```
+
+and `sample.sh`, as run, reads the row's gauges every 2 s:
+
+```sh
+while :; do
+  m=$(curl -s --max-time 2 "http://$1/metrics")
+  printf '%s %s\n' "$(date -u +%T)" "$(awk '/^vllm:num_requests_running|^vllm:num_requests_waiting\{|^vllm:num_preemptions_total/{split($1,a,"{"); s[a[1]]+=$NF} END{printf "running=%d waiting=%d preempt=%d", s["vllm:num_requests_running"], s["vllm:num_requests_waiting"], s["vllm:num_preemptions_total"]}' <<<"$m")" >>"$2"
+  sleep 2
+done
+```
+
+The streamed probes' summary lines came out without their times, so their first tokens are read
+from their `.first` files, less the send, and their replies from the gateway's request log, whose
+`duration_ms` also gives the unstreamed probes' 149.7 and 281.9 s. Each probe's body is docinfer's request on one dense
+page of the bench's inputs, rows 430 to 433 of `dense-pages.jsonl`
+([bench/README.md](../../bench/README.md)). The command that built them wasn't kept; this one,
+reconstructed, builds the same JSON, checked field by field against the bodies as sent:
+
+```sh
+body() { # body <row> <stream>: docinfer's request on dense page <row>
+  sed -n "$(($1 + 1))p" .state/bench/docinfer/dense-pages.jsonl | jq -c --argjson stream "$2" \
+    --rawfile img <(base64 -w0 .state/bench/docinfer/dense-pages/$(printf %05d "$1").png) \
+    '{model: "vision", max_tokens: 2048, temperature: 1.0, top_p: 0.95, top_k: 64, stream: $stream,
+      messages: [{role: "user", content: [{type: "text", text: .prompt},
+        {type: "image_url", image_url: {url: ("data:image/png;base64," + $img)}}]}]}'
+}
+body 430 false >int-ns.json; body 431 false >bulk-ns.json
+body 432 true >int-st.json; body 433 true >bulk-st.json
+```
 
 The row ran at most 32 requests and held at most 32 waiting, with 0 preemptions over the cell.
 
@@ -144,6 +210,29 @@ AI_GATEWAY_TOKEN=$(<bulk.key) MISE_ENV=bench mise exec -- bench/cell.sh --host g
 | int2-st | 11:55:25 | `go-ai`, interactive | 0.50 | 12.16 |
 | bulk2-st | 11:55:25 | `ai-hosting`, bulk | 21.90 | 40.89 |
 
+The probes ran outside the cell runner, with the same script and `probe.sh` as
+[gateway-priority-vision](#gateway-priority-vision)'s, as run, with the same paths and lines left
+out:
+
+```sh
+sample.sh gb10-1:8000 run/samples & samp=$!
+AI_GATEWAY_TOKEN=$(<bulk.key) MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
+  --scenario bench/agent-sessions.yaml --cell gateway-priority-agent --gateway gb10-2 --seconds 240 20 >run/cell.log 2>&1 & cell=$!
+sleep 75
+probe.sh interactive.key agent int-st.json int-st run &
+probe.sh bulk.key agent bulk-st.json bulk-st run &
+sleep 60
+probe.sh interactive.key agent int-st.json int2-st run &
+probe.sh bulk.key agent bulk-st.json bulk2-st run &
+wait $cell
+```
+
+with `int-st.json` and `bulk-st.json` each:
+
+```json
+{"model":"agent","stream":true,"stream_options":{"include_usage":true},"max_tokens":256,"messages":[{"role":"user","content":"Write a short paragraph about lighthouses and their keepers."}]}
+```
+
 The row ran at most 12 and held at most 18 waiting, with 0 preemptions.
 
 - **Interactive goes first here too**: its first token in 0.5 and 2.5 s, bulk's in 16.6 and 21.9 s
@@ -169,6 +258,80 @@ unstreamed, without the refused fields, with vision's reply bound as `max_comple
 docinfer's vision request as it stood got 400 on overflow; the gateway now rewrites each request for
 its deployment ([gateway-overflow-rewrite](#gateway-overflow-rewrite)).
 
+## The overflow stop point
+
+Each overflow cell's load runs until Azure's first 429 or its 300th Azure request, whichever comes
+first. GuideLLM can't stop on a reply's status, and its request count takes the stopped row's 503s
+with Azure's requests, so each overflow scenario bounds the run by GuideLLM's own count, 300
+requests, and by 90 s. The stop point is read from the gateway's request log afterwards, and each
+cell's headline figures cover the window from its first request to that point; GuideLLM's figures
+for the whole run follow as context.
+
+The stop point is the arrival of Azure's first 429 reply, when a runner could have stopped, or the
+send of the 301st Azure request, or else the run's last reply. In the window, an Azure request
+counts as sent if it started before the stop point, and as answered if its 200 or 429 came by
+then; the throughput is the answered 200s, and their prompt and completion tokens, over the
+window's length. A request still in flight at the stop point, or sent after it, is past the stop
+point. The request log is gb10-2's `request_logs` table, read on 2026-11-26 after the cells with
+each cell's bounds (`from` and `to` in UTC: agent 11:58:00 to 11:58:20, vision 12:00:00 to
+12:01:40, audio 12:03:00 to 12:03:40):
+
+```sh
+ssh gb10-2 "docker exec -i gateway-postgres-1 psql -U agentgateway -d agentgateway -P pager=off \
+  -v from='2026-11-26 11:58:00+00' -v to='2026-11-26 11:58:20+00'" <window.sql
+```
+
+where `window.sql` read:
+
+```sql
+WITH cell AS (
+  SELECT * FROM request_logs
+  WHERE agentgateway_user = 'ai-hosting' AND started_at >= :'from' AND started_at < :'to'
+), azure AS (
+  SELECT * FROM cell WHERE gen_ai_provider_name = 'azure'
+), stop AS (
+  SELECT (SELECT min(started_at) FROM cell) AS t0,
+         least((SELECT min(completed_at) FROM azure WHERE http_status = 429),
+               (SELECT started_at FROM azure ORDER BY started_at OFFSET 300 LIMIT 1),
+               (SELECT max(completed_at) FROM cell)) AS t1
+)
+SELECT to_char(t0 AT TIME ZONE 'UTC', 'HH24:MI:SS.MS') AS start,
+       to_char(t1 AT TIME ZONE 'UTC', 'HH24:MI:SS.MS') AS stop,
+       round(extract(epoch FROM t1 - t0), 2) AS window_s,
+       count(*) FILTER (WHERE a.started_at < t1) AS azure_sent,
+       count(*) FILTER (WHERE a.started_at < t1 AND a.attributes_json->>'overflow' = 'azure') AS marked,
+       count(*) FILTER (WHERE a.http_status = 200 AND a.completed_at <= t1) AS ok,
+       count(*) FILTER (WHERE a.http_status = 429 AND a.completed_at <= t1) AS r429,
+       round(count(*) FILTER (WHERE a.http_status = 200 AND a.completed_at <= t1)
+             / extract(epoch FROM t1 - t0), 3) AS req_s,
+       round(sum(a.input_tokens + a.output_tokens) FILTER (WHERE a.http_status = 200 AND a.completed_at <= t1)
+             / extract(epoch FROM t1 - t0), 1) AS tok_s,
+       round(sum(a.output_tokens) FILTER (WHERE a.http_status = 200 AND a.completed_at <= t1)
+             / extract(epoch FROM t1 - t0), 1) AS out_tok_s,
+       (SELECT count(*) FROM cell c WHERE c.gen_ai_provider_name <> 'azure' AND c.started_at < t1) AS row_503
+FROM azure a, stop GROUP BY t0, t1;
+
+WITH cell AS (
+  SELECT * FROM request_logs
+  WHERE agentgateway_user = 'ai-hosting' AND started_at >= :'from' AND started_at < :'to'
+), azure AS (
+  SELECT * FROM cell WHERE gen_ai_provider_name = 'azure'
+), stop AS (
+  SELECT least((SELECT min(completed_at) FROM azure WHERE http_status = 429),
+               (SELECT started_at FROM azure ORDER BY started_at OFFSET 300 LIMIT 1),
+               (SELECT max(completed_at) FROM cell)) AS t1
+)
+SELECT CASE WHEN c.started_at < t1 THEN 'in flight at the stop' ELSE 'sent after the stop' END AS past_stop,
+       c.gen_ai_provider_name AS provider, c.http_status AS status, count(*),
+       to_char(max(c.completed_at) AT TIME ZONE 'UTC', 'HH24:MI:SS.MS') AS last_reply
+FROM cell c, stop WHERE c.completed_at > t1
+GROUP BY 1, 2, 3 ORDER BY 1, 2, 3;
+```
+
+The marker count reads the request log's `overflow` attribute, the access log's field. The access
+log on agentgateway's stdout gave the same counts of each status and of the marker over each
+cell's bounds.
+
 ## gateway-overflow-agent
 
 The agent alias at its target of 4 sessions with the row stopped, `docker stop vllm-agent` on
@@ -180,20 +343,30 @@ AI_GATEWAY_TOKEN=$(<bulk.key) MISE_ENV=bench mise exec -- bench/cell.sh --host g
   --gateway gb10-2 --row-down 4
 ```
 
+To [the stop point](#the-overflow-stop-point), Azure's first 429, from the request log:
+
+| Window, UTC | Window s | Azure requests | Marker | Azure 200 | Azure 429 | Azure req/s | Azure tok/s | Azure output tok/s | Row 503s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 11:58:06.850 to 11:58:10.674 | 3.82 | 11 | 11 | 7 | 1 | 1.830 | 16,117.2 | 546.0 | 0 |
+
+The whole run, GuideLLM's figures:
+
 | Sessions | Start, UTC | ok/err/inc | req/s | Latency median s | Latency p90 s | Output tok/s | Duration s |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 4 | 2026-11-26T11:58:06Z | 9/75/0 | 1.570 | 2.05 | 2.30 | 543.03 | 6 |
 
-- **Every Azure reply carried the marker.** The access log read `overflow="azure"` on each of the
-  12 replies from `agent-azure`, 9 of them 200 and 3 of them 429.
+- **Every Azure reply carried the marker,** in the window and past it: the access log read
+  `overflow="azure"` on each of the 12 replies from `agent-azure`, 9 of them 200 and 3 of them 429.
 - **Azure's first 429 came 3.8 s in,** after 7 turns had finished: each turn read about 8,300 to
   9,700 prompt tokens, so the 100,000 tokens a minute of capacity 100 ran out in seconds. Azure
   ran a turn in 1.4 to 2.4 s, against the row's 26 s at 4 sessions
   ([agent.md#agent-sessions](agent.md#agent-sessions)).
-- **Past it, the cell stopped on its count.** Two 429s evicted the Azure group, both groups were
-  then out, and the gateway sent the next 72 requests to the stopped row, each a 503 within 2 s.
-  GuideLLM counts a failed session's cancelled turns, so its 300 came at 6 s, with 84 requests at
-  the gateway.
+- **The run went 1.9 s past the stop point.** In flight at it were 2 turns that answered 200 by
+  11:58:12.521 and a 429 sent at 11:58:10.617; one more request reached Azure after it, a 429.
+  The 429s evicted the Azure group, both groups were then out, and the gateway sent the next 72
+  requests to the stopped row, each a 503, all within 1.9 s, to 11:58:12.577. GuideLLM counts a
+  failed session's cancelled turns, so its 300 came at 6 s, with 84 requests at the gateway; its
+  req/s and output tok/s cover those 503s, where the window's cover Azure alone.
 - **Back to the row:** `docker start vllm-agent` at 11:58:14Z, healthy at 11:59:16Z, and the
   first request after it, at 11:59:17Z, was the row's, with no marker.
 
@@ -208,13 +381,24 @@ AI_GATEWAY_TOKEN=$(<bulk.key) MISE_ENV=bench mise exec -- bench/cell.sh --host g
   --gateway gb10-2 --row-down 32:300
 ```
 
+To [the stop point](#the-overflow-stop-point), from the request log. No 429 came and Azure had 118
+requests, so the stop point is the run's last reply, at its 90 s:
+
+| Window, UTC | Window s | Azure requests | Marker | Azure 200 | Azure 429 | Azure req/s | Images a minute | Azure tok/s | Azure output tok/s | Row 503s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 12:00:05.339 to 12:01:35.415 | 90.08 | 118 | 86 | 86 | 0 | 0.955 | 57.28 | 2,723.7 | 1,810.9 | 12 |
+
+The whole run, GuideLLM's figures:
+
 | Streams | Start, UTC | ok/err/inc | req/s | Images a minute | Latency median s | Latency p90 s | Output tok/s | Duration s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 32 | 2026-11-26T12:00:05Z | 86/12/32 | 0.956 | 57.33 | 28.26 | 37.85 | 1,812.39 | 90 |
 
-- **Every Azure reply carried the marker**, 86 of 86, and the cell ended on its 90 s: no 429 came,
-  though the 86 pages, about 956 prompt and 1,897 completion tokens each, reasoning among them,
-  ran past capacity 50's 50 requests and 50,000 tokens a minute.
+- **The run is the window:** nothing ran past the stop point. The 32 pages without a marker are
+  those in flight at 90 s, which GuideLLM cancelled at its duration, so no reply came for them.
+- **Every Azure reply carried the marker**, 86 of 86, and no 429 came, though the 86 pages, about
+  956 prompt and 1,897 completion tokens each, reasoning among them, ran past capacity 50's 50
+  requests and 50,000 tokens a minute.
 - **The 12 errors are the stopped row's.** A page's body is over 64 KiB, so the gateway doesn't
   retry it: 7 pages of the first burst reached the row before its eviction landed, and each time an
   eviction ended, at 10.7, 22.3, 37.8, 60.1 and 85.4 s, one page went to the row again and got 503,
@@ -235,15 +419,27 @@ AI_GATEWAY_TOKEN=$(<bulk.key) MISE_ENV=bench mise exec -- bench/cell.sh --host f
   --gateway gb10-2 --row-down 48:300
 ```
 
+To [the stop point](#the-overflow-stop-point), Azure's first 429, from the request log:
+
+| Window, UTC | Window s | Azure requests | Marker | Azure 200 | Azure 429 | Azure req/s | Azure tok/s | Azure output tok/s | Row 503s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 12:03:04.235 to 12:03:36.519 | 32.28 | 278 | 278 | 260 | 1 | 8.054 | 3,627.9 | 666.3 | 22 |
+
+The whole run, GuideLLM's figures:
+
 | Streams | Start, UTC | ok/err/inc | req/s | Second-half req/s | Latency median s | Latency p90 s | RTFx median | Duration s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 48 | 2026-11-26T12:03:04Z | 271/29/0 | 8.008 | 9.102 | 5.22 | 6.35 | 5.60 | 34 |
 
-- **The cell stopped at its 300 requests,** 34 s in, with no 429: 271 windows on Azure, about 368
-  prompt and 83 completion tokens each, 8 a second against capacity 30's 30 requests each 10 s.
-  Every Azure reply carried the marker, the 271 and the 7 GuideLLM cancelled at its count.
-- **22 of the 29 errors are the stopped row's:** 20 windows of the first burst, then one at each of
-  the first two evictions' ends. The other 7 are the requests GuideLLM cancelled at its count.
+- **Azure's first 429 came 32.3 s in,** its reply held 4.1 s, with `retry-after: 30`: 7 windows
+  sent from 28.2 to 29.1 s in got 429, after Azure had taken about 8 windows a second, of about
+  368 prompt and 83 completion tokens each, against capacity 30's 30 requests each 10 s.
+- **GuideLLM stopped sending first.** Its 300 took the stopped row's 22 503s, so its last request
+  went at 29.1 s, 3.2 s before the stop point, with 278 on Azure. Past the stop point only replies
+  came, to 12:03:38.074: 11 windows that answered 200 and the other 6 429s.
+- **The 29 errors are 22 of the stopped row's and Azure's 7 429s:** 20 windows of the first burst
+  went to the row, then one at each of the first two evictions' ends. Every Azure reply carried the
+  marker, the 271 and the 7 429s.
 - **Back to the row:** `docker start` at 12:03:40Z, healthy at 12:04:40Z, the first request after
   it the row's.
 
@@ -252,12 +448,29 @@ AI_GATEWAY_TOKEN=$(<bulk.key) MISE_ENV=bench mise exec -- bench/cell.sh --host f
 Embedding's tokenize route under docinfer's load, four workers calling it back to back with a
 472-token chunk, `{"model":"embedding","prompt":…,"add_special_tokens":true}`, under go-ai's key:
 alone for 30 s from 2026-11-26T12:05:44Z, then for 120 s from 12:06:19Z beside the embedding row
-at its load target through the cell runner, directly on the row:
+at its load target through the cell runner, directly on the row. The tokenize calls are a probe of
+a route that takes no load of its own, not a bench load, so they ran outside the cell runner,
+from a script, `load.sh`, as run, its scratch directory dropped from the paths:
 
 ```sh
+end=$(( $(date +%s) + $1 ))
+worker() { while (( $(date +%s) < end )); do printf 'Authorization: Bearer %s\n' "$(<interactive.key)" | curl -s -o /dev/null -H @- -H 'content-type: application/json' --data-binary @body.json -w '%{http_code} %{time_total}\n' http://gb10-2:3000/embedding/v1/tokenize; done; }
+for i in 1 2 3 4; do worker >"$2.$i" & done; wait
+```
+
+Its two runs, reconstructed from their output files, `alone.1` to `.4` and `beside.1` to `.4`, and
+their times, since the lines that started them weren't kept; the embedding side, as run:
+
+```sh
+load.sh 30 alone
+load.sh 120 beside &
 MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
   --scenario bench/embedding-target.yaml --cell gateway-tokenize-embedding --seconds 120 78
 ```
+
+`body.json` is a fixed chunk of 470 common words, which the row counts as 472 tokens; the command
+that wrote it wasn't kept. Each figure is read from the runs' output lines, one per call: the calls
+over the run's seconds, and the medians and p90s of `time_total`.
 
 | Run | Tokenize calls a second | Tokenize median s | Tokenize p90 s | Embedding req/s | Embedding latency median s |
 | --- | --- | --- | --- | --- | --- |
@@ -275,7 +488,60 @@ what their deployments refuse (agentgateway's config template, the `ai` transfor
 `agent-azure`, `vision-azure` and `audio-azure`). Each ran under go-ai's interactive key: first
 with the row up, then, after a render that reset the evictions and `docker stop` of the row, a
 small chat to evict the row, the client's request, and after `docker start` small chats until one
-came back without the marker.
+came back without the marker. The steps are a script, `check.sh`, as run, its scratch directory
+dropped from the paths:
+
+```sh
+alias=$1 host=$2 container=$3 port=$4 O=$alias; mkdir -p $O; log=$O/summary
+send() { # send <body> <name>
+  printf 'Authorization: Bearer %s\n' "$(<interactive.key)" | curl -s -H @- -H 'content-type: application/json' --data-binary @"$1" -D $O/$2.headers -o $O/$2.body -w '%{http_code} %{time_total}' http://gb10-2:3000/$alias/v1/chat/completions
+}
+small=$O/small.json; jq -nc --arg m $alias '{model:$m,max_tokens:16,messages:[{role:"user",content:"Say hi."}]}' >$small
+echo "row up, client request $(date -u +%T): $(send $alias.json rowup) $(grep -i x-gateway-overflow $O/rowup.headers | tr -d '\r')" >>$log
+ssh gb10-2 'cd ~/ai-hosting && bin/hosting gateway render >/dev/null 2>&1'; sleep 5
+ssh $host "docker stop $container >/dev/null"; echo "row stopped $(date -u +%FT%TZ)" >>$log
+echo "warm-up $(date -u +%T): $(send $small warm) $(grep -i x-gateway-overflow $O/warm.headers | tr -d '\r')" >>$log
+echo "client request $(date -u +%T): $(send $alias.json azure) $(grep -i x-gateway-overflow $O/azure.headers | tr -d '\r')" >>$log
+ssh $host "docker start $container >/dev/null"; echo "row started $(date -u +%FT%TZ)" >>$log
+until curl -sf --max-time 3 http://$host:$port/health >/dev/null; do sleep 2; done; echo "row healthy $(date -u +%FT%TZ)" >>$log
+for i in $(seq 1 60); do
+  r=$(send $small back); m=$(grep -i x-gateway-overflow $O/back.headers | tr -d '\r')
+  echo "probe $(date -u +%T): $r $m" >>$log
+  [[ -n $m ]] || break; sleep 5
+done
+echo done >>$log
+```
+
+Its three runs, the arguments reconstructed from its usage line, `check <alias> <host> <container>
+<port>`, and each run's summary, since the lines that started them weren't kept:
+
+```sh
+check.sh agent gb10-1 vllm-agent 8000
+check.sh vision gb10-2 vllm-vision 8001
+check.sh audio framework vllm-audio 8002
+```
+
+The agent's body, `agent.json`, as sent:
+
+```json
+{"model": "agent", "max_tokens": 256, "ignore_eos": true, "stop": null, "stream": true, "stream_options": {"include_usage": true, "continuous_usage_stats": true}, "messages": [{"role": "user", "content": "Write a short paragraph about lighthouses."}]}
+```
+
+Vision's, `vision.json`, is docinfer's request on row 436 of the bench's `dense-pages.jsonl`, and
+audio's, `audio.json`, docinfer's on row 1998 of `windows-30.jsonl`
+([bench/README.md](../../bench/README.md)). The commands that built them weren't kept; these,
+reconstructed, build the same JSON, checked field by field against the bodies as sent, with
+`body` the function of [gateway-priority-vision](#gateway-priority-vision):
+
+```sh
+body 436 false | jq -c 'del(.stream)' >vision.json
+sed -n 1999p .state/bench/docinfer/windows-30.jsonl | jq -c \
+  --rawfile wav <(base64 -w0 .state/bench/docinfer/windows-30/01998.wav) \
+  '{model: "audio", max_tokens: 512, temperature: 0, stream: true,
+    stream_options: {include_usage: true, continuous_usage_stats: true},
+    messages: [{role: "user", content: [{type: "text", text: .prompt},
+      {type: "input_audio", input_audio: {data: $wav, format: "wav"}}]}]}' >audio.json
+```
 
 | Alias | The client's request | Row up | Row stopped | Back to the row |
 | --- | --- | --- | --- | --- |
@@ -301,6 +567,13 @@ came back without the marker.
 docinfer's dense page of [gateway-overflow-rewrite](#gateway-overflow-rewrite) again, once
 `vision-azure` also sets `reasoning_effort` to `minimal`, the same steps under go-ai's interactive
 key:
+
+```sh
+check.sh vision gb10-2 vllm-vision 8001
+```
+
+the [gateway-overflow-rewrite](#gateway-overflow-rewrite) script and body, its arguments
+reconstructed the same way.
 
 | Row up | Row stopped | Back to the row |
 | --- | --- | --- |
