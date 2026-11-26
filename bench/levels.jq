@@ -1,6 +1,7 @@
 # Per-level figures from GuideLLM 0.8.1 result JSON, one table a file, judged by the purpose's
 # floor: agent an inter-token latency median of at most 100 ms, vision a request latency median of
 # at most 10 s, audio an RTFx median of at least 5, embed a mean of at least 4,300 prompt tok/s.
+# A vision level's images a minute is its requests a second times 60, one image a request.
 #
 #   jq -r --arg purpose <agent|vision|audio|embed> -f bench/levels.jq <result.json>...
 #
@@ -61,6 +62,8 @@ def level($purpose):
       (if ($lat | length) > 0 then $lat | min | fixed(2) else "-" end),
       (if $purpose == "vision"
        then "\([$lat[] | select(. <= 10)] | length)/\($lat | length)" else "-" end),
+      (if $purpose == "vision"
+       then $m.requests_per_second.successful.mean * 60 | fixed(2) else "-" end),
       ($ptps | fixed(0)),
       ($m.output_tokens_per_second.successful.mean | fixed(2)),
       (if ($rtfx | length) > 0
@@ -73,7 +76,7 @@ def level($purpose):
 def table($purpose):
   "## \(name)",
   knee,
-  "level | ok/err/inc | req/s | TTFT med ms | ITL med ms | lat med s | lat p90 s | lat min s | lat<=10s | prompt tok/s | out tok/s | RTFx med | RTFx min | RTFx>=5 | dur s | floor",
+  "level | ok/err/inc | req/s | TTFT med ms | ITL med ms | lat med s | lat p90 s | lat min s | lat<=10s | img/min | prompt tok/s | out tok/s | RTFx med | RTFx min | RTFx>=5 | dur s | floor",
   (.benchmarks[] | level($purpose));
 
 $ARGS.named.purpose as $purpose

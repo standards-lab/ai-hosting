@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Tests for bench/cell.sh, the bench cell runner, with guidellm and curl stubbed: the GuideLLM run
-# it starts for each level, the rows and seeds each level takes, the row's cache counters it reads
-# before the first level, and what it refuses before any request.
+# it starts for each level, streams or a rate, the rows and seeds each level takes, the duration it
+# sets, the row's cache counters it reads before the first level, and what it refuses before any
+# request.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
 
@@ -88,6 +89,27 @@ test_each_level_of_a_json_scenario_takes_the_next_rows() {
     "a3.wav a4.wav a5.wav"
 }
 
+test_a_level_of_a_constant_scenario_is_its_rate() {
+  serve_metrics "$clean_metrics"
+  run_cell --host framework-2 --alias embedding --scenario "$repo/bench/embedding-rate.yaml" \
+    --cell e --output "$tmp/out" 78
+  assert_equal status "$status" 0
+  assert_equal calls "$(guidellm_calls)" "guidellm run -c $repo/bench/embedding-rate.yaml --profile kind=constant,rate=78 --data kind=synthetic_text,prompt_tokens=510 --seed kind=static,value=78 --backend kind=openai_http,model=embedding --tokenizer kind=huggingface_auto,model=intfloat/multilingual-e5-large --output kind=json,path=$tmp/out/e-78.json"
+}
+
+test_seconds_replaces_the_scenarios_duration_and_keeps_its_other_constraints() {
+  serve_metrics "$clean_metrics"
+  agent_cell --seconds 600 4
+  assert_equal status "$status" 0
+  assert_contains calls "$(guidellm_calls)" "--seed kind=static,value=4 --constraint kind=max_requests,count=8 --constraint kind=max_duration,seconds=600 --backend"
+  rm -f "$tmp/calls"
+  run_cell --host gb10-1 --alias agent --scenario "$repo/bench/agent-sessions.yaml" --cell s \
+    --output "$tmp/out" --seconds 900 4
+  assert_equal status "$status" 0
+  assert_contains calls "$(guidellm_calls)" "--seed kind=static,value=4 --constraint kind=max_duration,seconds=900 --backend"
+  assert_equal "constraints" "$(guidellm_calls | grep -o -- '--constraint' | wc -l)" 1
+}
+
 test_a_counter_the_row_does_not_expose_counts_as_zero() {
   serve_metrics 'vllm:num_requests_running{engine="0"} 0.0'
   agent_cell 8
@@ -152,10 +174,15 @@ test_a_malformed_argument_is_refused() {
     assert_equal "status for level [$level]" "$status" 2
   done
   agent_cell 8x
-  assert_contains stderr "$err" "cell: level 8x is not <streams> or <streams>:<rows>"
+  assert_contains stderr "$err" "cell: level 8x is not <level> or <level>:<rows>"
   agent_cell 4 8 4
   assert_equal "status for a repeated level" "$status" 2
-  assert_contains stderr "$err" "cell: level 4 repeats 4 streams"
+  assert_contains stderr "$err" "cell: level 4 repeats level 4"
+  for seconds in 0 -1 1.5 x; do
+    agent_cell --seconds "$seconds" 8
+    assert_equal "status for --seconds [$seconds]" "$status" 2
+    assert_contains "stderr for --seconds [$seconds]" "$err" "cell: --seconds $seconds is not a positive whole number"
+  done
   assert_equal calls "$(calls)" ""
 }
 
@@ -192,10 +219,10 @@ test_a_scenario_whose_levels_cannot_take_distinct_inputs_is_refused() {
   run_cell --host framework --alias audio --scenario "$repo/bench/audio.yaml" --cell a 4
   assert_equal status "$status" 2
   assert_contains stderr "$err" "reads huggingface"
-  run_cell --host framework-2 --alias embedding --scenario "$repo/bench/embedding-rate.yaml" \
+  run_cell --host framework-2 --alias embedding --scenario "$repo/bench/embedding-rate-sweep.yaml" \
     --cell e 4
   assert_equal status "$status" 2
-  assert_contains stderr "$err" "is not a concurrent profile"
+  assert_contains stderr "$err" "is not a concurrent or constant profile"
   run_cell --host gb10-1 --alias agent --scenario "$tmp/absent.yaml" --cell c 8
   assert_equal status "$status" 2
   assert_contains stderr "$err" "cell: scenario $tmp/absent.yaml is not a file"

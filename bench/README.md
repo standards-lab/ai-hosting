@@ -338,28 +338,41 @@ MISE_ENV=bench mise exec -- bench/cell.sh --host gb10-1 --alias agent \
   --scenario bench/agent-capacity.yaml --cell <cell> 8
 ```
 
-The rate scenario takes its rate from the environment too,
+The embedding row at a constant 78 requests a second, a rate scenario's level being its rate:
+
+```sh
+MISE_ENV=bench mise exec -- bench/cell.sh --host framework-2 --alias embedding \
+  --scenario bench/embedding-rate.yaml --cell <cell> 78
+```
+
+Run by hand, the rate scenario takes its rate from the environment,
 `GUIDELLM__SPEC__PROFILE__RATE=<requests a second>`; with none set, GuideLLM refuses to start. The
 earlier pair cell was two runs started together, `audio.yaml` against the audio row and
 `embedding-rate.yaml` against the embedding row, each writing its own JSON.
 
 ### The cell runner
 
-[`cell.sh`](cell.sh) runs one concurrent scenario against one row, one level at a time, each
-level a GuideLLM run of its own. It runs from the repository root in the bench environment:
+[`cell.sh`](cell.sh) runs one concurrent or constant-rate scenario against one row, one level at
+a time, each level a GuideLLM run of its own. It runs from the repository root in the bench
+environment:
 
 ```sh
 MISE_ENV=bench mise exec -- bench/cell.sh --host <host> --alias <alias> --scenario <file> \
-  --cell <cell> [--output <dir>] <streams>[:<rows>]...
+  --cell <cell> [--output <dir>] [--seconds <n>] <level>[:<rows>]...
 ```
 
 The host goes by its short name, and the alias names the row in the class profiles, which give
 its port and its model's tokenizer, the base model's when the profile names one. Each level is a
-count of streams, given in the order the levels run, with no count twice. For a scenario that reads
-a JSON file, a level also gives the count of rows it takes, `<streams>:<rows>`: each level takes
-the rows after the previous level's, written to `<dir>/<cell>-<streams>.jsonl`. Every level draws
-its synthetic text and images from seeds set to its streams. Each level writes GuideLLM's JSON to
-`<dir>/<cell>-<streams>.json`; `<dir>` defaults to the untracked `.state/bench/`.
+whole number, a count of streams on a concurrent scenario and requests a second on a constant one,
+given in the order the levels run, with no level twice. For a scenario that reads a JSON file, a
+level also gives the count of rows it takes, `<level>:<rows>`: each level takes the rows after the
+previous level's, written to `<dir>/<cell>-<level>.jsonl`. Every level draws its synthetic text and
+images from seeds set to its level. Each level writes GuideLLM's JSON to `<dir>/<cell>-<level>.json`;
+`<dir>` defaults to the untracked `.state/bench/`. `--seconds <n>` runs each level for at most `n`
+seconds in place of the scenario's duration, keeping its other constraints, so rows run beside
+another row's longer levels hold their load as long
+([the standing layout cell](../docs/findings/vision.md#layout)).
+
 
 A cell starts on a row restarted since its last cell, since a restart empties the row's caches.
 Before the first level, the runner reads the row's `/metrics` and refuses to start unless
@@ -414,7 +427,8 @@ redistributable.
 `rate <r>` on a constant-rate level, its rate to two places, or `synchronous` or `throughput` on a
 sweep's first two levels; requests ok, errored, and incomplete; requests a second; the TTFT median;
 the ITL median; the request latency's median, p90, and minimum; for vision, the count of requests
-that finished in 10 s or less; prompt tok/s; output tok/s; for audio, the RTFx median and
+that finished in 10 s or less and the images a minute, its requests a second times 60 at one image
+a request; prompt tok/s; output tok/s; for audio, the RTFx median and
 minimum and the count of requests at RTFx 5 or more (each request's clip seconds over its request
 time); and the level's floor verdict. Embedding's floor is a mean of 4,300 prompt tok/s, audio's
 an RTFx median of 5, vision's a request latency median of at most 10 s, and the agent's an

@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # cell runs one GuideLLM capacity scenario against one row, one level at a time, in the bench
-# environment, writing one result JSON a level as <dir>/<cell>-<streams>.json. Each level sends its
-# own inputs: a level of a scenario reading a JSON file takes the next <rows> rows of it, and every
-# level draws its synthetic text and images from seeds set to its streams. The row is the alias's
-# in the class profiles, its port and tokenizer read from there. Before the first level it refuses
-# a row whose /metrics reads vllm:mm_cache_queries_total or vllm:prefix_cache_queries_total above
-# 0: restart the row first. It exits 2 on a refusal, and stops at the first level GuideLLM fails.
+# environment, writing one result JSON a level as <dir>/<cell>-<level>.json. A level is a count of
+# streams on a concurrent scenario and a rate in requests a second on a constant one. Each level
+# sends its own inputs: a level of a scenario reading a JSON file takes the next <rows> rows of it,
+# and every level draws its synthetic text and images from seeds set to its level. --seconds sets
+# each level's max_duration in place of the scenario's. The row is the alias's in the class
+# profiles, its port and tokenizer read from there. Before the first level it refuses a row whose
+# /metrics reads vllm:mm_cache_queries_total or vllm:prefix_cache_queries_total above 0: restart
+# the row first. It exits 2 on a refusal, and stops at the first level GuideLLM fails.
 #
 #   bench/cell.sh --host <host> --alias <alias> --scenario <file> --cell <cell> [--output <dir>]
-#     <streams>[:<rows>]...
+#     [--seconds <n>] <level>[:<rows>]...
 #
 # See bench/README.md.
 set -uo pipefail
@@ -18,7 +20,7 @@ source "$root/lib/profile.sh"
 
 usage() {
   echo "cell: $1" >&2
-  echo "usage: bench/cell.sh --host <host> --alias <alias> --scenario <file> --cell <cell> [--output <dir>] <streams>[:<rows>]..." >&2
+  echo "usage: bench/cell.sh --host <host> --alias <alias> --scenario <file> --cell <cell> [--output <dir>] [--seconds <n>] <level>[:<rows>]..." >&2
   exit 2
 }
 
@@ -31,7 +33,7 @@ output=$root/.state/bench
 levels=()
 while (($#)); do
   case $1 in
-    --host | --alias | --scenario | --cell | --output)
+    --host | --alias | --scenario | --cell | --output | --seconds)
       (($# >= 2)) || usage "$1 needs a value"
       case $1 in
         --host) host=$2 ;;
@@ -39,6 +41,7 @@ while (($#)); do
         --scenario) scenario=$2 ;;
         --cell) cell=$2 ;;
         --output) output=$2 ;;
+        --seconds) seconds=$2 ;;
       esac
       shift 2
       ;;
@@ -57,14 +60,15 @@ done
 [[ -v cell ]] || usage "no --cell"
 [[ $cell =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || usage "--cell $cell is not a file name"
 [[ -n $output ]] || usage "--output is empty"
+[[ ! -v seconds || $seconds =~ ^[1-9][0-9]*$ ]] || usage "--seconds $seconds is not a positive whole number"
 ((${#levels[@]})) || usage "no level"
 
 streams=() rows=()
 for level in "${levels[@]}"; do
   [[ $level =~ ^([1-9][0-9]*)(:([1-9][0-9]*))?$ ]] ||
-    usage "level $level is not <streams> or <streams>:<rows>"
+    usage "level $level is not <level> or <level>:<rows>"
   for seen in "${streams[@]}"; do
-    [[ $seen != "${BASH_REMATCH[1]}" ]] || usage "level $level repeats $seen streams"
+    [[ $seen != "${BASH_REMATCH[1]}" ]] || usage "level $level repeats level $seen"
   done
   streams+=("${BASH_REMATCH[1]}")
   rows+=("${BASH_REMATCH[3]}")
@@ -75,8 +79,12 @@ if ! spec=$(hosting_yq -p yaml -o json '.spec' "$scenario" 2>&1) ||
   ! jq -e 'type == "object"' <<<"$spec" >/dev/null; then
   refuse "scenario $scenario has no spec mapping"
 fi
-jq -e '.profile.kind == "concurrent"' <<<"$spec" >/dev/null ||
-  refuse "scenario $scenario is not a concurrent profile; a level is a count of streams"
+kind=$(jq -r '.profile.kind' <<<"$spec")
+case $kind in
+  concurrent) level_key=streams ;;
+  constant) level_key=rate ;;
+  *) refuse "scenario $scenario is not a concurrent or constant profile; a level is a count of streams or a rate" ;;
+esac
 unsupported=$(jq -r '[.data[]? | .kind
   | select(. != "synthetic_text" and . != "synthetic_image" and . != "json_file")]
   | unique | join(", ")' <<<"$spec")
@@ -139,6 +147,15 @@ for counter in vllm:mm_cache_queries_total vllm:prefix_cache_queries_total; do
     refuse "$target reads $counter at $count, not 0; restart the row, as hosting engine update $alias on $host does"
 done
 
+constraints=()
+if [[ -v seconds ]]; then
+  while IFS= read -r constraint; do
+    constraints+=(--constraint "$constraint")
+  done < <(jq -r --argjson seconds "$seconds" '[.constraints[]? | select(.kind != "max_duration")]
+    + [{kind: "max_duration", seconds: $seconds}] | .[]
+    | to_entries | map("\(.key)=\(.value)") | join(",")' <<<"$spec")
+fi
+
 mkdir -p "$output" || exit
 first=1
 for i in "${!streams[@]}"; do
@@ -156,9 +173,10 @@ for i in "${!streams[@]}"; do
     first=$((last + 1))
   fi
   GUIDELLM__SPEC__BACKEND__TARGET=$target guidellm run -c "$scenario" \
-    --profile "kind=concurrent,streams=$n" \
+    --profile "kind=$kind,$level_key=$n" \
     "${data[@]}" \
     --seed "kind=static,value=$n" \
+    "${constraints[@]}" \
     --backend "kind=openai_http,model=$alias" \
     --tokenizer "kind=huggingface_auto,model=$tokenizer" \
     --output "kind=json,path=$output/$cell-$n.json" || exit
