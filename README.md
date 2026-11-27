@@ -1,10 +1,9 @@
 # ai-hosting
 
 ai-hosting specifies how the organization's workstations host models: the vLLM rows each host
-class serves and the one gateway in front of them: Torii, the workspace's agentgateway deployment
-on gb10-2, whose requirements, reasoning, key procedure, and operation are in
-[`docs/gateway.md`](docs/gateway.md).
-The working context starts at [`context/README.md`](context/README.md).
+class serves, and the one gateway in front of them, Torii, the workspace's agentgateway deployment
+on gb10-2. [`docs/gateway.md`](docs/gateway.md) holds the gateway's requirements, reasoning, key
+procedure, and operation. The working context starts at [`context/README.md`](context/README.md).
 
 ## The `hosting` suite
 

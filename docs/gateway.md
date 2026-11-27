@@ -9,11 +9,10 @@ home:
 
 - the stack: [`compose.yml`](../compose.yml), one [`compose/<service>.yml`](../compose) per
   service, and each service's `compose/<service>/Dockerfile`, whose `FROM` line is its pin;
-- Torii's config:
-  [`compose/torii/config.template.yaml`](../compose/torii/config.template.yaml), the
-  key list [`keys.toml`](../compose/torii/keys.toml), and the overflow switches
-  [`overflow.toml`](../compose/torii/overflow.toml), which `hosting gateway render` turns
-  into `compose/torii/config.yaml` with each row's port and model from the
+- Torii's config: [`compose/torii/config.template.yaml`](../compose/torii/config.template.yaml),
+  the key list [`keys.toml`](../compose/torii/keys.toml), and the overflow switches
+  [`overflow.toml`](../compose/torii/overflow.toml), which `hosting gateway render` turns into
+  `compose/torii/config.yaml` with each row's port and model from the
   [class profiles](../classes/README.md);
 - the commands: [`lib/gateway.sh`](../lib/gateway.sh), [`lib/gateway.jq`](../lib/gateway.jq), and
   [`lib/key.sh`](../lib/key.sh), behind `bin/hosting-gateway-*` and `bin/hosting-key-*`.
@@ -71,17 +70,17 @@ the observability services.
 | Loki | `grafana/loki` | nothing | logs |
 | Grafana | `grafana/grafana` | 3002 on gb10-2's loopback | its own state |
 
-Torii's admin API stays on the container's own loopback (`adminAddr: localhost:15000`), so
-no published port reaches it, and its stats port, 15020, is reached only by the Collector on the
+Torii's admin API stays on the container's own loopback (`adminAddr: localhost:15000`), so no
+published port reaches it, and its stats port, 15020, is reached only by the Collector on the
 compose network. The UI listener is its own gateway, `ui`; the consumer gateway is named
 `consumer`, not `default`, because the UI attaches itself to a gateway named `default` when
 `ui.gateways` is unset.
 
-Torii's config directory, `compose/torii/`, is bind-mounted read-only, not baked
-into an image: the render writes it on gb10-2, and agentgateway reloads it in place. The directory
-is mounted, not the file, so the rename that moves a rendered copy into place reaches the
-container. Its `storage` is `readOnly`, so the UI reads the config and a save from it answers 403:
-no key or route is created outside git.
+Torii's config directory, `compose/torii/`, is bind-mounted read-only, not baked into an image:
+the render writes it on gb10-2, and agentgateway reloads it in place. The directory is mounted,
+not the file, so the rename that moves a rendered copy into place reaches the container. Its
+`storage` is `readOnly`, so the UI reads the config and a save from it answers 403: no key or
+route is created outside git.
 
 ## Routes
 
@@ -182,9 +181,9 @@ revoked key gets 401, on alias routes and unrouted paths alike. The key is remov
 request is forwarded, so no row or deployment sees it.
 
 A key is 32 random bytes written as 64 lowercase hex digits. The key list,
-[`compose/torii/keys.toml`](../compose/torii/keys.toml), holds one `[[keys]]` entry
-per consumer: its name, its class (`interactive` or `bulk`), and the key's SHA-256 in lowercase
-hex, which is how agentgateway hashes a presented key, over its exact characters with no newline
+[`compose/torii/keys.toml`](../compose/torii/keys.toml), holds one `[[keys]]` entry per consumer:
+its name, its class (`interactive` or `bulk`), and the key's SHA-256 in lowercase hex, which is
+how agentgateway hashes a presented key, over its exact characters with no newline
 ([agentgateway.md][f-agentgateway], "Keys"). The render expands each entry from its class's
 template key, with the hash as `keyHash` and the consumer and class in its metadata, which every
 per-key policy reads. The key itself lives only in the consumer repository's own age-encrypted
@@ -207,8 +206,7 @@ run on any host and commit nothing.
    renders.
 4. **List.** `hosting key list` prints each consumer the key list holds, with its class.
 5. **Commit.** After an issue or a rotate, commit the consumer repository's `fnox.toml` there, and
-   ai-hosting's `compose/torii/keys.toml` here; after a revoke, the key list alone. Push
-   both.
+   ai-hosting's `compose/torii/keys.toml` here; after a revoke, the key list alone. Push both.
 6. **Apply.** On gb10-2, pull ai-hosting's clone and run `hosting gateway render`. agentgateway
    reloads the keys in place, with no restart: a new key is admitted, and a removed one gets 401
    on its next request while requests already running finish.
@@ -357,8 +355,8 @@ down (behaviors 7, 8)").
   ([Capacity and cloud spend](#capacity-and-cloud-spend)).
 - **Never under IL6.** An IL6 deployment keeps only each alias's row group, and a down row answers
   with its failure ([comparison.md][comparison], "IL6").
-- **The overflow switches.** [`overflow.toml`](../compose/torii/overflow.toml) holds one
-  switch per alias with an Azure group; `false` drops that alias's group at the next render.
+- **The overflow switches.** [`overflow.toml`](../compose/torii/overflow.toml) holds one switch
+  per alias with an Azure group; `false` drops that alias's group at the next render.
 - **The rewrite.** Each Azure provider's `ai` transformations drop what its deployment refuses, so
   a client sends the alias the same request whether the row or Azure answers: `agent-azure`
   removes vLLM's `ignore_eos`; `vision-azure` moves `max_tokens` to `max_completion_tokens`, keeping
@@ -515,13 +513,12 @@ The rendered config holds no secret, and neither does any file the render writes
   `/run/secrets/azure-foundry-key`. `hosting gateway up` reads it from ai-hosting's `fnox.toml` and
   writes it to `.state/gateway/azure-foundry-key`. Compose outside swarm ignores a secret's uid and
   mode, so the file is 0644, readable by the image's uid 65532, inside the 0700 `.state/gateway/`.
-- **The Foundry account name** reaches Torii through its environment,
-  `${AZURE_FOUNDRY_ACCOUNT}` in each Azure provider's `hostOverride`, because `hostOverride` has
-  no file form. `up` reads it from fnox and passes it to compose; with it unset, agentgateway
-  refuses the config at start.
+- **The Foundry account name** reaches Torii through its environment, `${AZURE_FOUNDRY_ACCOUNT}`
+  in each Azure provider's `hostOverride`, because `hostOverride` has no file form. `up` reads it
+  from fnox and passes it to compose; with it unset, agentgateway refuses the config at start.
 - **The consumer port's address**, `GATEWAY_ADDRESS`, defaults to `127.0.0.1` in
-  `compose/torii.yml`, so a compose run without the render's env file binds the loopback
-  only, never every interface.
+  `compose/torii.yml`, so a compose run without the render's env file binds the loopback only,
+  never every interface.
 - **Postgres** uses a committed development credential, `agentgateway`, in its Dockerfile and the
   config's database URL. It publishes no port, so only the stack reaches it, and it holds request
   metadata, no content. The [development-secrets
@@ -531,12 +528,12 @@ The rendered config holds no secret, and neither does any file the render writes
 ## Telemetry
 
 The Collector is the stack's one telemetry ingress, on the compose network only; it publishes no
-port. Torii sends it spans and the access log over OTLP gRPC at `otel-collector:4317`,
-under `frontendPolicies.tracing` and `frontendPolicies.accessLog.otlp`; v1.7.0 deprecates the
-`config.tracing` form, which carries the same settings. The Collector also scrapes Torii's
-stats port, and its own metrics with go-web-service's `prometheus/self` receiver at `2e31ca4`. It
-sends traces to Tempo, metrics to Mimir, and logs to Loki, and Grafana has a datasource for each.
-The Collector is a compose service, so its host isn't a row host and the render looks up no tailnet
+port. Torii sends it spans and the access log over OTLP gRPC at `otel-collector:4317`, under
+`frontendPolicies.tracing` and `frontendPolicies.accessLog.otlp`; v1.7.0 deprecates the
+`config.tracing` form, which carries the same settings. The Collector also scrapes Torii's stats
+port, and its own metrics with go-web-service's `prometheus/self` receiver at `2e31ca4`. It sends
+traces to Tempo, metrics to Mimir, and logs to Loki, and Grafana has a datasource for each. The
+Collector is a compose service, so its host isn't a row host and the render looks up no tailnet
 address for it.
 
 - **Traces.** agentgateway starts a span for every request that arrives without a trace
@@ -549,10 +546,10 @@ address for it.
   "For production").
 - **The access log** adds three fields to every request's line: `retry_after`, the reply's
   `Retry-After`, the one place a client's 429 or 503 shows it; `overflow`, the reply's overflow
-  marker; and `key_name`, the admitting key's consumer, absent on a 401. Each line goes to
-  Torii's stdout and, as an OTLP log record with the same fields, to Loki, where Grafana's
-  Loki datasource queries it. No line holds prompt or completion content: agentgateway logs none
-  by default, and none of the three fields reads the body.
+  marker; and `key_name`, the admitting key's consumer, absent on a 401. Each line goes to Torii's
+  stdout and, as an OTLP log record with the same fields, to Loki, where Grafana's Loki datasource
+  queries it. No line holds prompt or completion content: agentgateway logs none by default, and
+  none of the three fields reads the body.
 - **The request log.** Every request also writes one row of `request_logs` in Postgres, which the
   UI's Logs and Analytics pages read. `llm: metadata` stores the request's metadata, usage,
   timing, and cost, and no prompt or completion content. `agentgateway.user` is set to the key's
@@ -561,9 +558,9 @@ address for it.
 
 ### The UI and Grafana
 
-Torii's UI, read-only, is on gb10-2's loopback at port 3001, and Grafana at 3002, each
-reached through an SSH tunnel to gb10-2. On route `ai` with no `llm` section the UI's sidebar
-doesn't link Logs and Analytics, which load by URL at `/ui/llm/logs` and `/ui/llm/analytics`
+Torii's UI, read-only, is on gb10-2's loopback at port 3001, and Grafana at 3002, each reached
+through an SSH tunnel to gb10-2. On route `ai` with no `llm` section the UI's sidebar doesn't link
+Logs and Analytics, which load by URL at `/ui/llm/logs` and `/ui/llm/analytics`
 ([watch register](watch.md#agentgateway-ui-links-logs-and-analytics-only-with-an-llm-section)).
 
 ## Operating the stack on gb10-2
@@ -585,11 +582,11 @@ host resolves through systemd-resolved's stub, which a container can't reach, an
 resolver doesn't know the tailnet's names. So the render reads each row host from the rendered
 config's routes, their `hostOverride`s and host backends, looks up its tailnet address
 (`tailscale ip -4`; gb10-2's own from the host), and writes `.state/gateway/compose.override.yml`,
-which gives Torii an `extra_hosts` entry per row host. It also writes
-`.state/gateway/compose.env`, setting `GATEWAY_ADDRESS` to gb10-2's tailnet address, where the
-consumer port is published. Deriving the hosts from the config
-keeps the alias-to-host map in one home, and the addresses stay in gitignored files, so no tailnet
-identifier is committed. Every `gateway` verb runs compose with both files when they are present.
+which gives Torii an `extra_hosts` entry per row host. It also writes `.state/gateway/compose.env`,
+setting `GATEWAY_ADDRESS` to gb10-2's tailnet address, where the consumer port is published.
+Deriving the hosts from the config keeps the alias-to-host map in one home, and the addresses stay
+in gitignored files, so no tailnet identifier is committed. Every `gateway` verb runs compose with
+both files when they are present.
 
 **Reloads.** agentgateway watches its config and reloads routes, keys, buckets, and switches in
 place, so a render is all a change to them needs; a reload builds the backends
@@ -606,8 +603,8 @@ its container on every `up`. The variable turns buildx's default attestation off
 sets `provenance:` ([priority.md][f-priority], "Why Postgres was recreated", under "Slice 2 ·
 overflow").
 
-**Status.** `status` checks Torii alone for a stranded container, since it is the one
-container bound to gb10-2's tailnet address; the Collector publishes no port.
+**Status.** `status` checks Torii alone for a stranded container, since it is the one container
+bound to gb10-2's tailnet address; the Collector publishes no port.
 
 **The smoke.** After a redeploy, the gateway smoke checks the stack: `status`, each alias's
 `/models` and one minimal request per alias under the bulk key, those requests in the request log,
@@ -641,10 +638,10 @@ vision (evidence 6)"). On the live gateway with the vision row's dense pages, an
 beside 60 bulk streams had its first token in 20 s, then took 142 s to its last beside 31 bulk
 pages, with no preemption
 ([gateway-priority-vision](findings/gateway.md#gateway-priority-vision)). Holding interactive
-latency under bulk load needs a cap on bulk's
-concurrency. v1.7.0's only in-flight cap, `maxConcurrentRequests`, counts every request on a port,
-whatever its key, so the bulk consumer bounds its own concurrency, and Bunrei's plan sets the
-number ([watch register](watch.md#agentgateway-concurrency-cap-per-key)).
+latency under bulk load needs a cap on bulk's concurrency. v1.7.0's only in-flight cap,
+`maxConcurrentRequests`, counts every request on a port, whatever its key, so the bulk consumer
+bounds its own concurrency, and Bunrei's plan sets the number
+([watch register](watch.md#agentgateway-concurrency-cap-per-key)).
 
 ## Other limits of v1.7.0
 

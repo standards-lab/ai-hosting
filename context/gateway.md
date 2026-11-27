@@ -27,8 +27,7 @@ go-web-service's at `2e31ca4`.
 | Each alias's go-ai profile, `go-ai/<alias>.json`, and its evidence ([go-ai/README.md](../go-ai/README.md)) | |
 
 - The Collector takes go-web-service's `prometheus/self` receiver, not its `tcp_log` or
-  `fluentforward` receivers, beside its own `prometheus/agentgateway` scrape of Torii's stats
-  port.
+  `fluentforward` receivers, beside its own `prometheus/agentgateway` scrape of Torii's stats port.
 - Each file keeps one header and no source comment; the commit messages cite the spike.
 
 What the spike had and ai-hosting dropped: the six probes and the `rows-down` overlay with its

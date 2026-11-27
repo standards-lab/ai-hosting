@@ -119,30 +119,26 @@ telemetry survive either way. No release.
 
 ## Progress
 
-slices 4/4 committed · standards ✓ (5e9e3b1) · spec ✓ (1 gap closed) · editor —
+slices 4/4 committed · standards ✓ (5e9e3b1) · spec ✓ (1 gap closed) · editor ✓
 - slice 4: gb10-2 took the branch as a git bundle (nothing pushed before the brief); `/models` is barely logged, so the smoke added one minimal request per alias to prove the request log.
 
 ## Decisions
 
-- capstone: Torii names the workspace's agentgateway deployment; agentgateway keeps its name as the product, and ai-hosting keeps its repository name.
-- torii: the compose project stays `gateway`. Torii's container is `gateway-torii-1`, Postgres's
-  stays `gateway-postgres-1`, and the stack's volumes carry over.
+- capstone: Torii names the workspace's agentgateway deployment; agentgateway keeps its name as the
+  product, and ai-hosting keeps its repository name.
 - torii: the `hosting gateway` command group, its library, its state directory and
   `GATEWAY_ADDRESS` keep "gateway", which names the role Torii plays.
-- torii: Bunrei and Mikoshi replace Cerebro by role. The docs name Bunrei as the bulk consumer
-  that sets its own concurrency, and the tests use `mikoshi` as the interactive consumer.
-- torii: Torii stays at `http://gb10-2:3000/<alias>/v1`. A tailnet name of its own is a backlog
-  item.
-- torii: the redeploy sequence removed the old `gateway-agentgateway-1` once; `up` doesn't remove
-  orphans.
-- torii: the gateway smoke is the stack check: status, each alias's `/models` under the bulk key,
-  the request log, and the Collector's scrape, recorded as a findings section. The client tiers
-  rerun only when a client's URL or key changes.
+- torii: `up` doesn't remove orphans. A service rename's redeploy removes the old container once,
+  with `hosting gateway down` from the commit before the rename.
 
 ## Pending edits
 
 - coordinator · context/ai-hosting.md, "The gateway": name the deployment Torii (agentgateway
-  v1.7.0), with the container `gateway-torii-1` and the address unchanged at gb10-2:3000.
+  v1.7.0), with its container `gateway-torii-1` and its address unchanged at gb10-2:3000.
 - coordinator · roadmap: a backlog goal for a Torii tailnet name (a Tailscale Service or a second
   node). It would move the clients' default base URL in docinfer, docs-corpus, the bench and the
   capstone services.
+- coordinator · roadmap: a backlog goal, repos ai-hosting, for a seam test of the service name.
+  `torii` must match in `compose/torii.yml`, the override's `services.torii` in `lib/gateway.sh`,
+  and `status`'s `ps --quiet torii`, and no test ties them while Docker is stubbed. A test that
+  runs `docker compose config` unstubbed on the rendered stack would.
