@@ -1,20 +1,21 @@
 # The gateway
 
-This note records where each part of the gateway comes from. The gateway is agentgateway v1.7.0's
-compose stack, running on gb10-2 from ai-hosting's clone, with the `gateway` group that runs it and
-the `key` group that issues its consumers' keys. [The gateway document](../docs/gateway.md) holds
-the requirements, the reasoning behind each setting and amount, the key procedure, how the stack is
-operated, and the open gaps. The [watch register](../docs/watch.md) holds what agentgateway may
-change upstream, and [secrets](secrets.md) holds the gateway's secrets. Spike files are cited from
-spike-model-gateway at `2f2e8c1`, and go-web-service's at `2e31ca4`.
+This note records where each part of the gateway comes from. The gateway is Torii, the workspace's
+agentgateway v1.7.0 deployment: a compose stack running on gb10-2 from ai-hosting's clone, with the
+`gateway` group that runs it and the `key` group that issues its consumers' keys. [The gateway
+document](../docs/gateway.md) holds the requirements, the reasoning behind each setting and amount,
+the key procedure, how the stack is operated, and the open gaps. The [watch
+register](../docs/watch.md) holds what agentgateway may change upstream, and [secrets](secrets.md)
+holds the gateway's secrets. Spike files are cited from spike-model-gateway at `2f2e8c1`, and
+go-web-service's at `2e31ca4`.
 
 ## What's built, and its sources
 
 | Part in ai-hosting | Source |
 | --- | --- |
 | The root `compose.yml`, the project `gateway`, and its `include:` list | `gateway/compose.yml`; go-web-service's `compose.yml` |
-| `compose/agentgateway.yml`, and a one-line Dockerfile whose `FROM` is the v1.7.0 pin | `gateway/agentgateway.yml`; the pin from `gateway/agentgateway/deploy.env:6` |
-| agentgateway's config template, `compose/agentgateway/config.template.yaml`, the key list `keys.toml`, and the overflow switches `overflow.toml` | `gateway/agentgateway/config.yaml`; the key-hash form from `scripts/agentgateway-deploy.sh` |
+| `compose/torii.yml`, and a one-line Dockerfile whose `FROM` is the v1.7.0 pin | `gateway/agentgateway.yml`; the pin from `gateway/agentgateway/deploy.env:6` |
+| Torii's config template, `compose/torii/config.template.yaml`, the key list `keys.toml`, and the overflow switches `overflow.toml` | `gateway/agentgateway/config.yaml`; the key-hash form from `scripts/agentgateway-deploy.sh` |
 | Postgres | `gateway/postgres.yml`, `gateway/postgres/Dockerfile` |
 | The Collector, Tempo, and Grafana | `gateway/otel-collector.yml`, `gateway/tempo.yml`, `gateway/grafana.yml`, and their directories |
 | Loki and Mimir, the Collector's `prometheus/self` receiver, and their Grafana datasources | go-web-service's `compose/observability.yml`, `compose/loki/`, `compose/mimir/`, `compose/otel-collector/` |
@@ -26,7 +27,7 @@ spike-model-gateway at `2f2e8c1`, and go-web-service's at `2e31ca4`.
 | Each alias's go-ai profile, `go-ai/<alias>.json`, and its evidence ([go-ai/README.md](../go-ai/README.md)) | |
 
 - The Collector takes go-web-service's `prometheus/self` receiver, not its `tcp_log` or
-  `fluentforward` receivers, beside its own `prometheus/agentgateway` scrape of agentgateway's stats
+  `fluentforward` receivers, beside its own `prometheus/agentgateway` scrape of Torii's stats
   port.
 - Each file keeps one header and no source comment; the commit messages cite the spike.
 

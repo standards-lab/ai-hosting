@@ -65,10 +65,10 @@ and
 
 - **Kind:** deprecation.
 - **Dependency:** agentgateway, `agentgateway/agentgateway`, the image pinned in
-  [`compose/agentgateway/Dockerfile`](../compose/torii/Dockerfile) (v1.7.0).
+  [`compose/torii/Dockerfile`](../compose/torii/Dockerfile) (v1.7.0).
 - **Relies on:** the gateway's four routes, `/<alias>/v1` on the `consumer` port, each with an
   inline `ai` backend
-  ([`compose/agentgateway/config.template.yaml`](../compose/torii/config.template.yaml);
+  ([`compose/torii/config.template.yaml`](../compose/torii/config.template.yaml);
   [the gateway document](gateway.md#route-ai-not-the-llm-section)). The spike's task `routing`
   trialled the `llm` section and shipped it, then realigned on route `ai`, the form agentgateway's
   docs recommend for path-based routing (routing.md, "Realignment on route `ai`"). The entry
@@ -226,7 +226,7 @@ and
   read in the source). The eviction fields at v1.7.0 are `duration`, `restoreHealth`,
   `consecutiveFailures`, and `healthThreshold` (`schema/config.md`); none bounds the growth.
 - **Evidence:** the row and Azure health policies in
-  [`compose/agentgateway/config.template.yaml`](../compose/torii/config.template.yaml)
+  [`compose/torii/config.template.yaml`](../compose/torii/config.template.yaml)
   (`&row-health`, `&azure-policies`); the spike's finding, priority.md, "Benchmark C-agent
   (behavior 9)": a row under saturation is evicted again and again, so after a long outage or a
   long overload it can stay out for minutes after it is back, sending its alias to Azure.
@@ -280,7 +280,7 @@ and
 - **Evidence:** the spike's benchmark D: priority took interactive vision ahead of bulk's waiting
   requests but then shared the batch with bulk's 20 streams, and its median missed 10 s by 0.47 s
   (priority.md, "Benchmark D: priority on vision (evidence 6)"). This goal leaves the bound to the
-  bulk consumer; Cerebro's plan sets the number.
+  bulk consumer; Bunrei's plan sets the number.
 - **Upstream:** #3350 adds a `concurrencyLimit` policy, in-flight requests per CEL key, accepted on
   routes, gateways, and `llm.policies`.
   - `upstream agentgateway/agentgateway#3350 = open` in-flight requests per CEL key.
