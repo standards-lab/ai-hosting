@@ -671,8 +671,21 @@ done
 Each alias answered 200 and listed itself. Torii answers `/models` itself and logs almost none of
 them: the 610 sent in [gateway-buckets](#gateway-buckets) left 10 rows. So at 13:32:58Z the smoke
 also sent one minimal request per alias under the bulk key: a chat completion with `max_tokens` 1
-to `agent`, `vision`, and `audio`, and an embedding of `"ping"` to `embedding`. Each answered 200.
-The request log then held all four:
+to `agent`, `vision`, and `audio`, and an embedding of `"ping"` to `embedding`:
+
+```sh
+for a in agent vision audio; do
+  printf 'Authorization: Bearer %s\n' "$(<bulk.key)" | curl -s -o /dev/null -H @- \
+    -H 'content-type: application/json' -w "$a %{http_code}\n" \
+    --data "{\"model\":\"$a\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":1}" \
+    http://gb10-2:3000/$a/v1/chat/completions
+done
+printf 'Authorization: Bearer %s\n' "$(<bulk.key)" | curl -s -o /dev/null -H @- \
+  -H 'content-type: application/json' -w "embedding %{http_code}\n" \
+  --data '{"model":"embedding","input":"ping"}' http://gb10-2:3000/embedding/v1/embeddings
+```
+
+Each answered 200. The request log then held all four:
 
 ```sh
 ssh gb10-2 "docker exec -i gateway-postgres-1 psql -U agentgateway -d agentgateway -P pager=off -c \"
