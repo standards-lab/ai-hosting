@@ -1,6 +1,6 @@
 # goal · capstone.data-intelligence.torii
 
-- **State:** building
+- **State:** brief ready
 - **Task:** torii
 - **Branch:** torii
 
