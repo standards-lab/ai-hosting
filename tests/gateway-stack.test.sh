@@ -79,7 +79,7 @@ rendered() {
 }
 
 # Sets the fake stack: one tab-separated ps line a container given, as
-# <service> <name> <state> <status>, and torii's inspect, running with the count of networks
+# <service> <name> <state> <status>, and Torii's inspect, running with the count of networks
 # given: stack <networks> [<service> <name> <state> <status>]...
 stack() {
   local networks=$1

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The gateway's stack and torii's config: the render that fills
+# The gateway's stack and Torii's config: the render that fills
 # compose/torii/config.template.yaml with each row's port and model from the class
 # profiles, each key from keys.toml, and the switches in overflow.toml; the validation of a config
 # with the pinned agentgateway image; the two together, which put a config in place, with the
@@ -10,7 +10,7 @@
 # The clone's root, holding the stack's compose.yml and fnox.toml.
 HOSTING_GATEWAY_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
-# The directory holding torii's Dockerfile, its config template, the key list, the
+# The directory holding Torii's Dockerfile, its config template, the key list, the
 # overflow switches, and the rendered config.yaml, which the gateway's compose service mounts.
 HOSTING_GATEWAY=$HOSTING_GATEWAY_ROOT/compose/torii
 
@@ -50,7 +50,7 @@ hosting_gateway_toml() {
   echo "$json"
 }
 
-# Prints torii's config template, compose/torii/config.template.yaml, decoded to
+# Prints Torii's config template, compose/torii/config.template.yaml, decoded to
 # JSON with its anchors expanded.
 hosting_gateway_template() {
   hosting_yq -o json 'explode(.)' "$HOSTING_GATEWAY/config.template.yaml"
@@ -71,7 +71,7 @@ hosting_gateway_keys() {
   echo "$keys"
 }
 
-# Prints torii's config rendered from the template, the class profiles, the key list, and
+# Prints Torii's config rendered from the template, the class profiles, the key list, and
 # the overflow switches, holding each key's hash and no secret. Validates every input first,
 # printing each error at once: each class profile (hosting_profile_validate); the key list, each
 # [[keys]] entry a consumer, its class, interactive or bulk, and its key's SHA-256 hash in
@@ -106,7 +106,7 @@ hosting_gateway_render() {
       fail=1
   fi
   ((fail == 0)) || return 1
-  echo "# torii's config, rendered by lib/gateway.sh from config.template.yaml."
+  echo "# Torii's config, rendered by lib/gateway.sh from config.template.yaml."
   echo "# See docs/gateway.md"
   # shellcheck disable=SC2016 # $rows, $keys, and $overflow are jq's, bound by --argjson.
   hosting_gateway_jq 'render($rows; $keys; $overflow)' --argjson rows "$rows" \
@@ -114,7 +114,7 @@ hosting_gateway_render() {
     hosting_yq -p json -o yaml '.'
 }
 
-# Prints the image torii's Dockerfile pins.
+# Prints the image Torii's Dockerfile pins.
 hosting_gateway_image() {
   sed -n 's/^FROM //p' "$HOSTING_GATEWAY/Dockerfile"
 }
@@ -143,11 +143,11 @@ hosting_gateway_validate() {
   return "$status"
 }
 
-# Renders torii's config (hosting_gateway_render) into a copy beside config.yaml, readable
+# Renders Torii's config (hosting_gateway_render) into a copy beside config.yaml, readable
 # by the image's uid 65532, validates the copy (hosting_gateway_validate), writes the compose
 # override and env file holding the addresses its row hosts and the gateway publish on
 # (hosting_gateway_addresses, after hosting_tailnet_address), and only then renames the copy to
-# config.yaml, so torii never reads an unvalidated config. Fails, removing the copy and
+# config.yaml, so Torii never reads an unvalidated config. Fails, removing the copy and
 # leaving config.yaml, the override, and the env file as they were, when the render, the
 # validation, or an address lookup does.
 hosting_gateway_render_in_place() {
@@ -187,7 +187,7 @@ hosting_gateway_hosts() {
 
 # Writes the stack's compose override and env file into HOSTING_GATEWAY_STATE from the config at
 # the path given, after hosting_tailnet_address: the override, compose.override.yml, gives
-# torii an extra_hosts entry for each row host the config names (hosting_gateway_hosts);
+# Torii an extra_hosts entry for each row host the config names (hosting_gateway_hosts);
 # the env file, compose.env, sets GATEWAY_ADDRESS, where the consumer port is published, to this
 # host's tailnet address. That one lookup also serves the row host this host is, by its short
 # name; tailscale gives each other host's. Prints no address, and fails, writing neither file,
@@ -254,7 +254,7 @@ hosting_gateway_secret() {
 }
 
 # Writes the key given to the Foundry key's secret file, azure-foundry-key in
-# HOSTING_GATEWAY_STATE, which compose/torii.yml names: 0644, so torii's uid 65532
+# HOSTING_GATEWAY_STATE, which compose/torii.yml names: 0644, so Torii's uid 65532
 # reads it, in the 0700 directory. The key reaches no command's arguments. See docs/gateway.md,
 # "Secrets and Postgres".
 hosting_gateway_key_file() {
@@ -289,9 +289,9 @@ hosting_gateway_up() {
 }
 
 # Prints a table of the stack's containers, each service's container, state, and status, then
-# flags torii, the one container bound to gb10-2's tailnet address, when it is stranded
+# flags Torii, the one container bound to gb10-2's tailnet address, when it is stranded
 # (hosting_observe_stranded). Fails when the stack has no container, any is not running, or
-# torii is stranded, and when Docker does.
+# Torii is stranded, and when Docker does.
 hosting_gateway_status() {
   local containers service name state status id row address published networks flag fail=0
   containers=$(hosting_gateway_compose ps --all \

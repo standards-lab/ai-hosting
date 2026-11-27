@@ -1,4 +1,4 @@
-# The gateway's compose stack on gb10-2: torii, the Postgres that holds its request log,
+# The gateway's compose stack on gb10-2: Torii, the Postgres that holds its request log,
 # and its telemetry stores and Grafana, one included file per service.
 # See docs/gateway.md
 name: gateway

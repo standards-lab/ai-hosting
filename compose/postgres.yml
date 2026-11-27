@@ -1,4 +1,4 @@
-# Postgres, torii's database, holding its budgets and request log; it publishes no port.
+# Postgres, Torii's database, holding its budgets and request log; it publishes no port.
 # See docs/gateway.md
 services:
   postgres:

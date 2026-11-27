@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for torii's config render (lib/gateway.sh, lib/gateway.jq): a copy of
+# Tests for Torii's config render (lib/gateway.sh, lib/gateway.jq): a copy of
 # compose/torii rendered against the fixture class profiles under tests/gateway/classes, a
 # fixture key list, and the overflow switches, with a stub docker in place of the pinned image.
 # shellcheck source=tests/lib.sh
