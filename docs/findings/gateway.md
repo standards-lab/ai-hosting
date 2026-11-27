@@ -638,3 +638,73 @@ Each count takes the tests and subtests together.
   answered the row's own `{"detail":"Not Found"}` with 404, and `audio/translations` the same.
 - The other skips are go-ai's tests of a declared skip (`TestSkipDeclared_ThroughClient`,
   `TestSkipDeclared`, `TestDeclaredSkip`), whose subject is the skip itself.
+
+## torii-smoke
+
+The gateway smoke, the stack check run after Torii's rename and its redeploy on gb10-2, from
+2026-11-27T13:31:47Z to 13:36:46Z. It checks what the rename moved: the stack's containers, each
+alias's route, the request log, and the Collector's scrape of Torii's stats port. No client's base
+URL or key changed, so the client tiers ([client-tiers](#client-tiers)) didn't rerun.
+
+The redeploy ran in gb10-2's clone, `~/ai-hosting`. It began with `hosting gateway down` from the
+clone's previous commit, `bd34b83`, which removed `gateway-agentgateway-1` and kept the volumes.
+The clone then checked out the `torii` branch at `516c723`, and the leftover untracked
+`compose/agentgateway/config.yaml` was removed with its directory. Then:
+
+```sh
+hosting gateway render
+hosting gateway up
+hosting gateway status
+```
+
+`status` listed all seven containers running, `gateway-torii-1` among them, with nothing stranded.
+At 13:32:36Z, under the bulk key:
+
+```sh
+for a in agent vision audio embedding; do
+  printf 'Authorization: Bearer %s\n' "$(<bulk.key)" | curl -s -o $a.json -H @- \
+    -w "$a %{http_code} " http://gb10-2:3000/$a/v1/models
+  jq -r '[.data[].id]|join(",")' $a.json
+done
+```
+
+Each alias answered 200 and listed itself. Torii answers `/models` itself and logs almost none of
+them: the 610 sent in [gateway-buckets](#gateway-buckets) left 10 rows. So at 13:32:58Z the smoke
+also sent one minimal request per alias under the bulk key: a chat completion with `max_tokens` 1
+to `agent`, `vision`, and `audio`, and an embedding of `"ping"` to `embedding`. Each answered 200.
+The request log then held all four:
+
+```sh
+ssh gb10-2 "docker exec -i gateway-postgres-1 psql -U agentgateway -d agentgateway -P pager=off -c \"
+  SELECT started_at, agentgateway_user, http_status, gen_ai_operation_name,
+         attributes_json->>'route' AS route, attributes_json->>'endpoint' AS endpoint
+  FROM request_logs
+  WHERE agentgateway_user = 'ai-hosting' AND started_at >= '2026-11-27 13:32:00+00'
+  ORDER BY started_at\""
+```
+
+| Route | Operation | Status | Endpoint |
+| --- | --- | --- | --- |
+| `default/agent` | chat | 200 | gb10-1:8000 |
+| `default/vision` | chat | 200 | gb10-2:8001 |
+| `default/audio` | chat | 200 | framework:8002 |
+| `default/embedding` | embeddings | 200 | framework-2:8003 |
+
+The table kept its 10,082 rows from before the redeploy, the earliest from
+2026-11-25T00:09:02Z, so the Postgres volume carried over.
+
+Mimir, queried from inside the stack's network:
+
+```sh
+ssh gb10-2 'docker exec gateway-grafana-1 curl -s \
+  "http://mimir:9009/prometheus/api/v1/query?query=up%7Bjob%3D%22agentgateway%22%7D"'
+```
+
+held `up` at 1 for `instance="torii:15020"`, still under `job="agentgateway"`, so the scrape job's
+series continue under the new target. The old target's series, `instance="agentgateway:15020"`,
+held its last value until Mimir's staleness window passed, and was gone at 13:36:46Z.
+
+- **Torii runs as `gateway-torii-1`** in the compose project `gateway`, at the same address,
+  `http://gb10-2:3000/<alias>/v1`, with the same keys. The other six containers and the five
+  volumes kept their names.
+- **Every route, the request log, and the scrape work after the rename.**

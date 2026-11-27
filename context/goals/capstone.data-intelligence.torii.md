@@ -119,7 +119,8 @@ telemetry survive either way. No release.
 
 ## Progress
 
-slices 0/4 committed · standards — · spec — · editor —
+slices 4/4 committed · standards — · spec — · editor —
+- slice 4: gb10-2 took the branch as a git bundle (nothing pushed before the brief); `/models` is barely logged, so the smoke added one minimal request per alias to prove the request log.
 
 ## Decisions
 

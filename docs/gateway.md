@@ -609,6 +609,13 @@ overflow").
 **Status.** `status` checks Torii alone for a stranded container, since it is the one
 container bound to gb10-2's tailnet address; the Collector publishes no port.
 
+**The smoke.** After a redeploy, the gateway smoke checks the stack: `status`, each alias's
+`/models` and one minimal request per alias under the bulk key, those requests in the request log,
+and the Collector's scrape of Torii's stats port in Mimir
+([torii-smoke](findings/gateway.md#torii-smoke)). The client tiers
+([client-tiers](findings/gateway.md#client-tiers)) rerun only when a client's base URL or key
+changes.
+
 ## Open gaps
 
 What the gateway leaves open at v1.7.0, each by decision.
