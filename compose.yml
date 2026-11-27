@@ -1,11 +1,11 @@
-# The gateway's compose stack on gb10-2: agentgateway, the Postgres that holds its request log,
+# The gateway's compose stack on gb10-2: Torii, the Postgres that holds its request log,
 # and its telemetry stores and Grafana, one included file per service.
 # See docs/gateway.md
 name: gateway
 
 include:
   - compose/postgres.yml
-  - compose/agentgateway.yml
+  - compose/torii.yml
   - compose/otel-collector.yml
   - compose/tempo.yml
   - compose/mimir.yml

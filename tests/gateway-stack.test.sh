@@ -20,7 +20,7 @@ foundry_account=fixture-account
 # HOSTING_TEST_INVALID is set.
 ready_host() {
   cp -R "$repo/compose.yml" "$repo/compose" "$clone/"
-  rm -f "$clone/compose/agentgateway/config.yaml"
+  rm -f "$clone/compose/torii/config.yaml"
   state=$clone/.state/gateway
   export HOSTING_CLASS=gb10 HOSTNAME=gb10-2 HOSTING_TEST_DOCKER=$tmp/docker
   unset HOSTING_TEST_INVALID HOSTING_TEST_OFFLINE
@@ -30,7 +30,7 @@ ready_host() {
 case $1 in
   compose)
     [[ " $* " != *" up "* ]] || env >"$HOSTING_TEST_DOCKER/up-env"
-    if [[ $* == *"ps --all --quiet agentgateway" ]]; then
+    if [[ $* == *"ps --all --quiet torii" ]]; then
       cat "$HOSTING_TEST_DOCKER/id" 2>/dev/null || true
     elif [[ $* == *"ps --all --format"* ]]; then
       cat "$HOSTING_TEST_DOCKER/ps" 2>/dev/null || true
@@ -73,13 +73,13 @@ EOF
 # Writes what a render leaves: the config, the compose override, and the env file.
 rendered() {
   mkdir -p "$state"
-  echo "the rendered config" >"$clone/compose/agentgateway/config.yaml"
+  echo "the rendered config" >"$clone/compose/torii/config.yaml"
   echo "the override" >"$state/compose.override.yml"
   echo "GATEWAY_ADDRESS=192.0.2.10" >"$state/compose.env"
 }
 
 # Sets the fake stack: one tab-separated ps line a container given, as
-# <service> <name> <state> <status>, and agentgateway's inspect, running with the count of networks
+# <service> <name> <state> <status>, and Torii's inspect, running with the count of networks
 # given: stack <networks> [<service> <name> <state> <status>]...
 stack() {
   local networks=$1
@@ -90,8 +90,8 @@ stack() {
   done
   echo 0123456789abcdef >"$HOSTING_TEST_DOCKER/id"
   jq -n --argjson networks "$networks" '[{
-    Id: "0123456789abcdef", Name: "/gateway-agentgateway-1", State: {Status: "running"},
-    Config: {Labels: {"com.docker.compose.service": "agentgateway"}},
+    Id: "0123456789abcdef", Name: "/gateway-torii-1", State: {Status: "running"},
+    Config: {Labels: {"com.docker.compose.service": "torii"}},
     HostConfig: {PortBindings: {"3000/tcp": [{HostIp: "192.0.2.10", HostPort: "3000"}],
       "3001/tcp": [{HostIp: "127.0.0.1", HostPort: "3001"}]}},
     NetworkSettings: {Ports: {"3000/tcp": [{HostIp: "192.0.2.10", HostPort: "3000"}]},
@@ -130,11 +130,11 @@ test_render_puts_the_config_override_and_env_file_in_place() {
   run_hosting gateway render
   assert_equal status "$status" 0
   assert_equal stderr "$err" ""
-  assert_equal stdout "$out" "rendered $clone/compose/agentgateway/config.yaml;\
+  assert_equal stdout "$out" "rendered $clone/compose/torii/config.yaml;\
  hosting gateway up starts the stack on it"
-  assert_contains config "$(<"$clone/compose/agentgateway/config.yaml")" "hostOverride: gb10-1:"
+  assert_contains config "$(<"$clone/compose/torii/config.yaml")" "hostOverride: gb10-1:"
   assert_contains docker "$(docker_calls)" " --validate-only"
-  assert_equal hosts "$(hosting_yq -o json '.services.agentgateway.extra_hosts' \
+  assert_equal hosts "$(hosting_yq -o json '.services.torii.extra_hosts' \
     "$state/compose.override.yml" | jq -r 'to_entries[] | "\(.key) \(.value)"')" \
     "framework 192.0.2.12
 framework-2 192.0.2.13
@@ -164,9 +164,9 @@ test_render_leaves_everything_in_place_when_validation_fails() {
   run_hosting gateway render
   assert_equal status "$status" 1
   assert_equal stderr "$err" "Error: invalid"
-  assert_equal config "$(<"$clone/compose/agentgateway/config.yaml")" "the rendered config"
+  assert_equal config "$(<"$clone/compose/torii/config.yaml")" "the rendered config"
   assert_equal override "$(<"$state/compose.override.yml")" "the override"
-  assert_equal copies "$(find "$clone/compose/agentgateway" -name 'config.yaml.*')" ""
+  assert_equal copies "$(find "$clone/compose/torii" -name 'config.yaml.*')" ""
   assert_equal state "$(find "$state" -type f -printf '%f\n' | sort)" "compose.env
 compose.override.yml"
 }
@@ -178,9 +178,9 @@ test_render_leaves_everything_in_place_when_a_row_host_has_no_address() {
   assert_equal status "$status" 1
   assert_equal stderr "$err" "hosting: tailscale ip -4 framework gives no tailnet IPv4 address\
  for framework, a row host the gateway's config names; is it on the tailnet?"
-  assert_equal config "$([[ -e $clone/compose/agentgateway/config.yaml ]] && echo present)" ""
+  assert_equal config "$([[ -e $clone/compose/torii/config.yaml ]] && echo present)" ""
   assert_equal override "$(find "$state" -type f 2>/dev/null)" ""
-  assert_equal copies "$(find "$clone/compose/agentgateway" -name 'config.yaml.*')" ""
+  assert_equal copies "$(find "$clone/compose/torii" -name 'config.yaml.*')" ""
 }
 
 test_render_refuses_a_host_with_no_tailnet_address_before_docker() {
@@ -198,9 +198,9 @@ test_validate_checks_the_rendered_config_and_changes_nothing() {
   run_hosting gateway validate
   assert_equal status "$status" 0
   assert_contains docker "$(docker_calls)" \
-    "docker run --rm --network none --volume $clone/compose/agentgateway:/config:ro"
+    "docker run --rm --network none --volume $clone/compose/torii:/config:ro"
   assert_contains docker "$(docker_calls)" " -f /config/config.yaml --validate-only"
-  assert_equal config "$(<"$clone/compose/agentgateway/config.yaml")" "the rendered config"
+  assert_equal config "$(<"$clone/compose/torii/config.yaml")" "the rendered config"
   export HOSTING_TEST_INVALID=1
   run_hosting gateway validate
   assert_equal "invalid status" "$status" 1
@@ -211,7 +211,7 @@ test_validate_refuses_without_a_rendered_config() {
   ready_host
   run_hosting gateway validate
   assert_equal status "$status" 1
-  assert_equal stderr "$err" "hosting: $clone/compose/agentgateway/config.yaml is missing;\
+  assert_equal stderr "$err" "hosting: $clone/compose/torii/config.yaml is missing;\
  hosting gateway render writes it"
   assert_equal docker "$(docker_calls)" ""
 }
@@ -220,7 +220,7 @@ test_up_refuses_without_a_rendered_config() {
   ready_host
   run_hosting gateway up
   assert_equal status "$status" 1
-  assert_equal stderr "$err" "hosting: $clone/compose/agentgateway/config.yaml is missing;\
+  assert_equal stderr "$err" "hosting: $clone/compose/torii/config.yaml is missing;\
  hosting gateway render writes it"
   assert_equal calls "$(calls)" ""
   assert_equal secret "$(find "$clone" -name azure-foundry-key)" ""
@@ -267,28 +267,28 @@ $(compose_call down --volumes)"
 
 test_status_shows_a_running_stack() {
   ready_host
-  stack 1 agentgateway gateway-agentgateway-1 running "Up 2 hours" \
+  stack 1 torii gateway-torii-1 running "Up 2 hours" \
     postgres gateway-postgres-1 running "Up 2 hours (healthy)"
   run_hosting gateway status
   assert_equal status "$status" 0
   assert_equal stdout "$out" "$(printf '%-16s %-30s %-10s %s\n' SERVICE CONTAINER STATE STATUS \
-    agentgateway gateway-agentgateway-1 running "Up 2 hours" \
+    torii gateway-torii-1 running "Up 2 hours" \
     postgres gateway-postgres-1 running "Up 2 hours (healthy)")"
 }
 
-test_status_flags_a_stranded_agentgateway() {
+test_status_flags_a_stranded_torii() {
   ready_host
-  stack 0 agentgateway gateway-agentgateway-1 running "Up 2 hours"
+  stack 0 torii gateway-torii-1 running "Up 2 hours"
   run_hosting gateway status
   assert_equal status "$status" 1
-  assert_contains stdout "$out" "gateway-agentgateway-1 is stranded: it is on no network, so\
- 192.0.2.10:3000 is published nowhere; docker network connect bridge gateway-agentgateway-1\
+  assert_contains stdout "$out" "gateway-torii-1 is stranded: it is on no network, so\
+ 192.0.2.10:3000 is published nowhere; docker network connect bridge gateway-torii-1\
  reattaches it"
 }
 
 test_status_fails_on_a_stopped_service_or_no_stack() {
   ready_host
-  stack 1 agentgateway gateway-agentgateway-1 running "Up 2 hours" \
+  stack 1 torii gateway-torii-1 running "Up 2 hours" \
     postgres gateway-postgres-1 exited "Exited (1) 2 minutes ago"
   run_hosting gateway status
   assert_equal "stopped status" "$status" 1

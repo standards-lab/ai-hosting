@@ -5,7 +5,7 @@
 # repository's fnox.toml, and the key list, refusing a consumer the list already holds unless
 # --rotate is given; then generates a 256-bit key, writes it with fnox, by stdin, into the
 # repository's fnox.toml as AI_GATEWAY_TOKEN, encrypted to that file's own age recipients, and
-# writes only its SHA-256 hash and class into compose/agentgateway/keys.toml (hosting_key_issue in
+# writes only its SHA-256 hash and class into compose/torii/keys.toml (hosting_key_issue in
 # lib/key.sh). Runs on any host, the architect's laptop among them. Prints no key, and commits
 # nothing. See docs/gateway.md.
 set -euo pipefail

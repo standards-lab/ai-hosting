@@ -1,4 +1,4 @@
-# The OpenTelemetry Collector, the stack's telemetry ingress on the compose network: agentgateway's
+# The OpenTelemetry Collector, the stack's telemetry ingress on the compose network: Torii's
 # spans and stats, sent on to Tempo, Mimir, and Loki. It publishes no port.
 # See docs/gateway.md
 services:

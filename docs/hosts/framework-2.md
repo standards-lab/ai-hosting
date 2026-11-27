@@ -12,7 +12,7 @@ survey takes.
 ## Alias
 
 `embedding`, from the strix-halo class's profile. The gateway's config is the home of which host
-serves which alias ([config.template.yaml](../../compose/agentgateway/config.template.yaml)). The
+serves which alias ([config.template.yaml](../../compose/torii/config.template.yaml)). The
 embedding route has no cloud fallback, so this row is the alias's only backend.
 
 ## Load target

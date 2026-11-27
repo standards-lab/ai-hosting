@@ -46,10 +46,10 @@ planned capability's note also lists what is open at the plan of the task that b
   memory, read-only ([engines.md](engines.md)).
 - **Model files** (built): the `model` group lists, pulls, and prunes the host's model store
   ([hosting-suite.md](hosting-suite.md)).
-- **The gateway** (built): agentgateway's compose stack on gb10-2, with keys, priority, buckets,
-  overflow, and telemetry; the `gateway` group runs it and the `key` group issues consumers' keys
-  ([docs/gateway.md](../docs/gateway.md), [gateway.md](gateway.md)). The embedding route has no
-  cloud fallback.
+- **The gateway** (built): Torii, the workspace's agentgateway deployment, a compose stack on
+  gb10-2, with keys, priority, buckets, overflow, and telemetry; the `gateway` group runs it and
+  the `key` group issues consumers' keys ([docs/gateway.md](../docs/gateway.md),
+  [gateway.md](gateway.md)). The embedding route has no cloud fallback.
 - **Secrets** (built): the Foundry key and account and ai-hosting's bulk gateway key,
   age-encrypted in ai-hosting's committed `fnox.toml`, each described, and checked by
   `scripts/lint-secrets.sh` ([secrets.md](secrets.md)).

@@ -41,7 +41,7 @@ the first three, and the `gateway` task the other two.
 | `profile render <alias>` | Prints the full `docker run` command a row runs, one argument a line; install and update run the same command |
 | `profile set <alias> <field>=<value>` | Edits the committed profile in place, validating first and writing nothing when validation fails |
 | `profile stale [<class>]` | On any host, after validating the profiles, lists by class and alias each row whose `measured_vllm` is older than the vLLM pin in `lib/vllm.env`, the rows an upgrade re-measures; exits 0 whether it lists any or none |
-| `gateway render`, `validate`, `up`, `down`, `reset`, `status` | On gb10-2, the gateway's stack: render and validate agentgateway's config, start and stop the stack, and report its state ([gateway document](../docs/gateway.md#operating-the-stack-on-gb10-2)) |
+| `gateway render`, `validate`, `up`, `down`, `reset`, `status` | On gb10-2, Torii, the workspace's agentgateway deployment: render and validate its config, start and stop its stack, and report its state ([gateway document](../docs/gateway.md#operating-the-stack-on-gb10-2)) |
 | `key issue <consumer> <class> <repository> [--rotate]`, `key revoke <consumer>`, `key list` | On any host, a consumer's gateway key: issue or rotate it into the consumer's `fnox.toml` with its hash in the key list, delete its hash, or list the consumers holding one ([gateway document](../docs/gateway.md#keys)) |
 
 The host's install record, `$XDG_STATE_HOME/hosting/aliases`, lists the aliases it stands on.

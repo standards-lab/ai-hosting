@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Tests for agentgateway's config render (lib/gateway.sh, lib/gateway.jq): a copy of
-# compose/agentgateway rendered against the fixture class profiles under tests/gateway/classes, a
+# Tests for Torii's config render (lib/gateway.sh, lib/gateway.jq): a copy of
+# compose/torii rendered against the fixture class profiles under tests/gateway/classes, a
 # fixture key list, and the overflow switches, with a stub docker in place of the pinned image.
 # shellcheck source=tests/lib.sh
 source "$(dirname "$0")/lib.sh"
@@ -11,13 +11,13 @@ fixture_classes=$repo/tests/gateway/classes
 interactive_key=fixture-interactive-key
 bulk_key=fixture-bulk-key
 
-# Points the render at a copy of compose/agentgateway, with an empty key list, and the fixture class
+# Points the render at a copy of compose/torii, with an empty key list, and the fixture class
 # profiles.
 use_fixtures() {
-  cp -R "$repo/compose/agentgateway" "$tmp/agentgateway"
-  rm -f "$tmp/agentgateway/config.yaml"
-  grep '^#' "$repo/compose/agentgateway/keys.toml" >"$tmp/agentgateway/keys.toml"
-  HOSTING_GATEWAY=$tmp/agentgateway
+  cp -R "$repo/compose/torii" "$tmp/torii"
+  rm -f "$tmp/torii/config.yaml"
+  grep '^#' "$repo/compose/torii/keys.toml" >"$tmp/torii/keys.toml"
+  HOSTING_GATEWAY=$tmp/torii
   HOSTING_GATEWAY_STATE=$tmp/state
   HOSTING_PROFILES=$fixture_classes
   HOSTING_ADDRESS=192.0.2.10
@@ -28,12 +28,12 @@ hash_of() {
   printf %s "$1" | sha256sum | cut -d ' ' -f 1
 }
 
-# Writes the copy's key list: one interactive key for cerebro and one bulk key for batch.
+# Writes the copy's key list: one interactive key for mikoshi and one bulk key for batch.
 write_keys() {
   cat >>"$HOSTING_GATEWAY/keys.toml" <<EOF
 
 [[keys]]
-consumer = "cerebro"
+consumer = "mikoshi"
 class = "interactive"
 sha256 = "$(hash_of "$interactive_key")"
 
@@ -102,7 +102,7 @@ test_each_key_carries_its_hash_consumer_and_class() {
   assert_equal status "$status" 0
   assert_equal keys "$(jq -r '.gateways.consumer.apiKey.keys[]
     | [.keyHash, .metadata.name, .metadata.class] | join(" ")' <<<"$config")" \
-    "sha256:$(hash_of "$interactive_key") cerebro interactive
+    "sha256:$(hash_of "$interactive_key") mikoshi interactive
 sha256:$(hash_of "$bulk_key") batch bulk"
 }
 
@@ -159,7 +159,7 @@ test_the_key_list_is_validated_with_every_error_at_once() {
 note = "x"
 
 [[keys]]
-consumer = "Cerebro"
+consumer = "Mikoshi"
 class = "urgent"
 sha256 = "abc"
 
@@ -177,13 +177,13 @@ EOF
   render
   assert_equal status "$status" 1
   assert_equal stdout "$out" ""
-  assert_equal stderr "$err" "hosting: compose/agentgateway/keys.toml: note: not a key the schema defines
-hosting: compose/agentgateway/keys.toml: keys[0].consumer: required, lowercase letters, digits, and hyphens
-hosting: compose/agentgateway/keys.toml: keys[0].class: required, one of interactive, bulk
-hosting: compose/agentgateway/keys.toml: keys[0].sha256: required, 64 lowercase hex digits
-hosting: compose/agentgateway/keys.toml: keys[1].key: not a key the schema defines
-hosting: compose/agentgateway/keys.toml: keys: consumer pi is listed more than once
-hosting: compose/agentgateway/keys.toml: keys: a hash is listed more than once"
+  assert_equal stderr "$err" "hosting: compose/torii/keys.toml: note: not a key the schema defines
+hosting: compose/torii/keys.toml: keys[0].consumer: required, lowercase letters, digits, and hyphens
+hosting: compose/torii/keys.toml: keys[0].class: required, one of interactive, bulk
+hosting: compose/torii/keys.toml: keys[0].sha256: required, 64 lowercase hex digits
+hosting: compose/torii/keys.toml: keys[1].key: not a key the schema defines
+hosting: compose/torii/keys.toml: keys: consumer pi is listed more than once
+hosting: compose/torii/keys.toml: keys: a hash is listed more than once"
 }
 
 test_the_switches_are_validated_with_every_error_at_once() {
@@ -196,9 +196,9 @@ EOF
   render
   assert_equal status "$status" 1
   assert_equal stdout "$out" ""
-  assert_equal stderr "$err" "hosting: compose/agentgateway/overflow.toml: embedding: no alias with an Azure group; the switches are agent, vision, audio
-hosting: compose/agentgateway/overflow.toml: agent: true or false
-hosting: compose/agentgateway/overflow.toml: audio: required, true or false"
+  assert_equal stderr "$err" "hosting: compose/torii/overflow.toml: embedding: no alias with an Azure group; the switches are agent, vision, audio
+hosting: compose/torii/overflow.toml: agent: true or false
+hosting: compose/torii/overflow.toml: audio: required, true or false"
 }
 
 test_a_route_whose_alias_no_profile_has_is_refused() {

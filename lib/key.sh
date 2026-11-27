@@ -2,7 +2,7 @@
 # The gateway's consumer keys, issued on the architect's laptop beside the consumers' checkouts:
 # the issue that generates a consumer's key, writes it into the consumer repository's own
 # age-encrypted fnox.toml through fnox, and writes only its SHA-256 hash and class into the key
-# list, compose/agentgateway/keys.toml; the revoke that deletes a consumer's entry from the key
+# list, compose/torii/keys.toml; the revoke that deletes a consumer's entry from the key
 # list; and the list of the consumers holding one. The key list is the gateway's one record of
 # issued keys, validated as the render validates it (hosting_gateway_keys in lib/gateway.sh), and
 # no key is printed, put on a command line, or written to disk unencrypted. Sourced by
@@ -70,7 +70,7 @@ hosting_key_hash() {
   printf %s "$1" | sha256sum | cut -d ' ' -f 1
 }
 
-# Writes the key list given, the key list's JSON, to compose/agentgateway/keys.toml in place of
+# Writes the key list given, the key list's JSON, to compose/torii/keys.toml in place of
 # the old one, keeping the old one's leading comment lines, once a copy validates against the
 # template given (hosting_gateway_keys). Fails, removing the copy and leaving the key list as it
 # was, when the copy is invalid: hosting_key_write <keys> <template>.

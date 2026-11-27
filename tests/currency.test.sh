@@ -14,7 +14,7 @@ fake_project() {
   echo "      - uses: owner/action@v1" >"$project/.github/workflows/ci.yml"
   printf 'FROM owner/image:v1@sha256:d\nRUN pip install package==1\n' \
     >"$project/images/audio/Dockerfile"
-  service_image agentgateway owner/gateway:v1.1.0 v1.0.0 v1.1.0 v1.2.0-rc.1 latest
+  service_image torii owner/gateway:v1.1.0 v1.0.0 v1.1.0 v1.2.0-rc.1 latest
   write_stub gh "echo v1"
   write_stub curl "echo '{\"digest\": \"sha256:d\", \"info\": {\"version\": \"1\"}}'"
 }
@@ -80,10 +80,10 @@ test_current_pins_report_nothing() {
 test_a_service_image_behind_its_latest_v_tag_is_reported() {
   fake_project
   outdated_tools ""
-  service_image agentgateway owner/gateway:v1.0.0 v1.0.0 v1.1.0 v1.10.0 v1.11.0-rc.1 1.12.0
+  service_image torii owner/gateway:v1.0.0 v1.0.0 v1.1.0 v1.10.0 v1.11.0-rc.1 1.12.0
   run_currency
   assert_equal status "$status" 1
-  assert_equal stdout "$out" "compose/agentgateway/Dockerfile: owner/gateway v1.0.0 -> v1.10.0"
+  assert_equal stdout "$out" "compose/torii/Dockerfile: owner/gateway v1.0.0 -> v1.10.0"
 }
 
 test_a_service_image_is_compared_within_its_variant() {
@@ -117,12 +117,12 @@ test_a_held_service_image_passes() {
 test_a_service_image_with_no_tag_of_its_form_fails() {
   fake_project
   outdated_tools ""
-  service_image agentgateway owner/gateway:v1.0.0 1.0.0 1.1.0 latest
+  service_image torii owner/gateway:v1.0.0 1.0.0 1.1.0 latest
   run_currency
   assert_equal status "$status" 1
   assert_equal stdout "$out" ""
   assert_equal stderr "$err" \
-    "compose/agentgateway/Dockerfile: owner/gateway lists no release tag of v1.0.0's form"
+    "compose/torii/Dockerfile: owner/gateway lists no release tag of v1.0.0's form"
 }
 
 run_tests

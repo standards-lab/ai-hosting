@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # hosting:summary=Deletes a consumer's entry from the gateway's key list
 # `hosting key revoke <consumer>`: validates the consumer's name and the key list, refusing a
-# consumer the list doesn't hold, then deletes its entry from compose/agentgateway/keys.toml
+# consumer the list doesn't hold, then deletes its entry from compose/torii/keys.toml
 # (hosting_key_revoke in lib/key.sh); the gateway drops its key at the next hosting gateway render
 # on gb10-2. Runs on any host, and commits nothing. See docs/gateway.md.
 set -euo pipefail
