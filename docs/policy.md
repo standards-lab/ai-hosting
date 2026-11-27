@@ -140,7 +140,7 @@ Rows are placed by the GPU compute they share, not by the memory they fit.
   ([host-classes.md](../context/host-classes.md#why-the-profiles-take-this-shape)).
 - **One host to a role.** Each alias has one host, and nothing fails over between hosts; the
   gateway's [overflow](gateway.md#overflow) is the only fallback. The gateway's config maps each
-  alias to its host ([config.template.yaml](../compose/agentgateway/config.template.yaml)).
+  alias to its host ([config.template.yaml](../compose/torii/config.template.yaml)).
 - **No row is loaded on demand.** Every row stays resident: compute is the bottleneck, and loading
   and unloading a model add compute on top of inference.
 

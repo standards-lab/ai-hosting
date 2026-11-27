@@ -5,7 +5,7 @@ route timeouts, each taken through the gateway on gb10-2 with the keys it issues
 one cell: its command, its time in UTC, its figures, and the tool versions it ran on.
 [The gateway document](../gateway.md) holds the settings' reasoning and cites the cells by their
 section; the settings live in agentgateway's config template,
-[`compose/agentgateway/config.template.yaml`](../../compose/agentgateway/config.template.yaml).
+[`compose/agentgateway/config.template.yaml`](../../compose/torii/config.template.yaml).
 
 Two keys ran the cells: ai-hosting's own, consumer `ai-hosting` in the bulk class, from
 ai-hosting's `fnox.toml`, and go-ai's, consumer `go-ai` in the interactive class, from go-ai's

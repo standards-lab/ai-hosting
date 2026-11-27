@@ -16,7 +16,7 @@ receivers:
         - job_name: agentgateway
           scrape_interval: 15s
           static_configs:
-            - targets: ["agentgateway:15020"]
+            - targets: ["torii:15020"]
 
   prometheus/self:
     config:

@@ -9,9 +9,9 @@ operate the stack, and the gaps it leaves open. The files are the settings' one 
 - the stack: [`compose.yml`](../compose.yml), one [`compose/<service>.yml`](../compose) per
   service, and each service's `compose/<service>/Dockerfile`, whose `FROM` line is its pin;
 - agentgateway's config:
-  [`compose/agentgateway/config.template.yaml`](../compose/agentgateway/config.template.yaml), the
-  key list [`keys.toml`](../compose/agentgateway/keys.toml), and the overflow switches
-  [`overflow.toml`](../compose/agentgateway/overflow.toml), which `hosting gateway render` turns
+  [`compose/agentgateway/config.template.yaml`](../compose/torii/config.template.yaml), the
+  key list [`keys.toml`](../compose/torii/keys.toml), and the overflow switches
+  [`overflow.toml`](../compose/torii/overflow.toml), which `hosting gateway render` turns
   into `compose/agentgateway/config.yaml` with each row's port and model from the
   [class profiles](../classes/README.md);
 - the commands: [`lib/gateway.sh`](../lib/gateway.sh), [`lib/gateway.jq`](../lib/gateway.jq), and
@@ -181,7 +181,7 @@ revoked key gets 401, on alias routes and unrouted paths alike. The key is remov
 request is forwarded, so no row or deployment sees it.
 
 A key is 32 random bytes written as 64 lowercase hex digits. The key list,
-[`compose/agentgateway/keys.toml`](../compose/agentgateway/keys.toml), holds one `[[keys]]` entry
+[`compose/agentgateway/keys.toml`](../compose/torii/keys.toml), holds one `[[keys]]` entry
 per consumer: its name, its class (`interactive` or `bulk`), and the key's SHA-256 in lowercase
 hex, which is how agentgateway hashes a presented key, over its exact characters with no newline
 ([agentgateway.md][f-agentgateway], "Keys"). The render expands each entry from its class's
@@ -356,7 +356,7 @@ down (behaviors 7, 8)").
   ([Capacity and cloud spend](#capacity-and-cloud-spend)).
 - **Never under IL6.** An IL6 deployment keeps only each alias's row group, and a down row answers
   with its failure ([comparison.md][comparison], "IL6").
-- **The overflow switches.** [`overflow.toml`](../compose/agentgateway/overflow.toml) holds one
+- **The overflow switches.** [`overflow.toml`](../compose/torii/overflow.toml) holds one
   switch per alias with an Azure group; `false` drops that alias's group at the next render.
 - **The rewrite.** Each Azure provider's `ai` transformations drop what its deployment refuses, so
   a client sends the alias the same request whether the row or Azure answers: `agent-azure`

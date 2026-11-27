@@ -1,4 +1,4 @@
-# agentgateway's config template: lib/gateway.sh renders it into config.yaml with each row's port
+# torii's config template: lib/gateway.sh renders it into config.yaml with each row's port
 # and model from the class profiles, each host backend that names an alias with that alias's row
 # host and port, each key from keys.toml, and the switches in overflow.toml.
 # See docs/gateway.md

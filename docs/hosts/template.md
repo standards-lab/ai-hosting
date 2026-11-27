@@ -16,7 +16,7 @@ address.
 
 `<alias>`, the row this host serves, from the `<class>` class's profile. The gateway's config is
 the home of which host serves which alias
-([config.template.yaml](../../compose/agentgateway/config.template.yaml)).
+([config.template.yaml](../../compose/torii/config.template.yaml)).
 
 ## Load target
 

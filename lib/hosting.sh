@@ -4,7 +4,7 @@
 # command reports the same way and the host-class detection the commands that differ by class
 # share, and sources the rest: lib/profile.sh, the host-class profiles' validator and editor;
 # lib/row.sh, the container a row runs; lib/model.sh, the model store; lib/engine.sh, the rows a
-# host stands on; lib/observe.sh, what those rows are doing; lib/gateway.sh, agentgateway's
+# host stands on; lib/observe.sh, what those rows are doing; lib/gateway.sh, torii's
 # config; and lib/key.sh, the gateway's consumer keys. See context/hosting-suite.md.
 
 # shellcheck source=lib/profile.sh

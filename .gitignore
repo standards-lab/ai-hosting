@@ -4,7 +4,7 @@ mise.local.toml
 fnox.local.toml
 .fnox.local.toml
 .state/
-/compose/agentgateway/config.yaml*
+/compose/torii/config.yaml*
 
 *.swp
 *.swo

@@ -1,11 +1,11 @@
-# agentgateway, the gateway in front of the hosted rows, reading its rendered config from
-# compose/agentgateway/ read-only and the Foundry key from a Compose secret, with its consumer port
+# torii, the gateway in front of the hosted rows, reading its rendered config from
+# compose/torii/ read-only and the Foundry key from a Compose secret, with its consumer port
 # published on the address GATEWAY_ADDRESS names and its UI on the host's loopback only.
 # See docs/gateway.md
 services:
-  agentgateway:
+  torii:
     build:
-      context: agentgateway
+      context: torii
     command: ["-f", "/config/config.yaml"]
     restart: unless-stopped
     ports:
@@ -16,7 +16,7 @@ services:
     secrets:
       - azure-foundry-key
     volumes:
-      - ./agentgateway:/config:ro
+      - ./torii:/config:ro
     depends_on:
       postgres:
         condition: service_healthy

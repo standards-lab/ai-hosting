@@ -12,7 +12,7 @@ survey takes.
 ## Alias
 
 `audio`, from the strix-halo class's profile. The gateway's config is the home of which host
-serves which alias ([config.template.yaml](../../compose/agentgateway/config.template.yaml)).
+serves which alias ([config.template.yaml](../../compose/torii/config.template.yaml)).
 
 ## Load target
 
