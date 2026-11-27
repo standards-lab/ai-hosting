@@ -1,9 +1,35 @@
 # ai-hosting
 
 ai-hosting specifies how the organization's workstations host models: the vLLM rows each host
-class serves, and the one gateway in front of them, Torii, the workspace's agentgateway deployment
-on gb10-2. [`docs/gateway.md`](docs/gateway.md) holds the gateway's requirements, reasoning, key
-procedure, and operation. The working context starts at [`context/README.md`](context/README.md).
+class serves, and the one gateway in front of them, Torii, on gb10-2.
+[`docs/gateway.md`](docs/gateway.md) holds the gateway's requirements, reasoning, key procedure,
+and operation. The working context starts at [`context/README.md`](context/README.md).
+
+## Torii
+
+Torii is the workspace's deployment of [agentgateway](https://agentgateway.dev), v1.7.0, and the
+one path from a consumer to a model. A torii (鳥居) is the gate that marks where a shrine's sacred
+ground begins. Torii marks the boundary every model call passes through. Its name comes from the
+same Shinto set as the capstone's services: Bunrei processes, Mikoshi holds the knowledge people
+work in, and Kannushi is the planned harness service. Each reaches the models through Torii, or
+will, with a key of its own. The set is recorded in the coordinator's [naming
+note](https://github.com/standards-lab/org/blob/main/context/naming.md).
+
+agentgateway is the product, and the image, its config schema, and its behavior keep that name.
+Torii is this repository's configuration and operation of it, on gb10-2:
+
+- **One address per alias:** each alias is at `http://gb10-2:3000/<alias>/v1`, routed to the row
+  that serves it.
+- **Keys:** a key for each consumer, in the interactive or bulk class, with the class's priority
+  and request buckets.
+- **Overflow:** a fallback to Azure AI Foundry for agent, vision, and audio while their row is
+  out.
+- **A request log:** in Postgres, one row for each request it forwards.
+- **Telemetry:** traces, metrics, and logs, collected for Grafana.
+
+It runs as the compose service `torii`, container `gateway-torii-1`, in the stack whose compose
+project is `gateway`. Its config lives in [`compose/torii/`](compose/torii/), and the `hosting
+gateway` and `hosting key` commands run it.
 
 ## The `hosting` suite
 

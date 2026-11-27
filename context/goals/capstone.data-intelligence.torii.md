@@ -120,6 +120,7 @@ telemetry survive either way. No release.
 ## Progress
 
 slices 4/4 committed · standards ✓ (5e9e3b1) · spec ✓ (1 gap closed) · editor ✓
+- redirect, brief: give the README a fuller introduction to Torii as the agentgateway deployment (the name's meaning, the Shinto set). Done: a `## Torii` section.
 - slice 4: gb10-2 took the branch as a git bundle (nothing pushed before the brief); `/models` is barely logged, so the smoke added one minimal request per alias to prove the request log.
 
 ## Decisions
